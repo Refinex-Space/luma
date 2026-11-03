@@ -49,6 +49,9 @@
   align-items: center;
   gap: 4px;
   padding-right: 8px;
+  /* 1px transparent border + padding-box clip: hover/selection leave a hairline between rows. */
+  border: 1px solid transparent;
+  background-clip: padding-box;
   border-radius: var(--radius-selection, 5px);
   color: var(--fg-strong);
   white-space: nowrap;
@@ -66,16 +69,20 @@
   pointer-events: none;
 }
 .row:hover {
-  background: var(--bg-tree-hover, color-mix(in srgb, var(--fg-strong) 4%, transparent));
+  /* background-color (not the background shorthand) keeps the padding-box clip. */
+  background-color: var(--bg-tree-hover, color-mix(in srgb, var(--fg-strong) 4%, transparent));
+  background-clip: padding-box;
 }
 /* Tree.selectionInactiveBackground when unfocused, selectionBackground when focused. */
 .selected,
 .selected:hover {
-  background: var(--bg-tree-selected-inactive);
+  background-color: var(--bg-tree-selected-inactive);
+  background-clip: padding-box;
 }
 .tree:focus .selected,
 .tree:focus-within .selected {
-  background: var(--bg-tree-selected);
+  background-color: var(--bg-tree-selected);
+  background-clip: padding-box;
 }
 .tree:focus-visible .lead:not(.selected) {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus-ring) 50%, transparent);
