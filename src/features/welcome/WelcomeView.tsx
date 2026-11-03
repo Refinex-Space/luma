@@ -172,7 +172,6 @@ export function WelcomeView() {
             {version && <span className={styles.version}>{version}</span>}
           </span>
         </div>
-        <p className={styles.tagline}>{t("app.about.tagline")}</p>
         <nav className={styles.nav} aria-label={tx("Welcome")}>
           <NavItem id="projects" label="Projects" page={shown} onSelect={setPage} />
           <NavItem id="customize" label="Customize" page={shown} onSelect={setPage} />
@@ -184,17 +183,20 @@ export function WelcomeView() {
         </div>
       </aside>
       <section
-        className={clsx(styles.content, shown === "plugins" && styles.contentPlugins)}
+        className={styles.content}
         aria-label={shown === "projects" ? "Projects" : shown === "customize" ? "Customize" : "Plugins"}
         aria-busy={opening || undefined}
       >
-        {shown === "projects" && <ProjectsPage />}
-        {shown === "customize" && <CustomizePage />}
-        {shown === "plugins" && Plugins && (
-          <ErrorBoundary name="welcome plugins page">
-            <Slot component={Plugins} />
-          </ErrorBoundary>
-        )}
+        <div className={clsx(styles.page, shown === "plugins" && styles.contentPlugins)}>
+          {shown === "projects" && <ProjectsPage />}
+          {shown === "customize" && <CustomizePage />}
+          {shown === "plugins" && Plugins && (
+            <ErrorBoundary name="welcome plugins page">
+              <Slot component={Plugins} />
+            </ErrorBoundary>
+          )}
+        </div>
+        <p className={styles.tagline}>{t("app.about.tagline")}</p>
         {dropping && (
           <div className={styles.dropOverlay} aria-hidden>
             <Icon name="folder-open" size={20} />
