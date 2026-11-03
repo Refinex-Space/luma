@@ -78,14 +78,14 @@ function Landing() {
           onClick={() => void executeAction("file.openProject")}
         >
           <span className={styles.landingIcon}>
-            <Icon name="folder-open" size={20} />
+            <Icon name="folder-open" size={22} />
           </span>
           <T>Open</T>
         </button>
         {canClone && (
           <button type="button" className={styles.landingAction} onClick={() => void executeAction("vcs.clone")}>
             <span className={styles.landingIcon}>
-              <Icon name="branch" size={20} />
+              <Icon name="branch" size={22} />
             </span>
             <T>Clone Repository</T>
           </button>
@@ -98,7 +98,7 @@ function Landing() {
             onClick={() => void executeAction("remote.connect")}
           >
             <span className={styles.landingIcon}>
-              <Icon name="terminal" size={20} />
+              <Icon name="terminal" size={22} />
             </span>
             <T>Remote Development</T>
           </button>

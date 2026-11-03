@@ -344,55 +344,59 @@
   color: var(--fg-muted);
   line-height: 20px;
 }
-/* Equal columns (as wide as the longest label) keep the icon spacing uniform
-   regardless of each label's length. */
+/* One hairline frame, split into equal cells. A definite width makes 1fr columns match. */
 .landingActions {
-  display: grid;
+  display: inline-grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: 24px;
-  margin-top: 16px;
+  width: min(34rem, calc(100% - 64px));
+  margin-top: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
 }
 .landingAction {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 0;
+  justify-content: center;
+  gap: 10px;
+  min-height: 96px;
+  padding: 20px 16px 18px;
   border: 0;
-  background: none;
+  border-inline-end: 1px solid var(--border-strong);
+  background: transparent;
   color: var(--fg-strong);
   font: inherit;
   cursor: default;
 }
+.landingAction:last-child {
+  border-inline-end: 0;
+}
+.landingAction:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg-strong) 5%, transparent);
+}
 .landingIcon {
-  width: 48px;
-  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-popup-large);
-  background: var(--bg-elev);
-  box-shadow: inset 0 0 0 1px var(--border-button);
-}
-.landingAction:hover .landingIcon {
-  background: var(--bg-hover);
+  color: var(--fg-secondary);
 }
 .landingAction:focus-visible {
   outline: none;
-}
-.landingAction:focus-visible .landingIcon {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
 }
 .landingAction:disabled {
+  color: var(--fg-faint);
+}
+.landingAction:disabled .landingIcon {
   color: var(--fg-faint);
 }
 .landingHint {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
   color: var(--fg-faint);
 }
 
