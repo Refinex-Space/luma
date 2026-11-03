@@ -305,6 +305,18 @@ html {
   --fs-stripe-label: 11px;
   --stripe-button-w: 58px;
   --stripe-button-radius: 6px;
+  /* Icon-only stripe button, and the glyph drawn inside it. */
+  --stripe-icon-button: 32px;
+  --stripe-icon: 18px;
+  --h-stripe-named: 44px;
+  --h-stripe-more: 30px;
+  /* Main toolbar controls (title bar). */
+  --h-toolbar-control: 30px;
+  --h-menu-title: 28px;
+  --icon-toolbar: 18px;
+  --avatar: 20px;
+  --fs-toolbar: var(--fs-ui);
+  --fs-statusbar: var(--fs-ui);
   --bg-tab-selected: #233558;
   --border-tab-selected: #2e4d89;
   --bg-tab-selected-inactive: #26282c;
@@ -1325,18 +1337,31 @@ html {
  * Appearance options (Settings › Appearance), applied as attributes on :root
  * by the settings runtime.
  */
-/* Compact mode: smaller rows, toolbars and tabs. */
+/* Compact mode: shorter chrome, and smaller icons on the four edges. */
 :root[data-compact] {
   --h-titlebar: 32px;
-  --h-header: 32px;
-  --h-tabbar: 32px;
-  --h-tab: 24px;
+  --h-header: 30px;
+  --h-tabbar: 30px;
+  --h-tab: 22px;
   --h-row: 20px;
   --h-list-row: 20px;
-  --h-statusbar: 24px;
-  --h-stripe-button: 40px;
+  --h-statusbar: 20px;
+  --h-stripe-button: 24px;
   --h-field: 24px;
   --h-button: 24px;
+  --stripe-icon-button: 24px;
+  --stripe-icon: 16px;
+  --stripe-button-w: 46px;
+  --h-stripe-named: 36px;
+  --h-stripe-more: 24px;
+  /* Inner margin of the icon rails; the island gap between panels stays put. */
+  --stripe-inset: 2px;
+  --h-toolbar-control: 24px;
+  --h-menu-title: 24px;
+  --icon-toolbar: 16px;
+  --avatar: 16px;
+  --fs-toolbar: var(--fs-small);
+  --fs-statusbar: var(--fs-small);
 }
 /* Use contrast scrollbars. */
 :root[data-contrast-scrollbars] {

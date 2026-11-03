@@ -28,7 +28,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: var(--fs-ui);
+  font-size: var(--fs-toolbar, var(--fs-ui));
   font-weight: 600;
   color: var(--fg-strong);
   cursor: default;
@@ -41,12 +41,12 @@
 }
 /* Main toolbar dropdown widgets. */
 .widget {
-  height: 30px;
+  height: var(--h-toolbar-control, 30px);
   margin: 0;
   padding: 0 8px;
   border-radius: var(--radius-popup);
   color: var(--fg-strong);
-  font-size: var(--fs-ui);
+  font-size: var(--fs-toolbar, var(--fs-ui));
 }
 .widget {
   gap: 6px;
@@ -68,8 +68,8 @@
 }
 .avatar {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: var(--avatar, 20px);
+  height: var(--avatar, 20px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -93,10 +93,15 @@
   margin-left: 12px;
 }
 .tool {
-  width: 30px;
-  height: 30px;
+  width: var(--h-toolbar-control, 30px);
+  height: var(--h-toolbar-control, 30px);
   border-radius: var(--radius-popup);
   color: var(--fg-secondary);
+}
+.tool svg,
+.mainMenuButton svg {
+  width: var(--icon-toolbar, 18px);
+  height: var(--icon-toolbar, 18px);
 }
 
 /* Frameless window (Windows, Linux): caption buttons sit flush with the right and top edges. */
@@ -105,8 +110,8 @@
 }
 .mainMenuButton {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--h-toolbar-control, 30px);
+  height: var(--h-toolbar-control, 30px);
   margin-right: 4px;
   padding: 0;
   display: inline-flex;
@@ -130,7 +135,7 @@
   position: relative;
   flex: 0 1 auto;
   min-width: 34px;
-  height: 30px;
+  height: var(--h-toolbar-control, 30px);
   overflow: hidden;
 }
 .mainMenuSlot ~ .item,
@@ -159,7 +164,7 @@
   min-width: 0;
 }
 .menuTitle {
-  height: 28px;
+  height: var(--h-menu-title, 28px);
   padding: 0 7px;
   border-radius: var(--radius-popup);
   background: transparent;

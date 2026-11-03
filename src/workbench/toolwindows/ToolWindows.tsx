@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -118,10 +117,7 @@ function stripeButtonMenu(tw: ToolWindowContribution, showNames: boolean): MenuI
     {
       label: "Show Tool Window Names",
       checked: showNames,
-      run: () => {
-        resetStripeNames();
-        void setShowToolWindowNames(!showNames);
-      },
+      run: () => void setShowToolWindowNames(!showNames),
     },
   ];
 }
@@ -131,133 +127,11 @@ async function setShowToolWindowNames(on: boolean) {
   useProject.setState({ settings });
 }
 
-/** Stripe button widths: icons only, and the range with names. */
-const STRIPE_ICONS = 32;
-const STRIPE_MIN = 44;
-const STRIPE_DEFAULT = 56;
-const STRIPE_MAX = 96;
-const STRIPE_KEY = "lama.stripes.v1";
-
 type StripeSide = "left" | "right";
-/** Per stripe: button width with names, and names shown or hidden by a drag (unset: the setting decides). */
-interface StripeSize {
-  width: number;
-  names?: boolean;
-}
 
-function readStripes(): Record<StripeSide, StripeSize> {
-  const out: Record<StripeSide, StripeSize> = { left: { width: STRIPE_DEFAULT }, right: { width: STRIPE_DEFAULT } };
-  try {
-    const raw = JSON.parse(localStorage.getItem(STRIPE_KEY) ?? "null");
-    for (const side of ["left", "right"] as const) {
-      const v = raw?.[side];
-      if (typeof v?.width === "number") out[side].width = Math.min(STRIPE_MAX, Math.max(STRIPE_MIN, v.width));
-      if (typeof v?.names === "boolean") out[side].names = v.names;
-    }
-  } catch {
-    /* storage unavailable */
-  }
-  return out;
-}
-
-const useStripes = create<Record<StripeSide, StripeSize>>(readStripes);
-
-function setStripe(side: StripeSide, size: StripeSize) {
-  useStripes.setState({ [side]: size });
-  try {
-    localStorage.setItem(STRIPE_KEY, JSON.stringify(useStripes.getState()));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-/** "Show Tool Window Names" (menu or settings) applies to both stripes again. */
-function resetStripeNames() {
-  const s = useStripes.getState();
-  if (s.left.names === undefined && s.right.names === undefined) return;
-  setStripe("left", { width: s.left.width });
-  setStripe("right", { width: s.right.width });
-}
-
-/**
- * Resize handle on a stripe's inner edge. Dragging sets the stripe's button width;
- * narrower than halfway to the named minimum shows icons only.
- */
-function StripeHandle({
-  side,
-  names,
-  width,
-  frameRef,
-  onPreview,
-  onCommit,
-}: {
-  side: StripeSide;
-  names: boolean;
-  width: number;
-  frameRef: RefObject<HTMLDivElement | null>;
-  onPreview: (names: boolean) => void;
-  onCommit: (names: boolean, width: number) => void;
-}) {
-  const sign = side === "left" ? 1 : -1;
-  // The stripe follows the pointer; names show from STRIPE_MIN (truncated), icons only below it.
-  const resolve = (raw: number) => {
-    const px = Math.round(Math.min(STRIPE_MAX, Math.max(STRIPE_ICONS, raw)));
-    return px < STRIPE_MIN ? { names: false, width, px } : { names: true, width: px, px };
-  };
-
-  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    const stripe = frameRef.current?.querySelector<HTMLElement>(`[data-stripe-side="${side}"]`);
-    if (e.button !== 0 || !stripe) return;
-    e.preventDefault();
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
-    const origin = e.clientX;
-    const start = names ? width : STRIPE_ICONS;
-    const cursor = document.body.style.cursor;
-    document.body.style.cursor = "col-resize";
-    let next = { names, width, px: start };
-    const move = (ev: globalThis.PointerEvent) => {
-      const r = resolve(start + sign * (ev.clientX - origin));
-      if (r.names !== next.names) onPreview(r.names);
-      next = r;
-      stripe.style.setProperty("--stripe-drag", `${r.px}px`);
-    };
-    const end = () => {
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerup", end);
-      el.removeEventListener("pointercancel", end);
-      document.body.style.cursor = cursor;
-      stripe.style.removeProperty("--stripe-drag");
-      onCommit(next.names, next.width);
-    };
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", end);
-    el.addEventListener("pointercancel", end);
-  };
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const dir = ["ArrowLeft", "ArrowRight"].indexOf(e.key);
-    if (dir < 0) return;
-    e.preventDefault();
-    const step = sign * (dir ? 1 : -1) * 8;
-    // One step crosses between icons only and the narrowest named width.
-    if (!names) {
-      if (step > 0) onCommit(true, STRIPE_MIN);
-    } else if (width + step < STRIPE_MIN) onCommit(false, width);
-    else onCommit(true, Math.min(STRIPE_MAX, width + step));
-  };
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label={side === "left" ? "Resize tool window bar" : "Resize right tool window bar"}
-      tabIndex={0}
-      className={clsx(styles.stripeHandle, side === "right" && styles.stripeHandleRight)}
-      onPointerDown={onPointerDown}
-      onKeyDown={onKeyDown}
-    />
-  );
+/** 18 selects the 20px icon; compact mode uses the 16px drawing. */
+function useChromeIcon(): number {
+  return useProject((s) => (s.settings?.appearance?.compactMode === true ? 16 : 18));
 }
 
 // Stripe button drag. Pointer events rather than HTML5 drag and drop: with the window's native
@@ -381,6 +255,7 @@ function StripeButton({
 }) {
   const shortcut = shortcutLabel(`toolwindow.${tw.id}`);
   const dragged = useStripeDrag((s) => s.id === tw.id);
+  const icon = useChromeIcon();
   return (
     <button
       type="button"
@@ -407,7 +282,7 @@ function StripeButton({
       {...tooltipAttrs(tw.title, shortcut)}
     >
       <span className={styles.stripeIcon}>
-        <Icon name={tw.icon} size={18} />
+        <Icon name={tw.icon} size={icon} />
         {tw.useBadge && <StripeBadge useBadge={tw.useBadge} />}
       </span>
       {showName && (
@@ -423,6 +298,7 @@ function StripeButton({
 function StripeMore({ windows }: { windows: ToolWindowContribution[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
+  const icon = useChromeIcon();
   const items = useMemo<MenuItem[]>(
     () =>
       [...windows]
@@ -448,7 +324,7 @@ function StripeMore({ windows }: { windows: ToolWindowContribution[] }) {
         onClick={() => setOpen((v) => !v)}
         {...tooltipAttrs("More Tool Windows")}
       >
-        <Icon name="more-horizontal" size={18} />
+        <Icon name="more-horizontal" size={icon} />
       </button>
       <Menu
         open={open}
@@ -476,15 +352,12 @@ export function ToolWindowStripe({
   windows,
   visible,
   showNames = false,
-  buttonWidth,
 }: {
   side: StripeSide;
   windows: ToolWindowContribution[];
   visible: SlotRecord;
   /** Tool window names under the icons (IDEA "Show Tool Window Names"). */
   showNames?: boolean;
-  /** Button width with names, px. */
-  buttonWidth?: number;
 }) {
   const isActive = (w: ToolWindowContribution) => visible[slotOf(w)] === w.id;
   const stripeButtons = useToolWindowLayout((s) => s.stripeButtons);
@@ -521,7 +394,6 @@ export function ToolWindowStripe({
       role="toolbar"
       aria-orientation="vertical"
       data-stripe-side={side}
-      style={buttonWidth ? ({ "--stripe-button-w": `${buttonWidth}px` } as CSSProperties) : undefined}
       className={clsx(
         styles.stripe,
         showNames && styles.stripeWithNames,
@@ -950,36 +822,9 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
   const windows = useToolWindows();
   const visible = useEffectiveVisible(windows);
   const appearance = useToolWindowAppearance();
-  const { bars, widescreen } = appearance;
-  const stripes = useStripes();
-  const names = (side: StripeSide) => stripes[side].names ?? appearance.names;
-  // A change of the setting (here or in Settings) overrides what stripe drags chose.
-  const namesSetting = useProject((s) => s.settings?.appearance?.showToolWindowNames);
-  const seenNamesSetting = useRef(namesSetting);
-  useEffect(() => {
-    const seen = seenNamesSetting.current;
-    seenNamesSetting.current = namesSetting;
-    if (seen !== undefined && seen !== namesSetting) resetStripeNames();
-  }, [namesSetting]);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const stripeHandle = (side: StripeSide) => (
-    <StripeHandle
-      side={side}
-      names={names(side)}
-      width={stripes[side].width}
-      frameRef={frameRef}
-      onPreview={(on) => useStripes.setState({ [side]: { ...stripes[side], names: on } })}
-      onCommit={(on, width) => setStripe(side, { width, names: on === appearance.names ? undefined : on })}
-    />
-  );
+  const { bars, widescreen, names } = appearance;
   const stripe = (side: StripeSide) => (
-    <ToolWindowStripe
-      side={side}
-      windows={windows}
-      visible={visible}
-      showNames={names(side)}
-      buttonWidth={stripes[side].width}
-    />
+    <ToolWindowStripe side={side} windows={windows} visible={visible} showNames={names} />
   );
   const sizes = useToolWindowLayout((s) => s.sizes);
   const maximized = useToolWindowLayout((s) => s.maximized);
@@ -1011,12 +856,8 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
     />
   );
   return (
-    <div
-      ref={frameRef}
-      className={clsx(styles.frame, !rightStripe && styles.frameNoRight, !bars && styles.frameNoLeft)}
-    >
+    <div className={clsx(styles.frame, !rightStripe && styles.frameNoRight, !bars && styles.frameNoLeft)}>
       {bars && stripe("left")}
-      {bars && stripeHandle("left")}
       <div ref={gridRef} className={clsx(styles.grid, widescreen && styles.widescreen)}>
         <SidePanel anchor="left" windows={windows} visible={visible} />
         {gap("left")}
@@ -1028,7 +869,6 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
         {gap("bottom")}
         <SidePanel anchor="bottom" windows={windows} visible={visible} />
       </div>
-      {rightStripe && stripeHandle("right")}
       {rightStripe && stripe("right")}
     </div>
   );

@@ -31,6 +31,7 @@ import { acquirePopup } from "./popupState";
 import styles from "./Tree.module.css";
 import { T } from "./T";
 import { tx } from "@/platform/i18n";
+import { useProject } from "@/platform/project";
 import { useTreeReorder, type TreeReorder } from "./treeReorder";
 import { useTreeDirectoryContext } from "./treeDirectoryContext";
 export type { TreeReorder } from "./treeReorder";
@@ -223,13 +224,16 @@ export function Tree<T>(props: TreeProps<T>) {
     onContextMenu,
     speedSearch = true,
     speedSearchMode = "highlight",
-    rowHeight = 24,
+    rowHeight: rowHeightProp,
     indent = 20,
     className,
     rowClassName,
     handleRef,
     empty,
   } = props;
+
+  const compact = useProject((s) => s.settings?.appearance?.compactMode) === true;
+  const rowHeight = rowHeightProp ?? (compact ? 20 : 24);
 
   const [expanded, setExpandedInner, expandedControlled] = useControllableSet(props.expanded, props.defaultExpanded);
   const [selected, setSelectedInner, selectedControlled] = useControllableSet(props.selected, props.defaultSelected);
@@ -306,6 +310,12 @@ export function Tree<T>(props: TreeProps<T>) {
     overscan: 12,
     getItemKey: (i) => rows[i]!.key,
   });
+  const measuredHeight = useRef(rowHeight);
+  useLayoutEffect(() => {
+    if (measuredHeight.current === rowHeight) return;
+    measuredHeight.current = rowHeight;
+    virtualizer.measure();
+  }, [rowHeight, virtualizer]);
 
   // Keep the keyboard lead in view when the lead changes — not when its index
   // shifts because expanding or collapsing elsewhere inserted rows above it:

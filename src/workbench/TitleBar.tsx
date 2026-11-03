@@ -198,6 +198,7 @@ function GearButton({ customize }: { customize: MenuItem[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
   const settings = useProject((s) => s.settings);
+  const iconSize = settings?.appearance?.compactMode === true ? 16 : 18;
   useThemeOverride((s) => s.theme);
   useActions((s) => s.actions);
   const preset = useKeymap((s) => s.preset);
@@ -214,7 +215,7 @@ function GearButton({ customize }: { customize: MenuItem[] }) {
         ref={ref}
         icon="settings"
         title="IDE and Project Settings"
-        iconSize={18}
+        iconSize={iconSize}
         className={styles.tool}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -234,6 +235,7 @@ function GearButton({ customize }: { customize: MenuItem[] }) {
 /** One main toolbar entry: a built-in widget, a contributed one or an added action. */
 function ToolbarEntry({ id, items }: { id: string; items: ReadonlyMap<string, TitleItemContribution> }) {
   const actions = useActions((s) => s.actions);
+  const iconSize = useProject((s) => (s.settings?.appearance?.compactMode === true ? 16 : 18));
   if (id === PROJECT_WIDGET) return <ProjectButton />;
   const item = items.get(id);
   if (item) return <TitleItem item={item} />;
@@ -248,7 +250,7 @@ function ToolbarEntry({ id, items }: { id: string; items: ReadonlyMap<string, Ti
         action={action.id}
         title={action.title}
         shortcut={shortcutLabel(action.id) ?? (action.id === "navigate.searchEverywhere" ? "⇧⇧" : undefined)}
-        iconSize={18}
+        iconSize={iconSize}
         className={styles.tool}
       />
     </div>
@@ -256,7 +258,7 @@ function ToolbarEntry({ id, items }: { id: string; items: ReadonlyMap<string, Ti
 }
 
 /**
- * 40px main toolbar. macOS: native traffic lights overlay its left edge.
+ * Main toolbar. macOS: native traffic lights overlay its left edge.
  * Windows and Linux: the window is frameless, so the bar carries IDEA's main menu (☰) and
  * the caption buttons. `dialog`: a dialog window's bar (Settings), close button only.
  * `lightEdit`: a LightEdit window's bar, its title and the menu but no toolbar widgets.

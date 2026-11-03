@@ -7,7 +7,7 @@
   gap: 4px;
   padding: 0 10px 0 12px;
   font-family: var(--font-ui);
-  font-size: var(--fs-ui);
+  font-size: var(--fs-statusbar, var(--fs-ui));
   color: var(--fg-muted);
   white-space: nowrap;
   overflow: hidden;

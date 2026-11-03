@@ -156,13 +156,12 @@
   inset: 2px 12px;
 }
 
-/* Stripes */
+/* Stripes. Width is fixed: icon-only, or the named width from the setting. */
 .stripe {
-  /* --stripe-drag: the width under the pointer while the stripe edge is dragged. */
-  --stripe-button: var(--stripe-drag, 32px);
-  /* Outer padding: icons only sit centred between equal margins. */
-  --stripe-pad: var(--island-gap);
-  width: calc(var(--stripe-button) + var(--stripe-pad) + var(--island-gap));
+  --stripe-button: var(--stripe-icon-button, 32px);
+  /* Outer padding: icons sit centred. Compact mode tightens this without moving the island gap. */
+  --stripe-pad: var(--stripe-inset, var(--island-gap));
+  width: calc(var(--stripe-button) + var(--stripe-pad) + var(--stripe-inset, var(--island-gap)));
   container-type: inline-size;
   flex: none;
   display: flex;
@@ -181,40 +180,17 @@
   display: none;
 }
 .stripeWithNames {
-  --stripe-button: var(--stripe-drag, var(--stripe-button-w, 56px));
+  --stripe-button: var(--stripe-button-w, 56px);
   --stripe-pad: 4px;
   gap: 4px;
 }
 .stripeSideLeft {
   padding-left: var(--stripe-pad);
-  padding-right: var(--island-gap);
+  padding-right: var(--stripe-inset, var(--island-gap));
 }
 .stripeSideRight {
-  padding-left: var(--island-gap);
+  padding-left: var(--stripe-inset, var(--island-gap));
   padding-right: var(--stripe-pad);
-}
-/* Drag the stripe's inner edge: wider shows names, narrow shows icons only. Hit area covers the stripe's gap. */
-.stripeHandle {
-  position: relative;
-  flex: none;
-  width: 0;
-  outline: none;
-  cursor: col-resize;
-}
-.stripeHandle::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 0 calc(-1 * var(--island-gap));
-  z-index: var(--z-panel);
-}
-.stripeHandleRight::before {
-  inset: 0 calc(-1 * var(--island-gap)) 0 0;
-}
-.stripeHandle:focus-visible::before {
-  inset-block: 12px;
-  margin-inline: 2px;
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 2px;
 }
 .stripeSpacer {
   flex: 1;
@@ -237,8 +213,8 @@
 .stripeButton {
   position: relative;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: var(--stripe-icon-button, 32px);
+  height: var(--stripe-icon-button, 32px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -253,11 +229,11 @@
 .stripeNamed {
   width: var(--stripe-button);
   height: auto;
-  min-height: 44px;
+  min-height: var(--h-stripe-named, 44px);
   padding: 6px 2px 5px;
 }
 .stripeMore {
-  height: 30px;
+  height: var(--h-stripe-more, 30px);
 }
 .stripeWithNames .stripeMore {
   width: var(--stripe-button);
@@ -284,6 +260,11 @@
 .stripeIcon {
   position: relative;
   display: flex;
+}
+.stripeButton > svg,
+.stripeIcon svg {
+  width: var(--stripe-icon, 18px);
+  height: var(--stripe-icon, 18px);
 }
 .stripeLabel {
   max-width: 100%;

@@ -247,13 +247,17 @@
   align-items: center;
   gap: 4px;
   max-width: 260px;
-  height: 30px;
+  height: var(--h-toolbar-control, 30px);
   border-radius: 6px;
 }
 .widgetButton {
-  width: 30px;
-  height: 30px;
+  width: var(--h-toolbar-control, 30px);
+  height: var(--h-toolbar-control, 30px);
   border-radius: 6px;
+}
+.widgetButton svg {
+  width: var(--icon-toolbar, 18px);
+  height: var(--icon-toolbar, 18px);
 }
 .widgetConfigIcon {
   position: relative;
