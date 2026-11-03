@@ -127,6 +127,14 @@ export function atEdgeLine(text: string, caret: number, dir: -1 | 1): boolean {
   return dir < 0 ? !text.slice(0, caret).includes("\n") : !text.slice(caret).includes("\n");
 }
 
+/** The client-owned approval toggle. It is not something the agent reported. */
+const CLIENT_OPTION = "lama.cursor.approval";
+
+/** Whether the agent has offered models, modes or thinking effort (not only the client toggle). */
+export function offeredSettings(config: readonly AgentConfigOption[]): boolean {
+  return config.some((o) => o.id !== CLIENT_OPTION && o.values.length > 0);
+}
+
 /** The settings shown as dropdowns: model, mode, approvals, thinking effort, in that order. */
 export function mainOptions(config: readonly AgentConfigOption[]): AgentConfigOption[] {
   const order = ["model", "mode", "approval", "thought_level"];

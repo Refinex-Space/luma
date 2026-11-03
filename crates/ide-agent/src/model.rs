@@ -324,7 +324,8 @@ pub struct AgentProvider {
     pub command: String,
     /// Whether the command was found (on `PATH`).
     pub installed: bool,
-    /// Settings (models, modes…) the agent offered last time it ran; empty before its first session.
+    /// Settings (models, modes, thinking effort) the agent offered. Loaded when it is
+    /// selected, and remembered afterwards.
     pub config: Vec<AgentConfigOption>,
     /// Slash commands it offered last time.
     pub commands: Vec<AgentCommand>,

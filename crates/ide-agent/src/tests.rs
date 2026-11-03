@@ -243,6 +243,26 @@ async fn commands_are_remembered_per_project_and_merged_with_skills_on_disk() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn config_is_loaded_when_the_agent_is_selected_without_starting_a_task() {
+    let tmp = tempfile::tempdir().unwrap();
+    let agent = Arc::new(FakeAgent::default());
+    let mgr = manager(tmp.path(), agent.clone());
+    mgr.load_config("claude").await.unwrap();
+    let claude = mgr.providers().into_iter().find(|p| p.id == "claude").unwrap();
+    let ids: Vec<_> = claude.config.iter().map(|o| o.id.as_str()).collect();
+    assert!(ids.contains(&"model"), "{ids:?}");
+    assert!(ids.contains(&"mode"), "{ids:?}");
+    assert!(mgr.tasks.read().is_empty());
+    let calls = agent.calls.lock().clone();
+    assert!(calls.iter().any(|c| c == "initialize"));
+    assert!(calls.iter().any(|c| c == "session/new"));
+    assert!(calls.iter().any(|c| c == "session/close"));
+    let connections = agent.servers.lock().len();
+    mgr.load_config("claude").await.unwrap();
+    assert_eq!(agent.servers.lock().len(), connections);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn builtin_commands_only_fill_verified_gaps_and_preserve_advertised_metadata() {
     let tmp = tempfile::tempdir().unwrap();
     let agent = Arc::new(FakeAgent::default());

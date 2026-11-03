@@ -127,6 +127,11 @@ export const commands = {
 	 *  or sign-in run). Remembered until `refresh`.
 	 */
 	agentProbe: (provider: string, refresh: boolean) => typedError<AgentProbe, IdeError>(__TAURI_INVOKE("agent_probe", { provider, refresh })),
+	/**
+	 *  Models, modes and thinking effort, loaded when the agent is selected and before a
+	 *  message is sent. Remembered afterwards.
+	 */
+	agentLoadConfig: (provider: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_load_config", { provider })),
 	/**  Stops the task's current turn, or with `subagent` only that subagent's work. */
 	agentCancel: (task: string, subagent: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("agent_cancel", { task, subagent })),
 	/**  Answers a permission request; `option: null` cancels it. */
@@ -1276,7 +1281,10 @@ export type AgentProvider = {
 	command: string,
 	/**  Whether the command was found (on `PATH`). */
 	installed: boolean,
-	/**  Settings (models, modes…) the agent offered last time it ran; empty before its first session. */
+	/**
+	 *  Settings (models, modes, thinking effort) the agent offered. Loaded when it is
+	 *  selected, and remembered afterwards.
+	 */
 	config: AgentConfigOption[],
 	/**  Slash commands it offered last time. */
 	commands: AgentCommand[],

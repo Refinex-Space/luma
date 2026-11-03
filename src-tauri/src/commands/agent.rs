@@ -187,6 +187,14 @@ pub async fn agent_probe(
     agent::probe(&state.host, window.label(), provider, refresh).await
 }
 
+/// Models, modes and thinking effort, loaded when the agent is selected and before a
+/// message is sent. Remembered afterwards.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_load_config(window: Window, state: State<'_, AppState>, provider: String) -> IdeResult<()> {
+    agent::load_config(&state.host, window.label(), provider).await
+}
+
 /// Stops the task's current turn, or with `subagent` only that subagent's work.
 #[tauri::command]
 #[specta::specta]

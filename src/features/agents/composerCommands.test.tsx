@@ -5,6 +5,7 @@ import type { AgentCommand, AgentProvider } from "@/bindings";
 
 const agentCommands = vi.fn();
 const agentCreate = vi.fn();
+const agentLoadConfig = vi.fn();
 const vcsBranches = vi.fn();
 const vcsBranchInfo = vi.fn();
 
@@ -17,6 +18,7 @@ vi.mock("@/platform/ipc", async (importOriginal) => {
       ...real.commands,
       agentCommands: (provider: string, task: string | null) => agentCommands(provider, task),
       agentCreate: (request: unknown) => agentCreate(request),
+      agentLoadConfig: (provider: string) => agentLoadConfig(provider),
       vcsBranchInfo: (root: string | null) => vcsBranchInfo(root),
       vcsBranches: (root: string | null) => vcsBranches(root),
     },
@@ -56,6 +58,7 @@ beforeEach(() => {
       Promise.resolve({ status: "ok", data: { head: root === "/project-b" ? "b-main" : "a-main" } }),
     );
   agentCommands.mockReset();
+  agentLoadConfig.mockReset().mockResolvedValue({ status: "ok", data: null });
   agentCreate.mockReset().mockResolvedValue({ status: "error", error: { kind: "invalid", message: "stop here" } });
   useAgents.setState({
     providers: [claude],
@@ -141,6 +144,40 @@ describe("New Task composer commands", () => {
     await waitFor(() => expect(screen.queryByRole("listbox", { name: "Commands" })).toBeNull());
     expect(agentCreate).not.toHaveBeenCalled();
   });
+});
+
+it("loads models when the agent is selected, before a message is sent", async () => {
+  agentCommands.mockResolvedValue({ status: "ok", data: [] });
+  render(<HomeEditor />);
+  await waitFor(() => expect(agentLoadConfig).toHaveBeenCalledWith("claude"));
+  expect(screen.queryByText(/Models and modes appear/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Model" })).toBeNull();
+
+  const model: AgentProvider["config"][number] = {
+    id: "model",
+    name: "Model",
+    description: null,
+    category: "model",
+    current: "big",
+    via: "option",
+    values: [
+      { value: "big", name: "Big", description: null },
+      { value: "small", name: "Small", description: null },
+    ],
+  };
+  act(() => {
+    useAgents.setState({ providers: [{ ...claude, config: [model] }] });
+  });
+  expect(screen.getByRole("button", { name: "Model" })).toHaveTextContent("Big");
+  expect(agentLoadConfig).toHaveBeenCalledTimes(1);
+
+  act(() => {
+    useAgents.setState({
+      providers: [claude, { ...claude, id: "gemini", name: "Gemini CLI" }],
+      draft: { ...useAgents.getState().draft, provider: "gemini", config: {} },
+    });
+  });
+  await waitFor(() => expect(agentLoadConfig).toHaveBeenCalledWith("gemini"));
 });
 
 describe("workspace task project", () => {

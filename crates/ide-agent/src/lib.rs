@@ -90,6 +90,8 @@ struct Shared {
     providers: RwLock<Vec<provider::ProviderSpec>>,
     /// Last probe of each provider.
     probes: Mutex<HashMap<String, AgentProbe>>,
+    /// One load at a time per provider, so selecting it again waits for the same read.
+    loading: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 /// What an agent offered in its last session, for the New Task page.
@@ -260,6 +262,7 @@ impl AgentManager {
             known: Mutex::new(known),
             providers,
             probes: Mutex::new(HashMap::new()),
+            loading: Mutex::new(HashMap::new()),
         });
         let mut tasks = HashMap::new();
         for file in std::fs::read_dir(&shared.paths.store_dir).into_iter().flatten().flatten() {
@@ -750,6 +753,92 @@ impl AgentManager {
         }
         self.shared.probes.lock().insert(spec.id, probe.clone());
         Ok(probe)
+    }
+
+    /// Reads models, modes and thinking effort for the New Task page, before any message
+    /// is sent. A listing that does not open a session is used when the agent has one;
+    /// otherwise a session is opened and closed again. Remembered for the next time.
+    pub async fn load_config(&self, provider: &str) -> IdeResult<()> {
+        let gate = {
+            let mut gates = self.shared.loading.lock();
+            gates.entry(provider.to_owned()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
+        };
+        let _guard = gate.lock().await;
+        if self.shared.known.lock().get(provider).is_some_and(|k| !k.config.is_empty()) {
+            return Ok(());
+        }
+        let spec = self.shared.spec(provider).ok_or_else(|| IdeError::invalid(format!("unknown agent {provider}")))?;
+        let stderr: Arc<Mutex<Vec<String>>> = Arc::default();
+        let lines = stderr.clone();
+        let on_stderr: Box<dyn Fn(String) + Send + Sync> = Box::new(move |line| lines.lock().push(line));
+        let peer = (self.shared.connector)(
+            &spec,
+            &self.shared.paths.project_root,
+            Arc::new(ide_jsonrpc::NoopHandler),
+            on_stderr,
+        )
+        .map_err(|e| IdeError::internal(format!("Couldn't start {} (`{}`): {e}", spec.name, spec.command)))?;
+        let listed = self.list_options(&peer, &spec, &stderr).await;
+        peer.kill();
+        let mut options = config::options_of(&listed?);
+        if options.is_empty() {
+            return Ok(());
+        }
+        config::add_client_options(&spec.id, &mut options);
+        self.shared.remember(&spec.id, Some(&options), None);
+        self.shared.emit(AgentEvent::Providers);
+        Ok(())
+    }
+
+    /// `initialize`, then `_lama/options` or a session that is closed before the process exits.
+    async fn list_options(
+        &self,
+        peer: &Peer,
+        spec: &provider::ProviderSpec,
+        stderr: &Mutex<Vec<String>>,
+    ) -> IdeResult<Value> {
+        let init = tokio::time::timeout(
+            PROBE_TIMEOUT,
+            peer.request::<_, Value>("initialize", acp::initialize_params(&client_info()), None),
+        )
+        .await;
+        match init {
+            Ok(Ok(_)) => {}
+            Ok(Err(e)) => return Err(option_failure(spec, stderr, e)),
+            Err(_) => return Err(IdeError::internal("the agent did not answer")),
+        }
+        let preview =
+            tokio::time::timeout(PROBE_TIMEOUT, peer.request::<_, Value>("_lama/options", json!({}), None)).await;
+        let result = match preview {
+            Ok(Ok(v)) => return Ok(v),
+            Ok(Err(_)) => {
+                let cwd = dunce::canonicalize(&self.shared.paths.project_root)
+                    .unwrap_or_else(|_| self.shared.paths.project_root.clone());
+                let created = tokio::time::timeout(
+                    PROBE_TIMEOUT,
+                    peer.request::<_, Value>(
+                        "session/new",
+                        json!({ "cwd": cwd.to_string_lossy(), "mcpServers": [] }),
+                        None,
+                    ),
+                )
+                .await;
+                match created {
+                    Ok(Ok(v)) => v,
+                    Ok(Err(e)) => return Err(option_failure(spec, stderr, e)),
+                    Err(_) => return Err(IdeError::internal("the agent did not answer")),
+                }
+            }
+            Err(_) => return Err(IdeError::internal("the agent did not answer")),
+        };
+        if let Some(id) = result.get("sessionId").and_then(Value::as_str) {
+            let _ = tokio::time::timeout(
+                Duration::from_secs(5),
+                peer.request::<_, Value>("session/close", json!({ "sessionId": id }), None),
+            )
+            .await;
+        }
+        Ok(result)
     }
 
     /// Stops the current turn (`session/cancel`); pending permission requests are cancelled.
@@ -1652,6 +1741,19 @@ fn usage_limit(e: &RpcError) -> Option<Option<f64>> {
 
 fn client_info() -> Value {
     json!({ "name": "Lama", "version": env!("CARGO_PKG_VERSION") })
+}
+
+fn option_failure(spec: &provider::ProviderSpec, stderr: &Mutex<Vec<String>>, e: RpcError) -> IdeError {
+    let message = match e {
+        RpcError::Server { message, .. } if message.to_lowercase().contains("auth") => {
+            format!("{} needs you to sign in. {}", spec.name, spec.login_hint)
+        }
+        e => match stderr.lock().last() {
+            Some(line) => format!("{e}: {line}"),
+            None => e.to_string(),
+        },
+    };
+    IdeError::internal(message)
 }
 
 /// What the agent said it can do, and whether it takes embedded files.

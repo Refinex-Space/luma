@@ -236,6 +236,9 @@ impl CodexShim {
             "_lama/steer" => self.steer(&params).await,
             "_lama/rollback" => self.rollback(&params).await,
             "session/close" => self.close(&params).await,
+            // Models and modes, without `thread/start`: a New Task page can offer them
+            // before the first message, and no thread is left behind.
+            "_lama/options" => self.preview_options().await,
             _ => Err(error(codes::METHOD_NOT_FOUND, format!("unsupported method {method}"))),
         }
     }
@@ -271,6 +274,19 @@ impl CodexShim {
             "agentInfo": { "name": "codex", "title": "Codex", "version": version },
             "authMethods": [],
         }))
+    }
+
+    /// Model, reasoning effort and mode, from `model/list` and the defaults. No thread is opened.
+    async fn preview_options(&self) -> Result<Value, ResponseError> {
+        let models = self.models().await;
+        let model = models.iter().find(|m| m.is_default).or_else(|| models.first());
+        let mut settings = translate::Settings {
+            model: model.map(|m| m.id.clone()).unwrap_or_default(),
+            effort: None,
+            mode: translate::Mode::Ask,
+        };
+        settings.fit_effort(&models);
+        Ok(json!({ "configOptions": translate::config_options(&models, &settings) }))
     }
 
     /// The models codex offers; empty when it can't list them.

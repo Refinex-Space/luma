@@ -1,9 +1,9 @@
 /** New Task page: one prompt box with the agent and its settings; where it works under it. */
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentProbe, Branch } from "@/bindings";
 import { executeAction } from "@/platform/actions";
-import { call, commands } from "@/platform/ipc";
+import { call, commands, isTauri } from "@/platform/ipc";
 import { useTx, useTxTemplate } from "@/platform/i18n";
 import { basename, useProject } from "@/platform/project";
 import { Icon, Select, T, type SelectOption } from "@/ui";
@@ -11,7 +11,7 @@ import { defaultTaskProject } from "./project";
 import { maybeEditorService, type EditorInput } from "@/workbench/contributions";
 import { Composer } from "./Composer";
 import { SubmitButton } from "./SubmitButton";
-import { canSend, emptyDraft } from "./composerModel";
+import { canSend, emptyDraft, offeredSettings } from "./composerModel";
 import { ConfigPickers } from "./ConfigPickers";
 import { providerIcon } from "./model";
 import { ADD_AGENT, providerOptions as agentOptions } from "./providerOptions";
@@ -41,6 +41,7 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
   const current = repoState?.root === root ? repoState.current : null;
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const loadedConfig = useRef<string | null>(null);
 
   // Agents installed in Settings (its own window) show up when this one is back in front.
   useEffect(() => {
@@ -67,6 +68,25 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
   }, [root, project?.workspace]);
 
   const provider = providers.find((p) => p.id === draft.provider) ?? providers[0];
+  // Models and thinking effort come from the agent. Ask as soon as it is selected,
+  // so they can be chosen before the first message.
+  useEffect(() => {
+    if (!isTauri() || !provider?.installed || offeredSettings(provider.config)) return;
+    if (loadedConfig.current === provider.id) return;
+    loadedConfig.current = provider.id;
+    const id = provider.id;
+    let live = true;
+    call(commands.agentLoadConfig(id))
+      .then(() => {
+        if (live) void refreshProviders();
+      })
+      .catch((e: unknown) => {
+        if (live) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [provider?.id, provider?.installed, provider?.config]);
   const probe = useProbe(provider?.installed ? provider.id : null, provider?.command);
   const agentCommands = useAgentCommands(provider?.id, null, provider?.commands ?? NO_COMMANDS);
   const providerOptions: SelectOption[] = agentOptions(providers, tx, providerIcon);
@@ -206,18 +226,13 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
               : [probe.name, probe.version, probe.protocol].filter(Boolean).join(" · ")}
           </p>
         )}
-        {(error || (provider && !provider.installed) || (provider && !provider.config.length)) && (
-          <p
-            className={error || !provider?.installed ? styles.warning : styles.note}
-            role={error ? "alert" : undefined}
-          >
-            {error ??
-              (provider && !provider.installed ? (
-                txTemplate(`${provider.command} was not found on PATH`)
-              ) : (
-                <T>Models and modes appear after this agent's first task.</T>
-              ))}
+        {error && (
+          <p className={styles.warning} role="alert">
+            {error}
           </p>
+        )}
+        {provider && !provider.installed && !error && (
+          <p className={styles.warning}>{txTemplate(`${provider.command} was not found on PATH`)}</p>
         )}
       </div>
     </div>

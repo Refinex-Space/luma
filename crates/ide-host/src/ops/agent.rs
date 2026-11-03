@@ -148,6 +148,12 @@ pub async fn probe(host: &Host, window: &str, provider: String, refresh: bool) -
     host.project(window)?.agents.probe(&provider, refresh).await
 }
 
+/// Models, modes and thinking effort for the New Task page, before a message is sent.
+pub async fn load_config(host: &Host, window: &str, provider: String) -> IdeResult<()> {
+    host.require_trust(window)?;
+    host.project(window)?.agents.load_config(&provider).await
+}
+
 /// Stops the task's current turn, or with `subagent` only that subagent's work.
 pub fn cancel(host: &Host, window: &str, task: String, subagent: Option<String>) -> IdeResult<()> {
     host.project(window)?.agents.cancel(&task, subagent)
@@ -209,6 +215,7 @@ pub(crate) fn register(d: &mut Dispatcher) {
     d.add("agent_fork", |c| async move { fork(&c.host, &c.window, c.arg("task")?, c.arg("turns")?).await });
     d.add("agent_rollback", |c| async move { rollback(&c.host, &c.window, c.arg("task")?, c.arg("turns")?).await });
     d.add("agent_probe", |c| async move { probe(&c.host, &c.window, c.arg("provider")?, c.arg("refresh")?).await });
+    d.add("agent_load_config", |c| async move { load_config(&c.host, &c.window, c.arg("provider")?).await });
     d.add("agent_cancel", |c| async move { cancel(&c.host, &c.window, c.arg("task")?, c.arg("subagent")?) });
     d.add("agent_respond", |c| async move {
         respond(&c.host, &c.window, c.arg("task")?, c.arg("permission")?, c.arg("option")?)
