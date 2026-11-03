@@ -14,7 +14,7 @@ import { ACCENT_PRESETS, DEFAULT_ACCENT } from "@/workbench/theme";
 import { reopenEnabled, setReopenPreference, useSession } from "./session";
 import styles from "./Welcome.module.css";
 import { BUILTIN_THEMES, isBuiltinTheme, type BuiltinThemeId } from "@/platform/themes";
-import { tx } from "@/platform/i18n";
+import { useTx, type Locale } from "@/platform/i18n";
 
 type Theme = BuiltinThemeId;
 
@@ -44,8 +44,15 @@ interface AppearanceView {
   syncWithOs: boolean;
   accent: string;
   fontSize: number;
+  locale: Locale;
   keymap: string;
 }
+
+/** Same choices as Settings › Language and Region. Names stay in their own language. */
+const LOCALE_OPTIONS: SelectOption<Locale>[] = [
+  { value: "en", label: "English" },
+  { value: "zh", label: "简体中文 (Chinese, Simplified)" },
+];
 
 /** The values Customize shows, from (possibly partial / legacy) settings. */
 export function customizeView(settings: ReturnType<typeof useProject.getState>["settings"]): AppearanceView {
@@ -58,29 +65,34 @@ export function customizeView(settings: ReturnType<typeof useProject.getState>["
     syncWithOs: a.syncWithOs === true || a.theme === "system",
     accent: typeof a.accent === "string" ? a.accent.toLowerCase() : DEFAULT_ACCENT,
     fontSize: custom ? size : DEFAULT_UI_FONT_SIZE,
+    locale: a.locale === "zh" ? "zh" : "en",
     keymap: typeof settings?.keymap === "string" && settings.keymap ? settings.keymap : defaultPreset(),
   };
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  const tx = useTx();
   return (
     <div className={styles.field}>
-      <span className={styles.fieldLabel}>{label}</span>
+      <span className={styles.fieldLabel}>{tx(label)}</span>
       <div className={styles.fieldControl}>{children}</div>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
+  const tx = useTx();
+  const heading = tx(title);
   return (
-    <section className={styles.section} aria-label={title}>
-      <h2 className={styles.sectionTitle}>{title}</h2>
+    <section className={styles.section} aria-label={heading}>
+      <h2 className={styles.sectionTitle}>{heading}</h2>
       {children}
     </section>
   );
 }
 
 export function CustomizePage() {
+  const tx = useTx();
   const settings = useProject((s) => s.settings);
   const pref = useSession((s) => s.reopenPref);
   const v = customizeView(settings);
@@ -138,8 +150,8 @@ export function CustomizePage() {
                 type="button"
                 role="radio"
                 aria-checked={shown.accent === p.value}
-                aria-label={p.label}
-                title={p.label}
+                aria-label={tx(p.label)}
+                title={tx(p.label)}
                 className={styles.swatch}
                 style={{ "--swatch": p.value } as CSSProperties}
                 onClick={() => update("accent", p.value, () => setGlobalSetting("appearance.accent", p.value))}
@@ -166,6 +178,18 @@ export function CustomizePage() {
                 await setGlobalSetting("appearance.useCustomFont", n !== DEFAULT_UI_FONT_SIZE || keepFamily);
               });
             }}
+          />
+        </Field>
+      </Section>
+
+      <Section title="Language and Region">
+        <Field label="Language">
+          <Select<Locale>
+            value={shown.locale}
+            options={LOCALE_OPTIONS}
+            aria-label="Language"
+            className={styles.localeSelect}
+            onChange={(locale) => update("locale", locale, () => setGlobalSetting("appearance.locale", locale))}
           />
         </Field>
       </Section>

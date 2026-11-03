@@ -283,6 +283,9 @@
   align-items: center;
   gap: 14px;
 }
+.localeSelect {
+  min-width: 248px;
+}
 .swatches {
   display: flex;
   gap: 8px;

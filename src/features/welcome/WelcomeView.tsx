@@ -72,14 +72,17 @@ function NavItem({
   page: WelcomePage;
   onSelect: (p: WelcomePage) => void;
 }) {
+  const tx = useTx();
+  const text = tx(label);
   return (
     <button
       type="button"
       className={styles.navItem}
       aria-current={page === id ? "page" : undefined}
+      aria-label={text}
       onClick={() => onSelect(id)}
     >
-      {label}
+      {text}
     </button>
   );
 }

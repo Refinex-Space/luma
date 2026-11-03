@@ -190,8 +190,10 @@ describe("helpers", () => {
       theme: "light",
       syncWithOs: false,
       fontSize: 13,
+      locale: "en",
       keymap: "intellij-macos",
     });
+    expect(customizeView({ appearance: { locale: "zh" } } as Settings).locale).toBe("zh");
     expect(
       customizeView({
         appearance: { theme: "system", useCustomFont: true, uiFontSize: 15 },
