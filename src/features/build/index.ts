@@ -13,7 +13,7 @@ import {
 } from "@/workbench/contributions";
 import { BuildTitleItem } from "./BuildTitleItem";
 import { BuildHeaderActions, BuildView } from "./BuildView";
-import { BUILD_RUNNING, resetBuildRun, startBuild, stopBuild, useBuildRun } from "./store";
+import { BUILD_RUNNING, resetBuildRun, startBuild, stopBuild } from "./store";
 
 const WHEN = `projectOpen && !${BUILD_RUNNING}`;
 
@@ -21,12 +21,6 @@ const WHEN = `projectOpen && !${BUILD_RUNNING}`;
 function moduleTarget(arg: unknown): string | null {
   if (typeof arg === "string" && arg) return arg;
   return maybeEditorService()?.activePath() ?? null;
-}
-
-function useErrorBadge(): number | null {
-  return useBuildRun((s) =>
-    s.status === "failed" ? s.messages.filter((m) => m.severity === "error").length || null : null,
-  );
 }
 
 export function activate(): () => void {
@@ -40,7 +34,6 @@ export function activate(): () => void {
       order: 6,
       component: BuildView,
       headerActions: BuildHeaderActions,
-      useBadge: useErrorBadge,
     }),
     registerTitleItem({
       id: "build.project",

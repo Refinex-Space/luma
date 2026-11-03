@@ -16,12 +16,7 @@ import { installDistractionFree } from "./distractionFree";
 import { installFileDrop } from "./fileDrop";
 import { installFocusTracking } from "./focus";
 import { clearProjectNotifications, installNotifyEvents, notificationServiceImpl } from "./notificationStore";
-import {
-  NOTIFICATIONS_TOOL_WINDOW,
-  NotificationsHeaderActions,
-  NotificationsToolWindow,
-  useUnreadNotifications,
-} from "./Notifications";
+import { NOTIFICATIONS_TOOL_WINDOW, NotificationsHeaderActions, NotificationsToolWindow } from "./Notifications";
 import { loadPlatformInfo } from "@/platform/platformInfo";
 import { registerShellActions } from "./shellActions";
 import { MainToolbarDialogHost } from "./MainToolbarDialog";
@@ -77,7 +72,6 @@ export function activateWorkbench(): () => void {
       order: 0,
       component: NotificationsToolWindow,
       headerActions: NotificationsHeaderActions,
-      useBadge: useUnreadNotifications,
     }),
   ];
   return () => disposers.reverse().forEach((d) => d());

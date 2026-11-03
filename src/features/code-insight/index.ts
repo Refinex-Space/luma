@@ -26,15 +26,6 @@ import { installWorkspaceEditUndo } from "./workspaceUndo";
 
 const EDITOR_WHEN = "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)";
 
-function useErrorBadge(): number | null {
-  return useProblems((s) => {
-    let n = 0;
-    for (const sources of s.map.values())
-      for (const items of sources.values()) for (const d of items) if (d.severity === "error") n++;
-    return n || null;
-  });
-}
-
 export function activate(): () => void {
   let root = useProject.getState().project?.root ?? null;
   const unsubProject = useProject.subscribe((s) => {
@@ -72,7 +63,6 @@ export function activate(): () => void {
       headerContent: ProblemsTabs,
       headerActions: ProblemsHeaderActions,
       headerMenu: useProblemsHeaderMenu,
-      useBadge: useErrorBadge,
     }),
     registerToolWindow({
       id: "usages",

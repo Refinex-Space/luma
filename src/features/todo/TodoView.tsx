@@ -270,11 +270,6 @@ function ScopeBar() {
   );
 }
 
-export function useTodoBadge(): number | null {
-  const n = countItems(useTodoGroups("project"));
-  return n || null;
-}
-
 function open(item: TodoItem, focus: boolean) {
   void editorService().openFile(item.path, { selection: { line: item.line, col: item.col }, focus, preview: !focus });
 }

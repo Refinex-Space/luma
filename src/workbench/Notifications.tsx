@@ -157,8 +157,3 @@ export function NotificationsHeaderActions() {
     />
   );
 }
-
-/** Unread count on the Notifications stripe button. */
-export function useUnreadNotifications(): number {
-  return useNotifications((s) => s.items.filter((n) => !n.read && n.logged).length);
-}

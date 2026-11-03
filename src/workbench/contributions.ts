@@ -62,8 +62,6 @@ export interface ToolWindowContribution {
    * of `headerMenu`'s.
    */
   titleMenu?: (id: string) => { label: string; items: MenuItem[] };
-  /** Badge (e.g. problem count) shown on the stripe button. */
-  useBadge?: () => number | string | null;
   /** Only shown when a project is open (default true). */
   requiresProject?: boolean;
   /**

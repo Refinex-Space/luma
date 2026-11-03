@@ -87,10 +87,6 @@ function trackCommitWindow(): () => void {
         component: lazyComponent(() => import("./CommitView").then((m) => m.CommitToolWindow)),
         headerContent: lazyComponent(() => import("./CommitView").then((m) => m.CommitTabs)),
         tabsReplaceTitle: true,
-        useBadge: () => {
-          const n = useVcs((s) => s.status.length);
-          return n || null;
-        },
       });
       // The Git window's Local Changes / Shelf / Stash tabs are gone: back to its Log.
       if (["changes", "shelf", "stashes"].includes(useGitLog.getState().tab)) selectGitTab("log");

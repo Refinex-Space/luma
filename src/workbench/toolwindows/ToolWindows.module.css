@@ -258,7 +258,6 @@
   outline-offset: -2px;
 }
 .stripeIcon {
-  position: relative;
   display: flex;
 }
 .stripeButton > svg,
@@ -296,24 +295,6 @@
     text-overflow: ellipsis;
   }
 }
-.badge {
-  position: absolute;
-  top: -5px;
-  left: 10px;
-  min-width: 13px;
-  height: 13px;
-  padding: 0 3px;
-  border-radius: 7px;
-  background: var(--bg-active);
-  color: var(--fg-emphasis);
-  font-family: var(--font-ui);
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 13px;
-  text-align: center;
-  pointer-events: none;
-}
-
 /* Anchored panels */
 .window {
   flex: 1;

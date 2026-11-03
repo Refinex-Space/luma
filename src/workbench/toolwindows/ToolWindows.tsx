@@ -232,14 +232,6 @@ function startStripeDrag(e: PointerEvent<HTMLButtonElement>, id: string) {
   window.addEventListener("keydown", onKey, true);
 }
 
-function StripeBadge({ useBadge }: { useBadge: () => number | string | null }) {
-  // Settings › Appearance › Tool Windows › "Show tool window badges".
-  const showBadges = useProject((s) => s.settings?.appearance?.showToolWindowBadges) !== false;
-  const value = useBadge();
-  if (!showBadges || value === null || value === 0 || value === "") return null;
-  return <span className={styles.badge}>{typeof value === "number" && value > 99 ? "99+" : value}</span>;
-}
-
 function StripeButton({
   tw,
   active,
@@ -283,7 +275,6 @@ function StripeButton({
     >
       <span className={styles.stripeIcon}>
         <Icon name={tw.icon} size={icon} />
-        {tw.useBadge && <StripeBadge useBadge={tw.useBadge} />}
       </span>
       {showName && (
         <span className={clsx(styles.stripeLabel, !/\s/.test(tw.title) && styles.stripeLabelWord)} aria-hidden="true">

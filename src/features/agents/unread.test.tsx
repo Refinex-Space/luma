@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { AgentEntry, AgentEvent, AgentTask } from "@/bindings";
-import { dropOnEditor, useContributions, type EditorInput, type OpenEditorTab } from "@/workbench/contributions";
+import { dropOnEditor, type EditorInput, type OpenEditorTab } from "@/workbench/contributions";
 import { AgentsView } from "./AgentsView";
 import { AgentsStatus } from "./AgentsStatus";
 import { activate } from "./index";
@@ -221,30 +221,6 @@ describe("agent unread indicators", () => {
     show();
     expect(screen.queryByRole("img", { name: "Unread" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /unread/ })).not.toBeInTheDocument();
-  });
-
-  it("counts unread and needs-input tasks once each in the sidebar badge", () => {
-    const dispose = activate();
-    try {
-      const useBadge = useContributions.getState().toolWindows.get("agents")!.useBadge!;
-      function Badge() {
-        return <span data-testid="badge">{useBadge()}</span>;
-      }
-      act(() =>
-        useAgents.setState({
-          tasks: new Map([task("one", "needsInput"), task("two", "ready")].map((t) => [t.id, t])),
-          unread: new Set(["one", "two"]),
-        }),
-      );
-      render(<Badge />);
-      expect(screen.getByTestId("badge")).toHaveTextContent("2");
-      show("two");
-      expect(screen.getByTestId("badge")).toHaveTextContent("1");
-      show("one");
-      expect(screen.getByTestId("badge")).toHaveTextContent("1");
-    } finally {
-      act(dispose);
-    }
   });
 });
 

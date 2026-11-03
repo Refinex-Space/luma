@@ -152,7 +152,6 @@ export function activate(): void | (() => void) {
       order: 30,
       component: lazyComponent(() => import("./bookmarks/BookmarksView").then((m) => m.BookmarksView)),
       headerActions: lazyComponent(() => import("./bookmarks/BookmarksView").then((m) => m.BookmarksActions)),
-      useBadge: () => null,
     }),
     registerToolWindow({
       id: "find",

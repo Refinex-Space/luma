@@ -244,10 +244,6 @@ function rerunActive() {
   if (id) rerunSession(id);
 }
 
-function useRunningCount(): number | null {
-  return useRun((s) => s.sessions.filter((x) => x.status === "running" || x.status === "starting").length || null);
-}
-
 const CONFIG_FILES =
   /(?:^|\/)(?:\.lama\/run\.toml|package\.json|deno\.jsonc?|Cargo\.toml|build\.gradle(?:\.kts)?|pom\.xml|go\.(?:mod|work)|pyproject\.toml|setup\.cfg|pytest\.ini|manage\.py|Makefile|justfile|CMakeLists\.txt|CMakeCache\.txt|index-[^/]+\.json)$/;
 
@@ -268,7 +264,6 @@ export function activate(): () => void {
       order: 5,
       component: lazyComponent(() => import("./RunView").then((m) => m.RunView)),
       headerContent: lazyComponent(() => import("./RunView").then((m) => m.RunTabs)),
-      useBadge: useRunningCount,
     }),
     registerTitleItem({ id: "run.widget", title: "Run Widget", align: "right", priority: 0, component: RunWidget }),
     registerRunAnythingProvider(runConfigsRunAnything),

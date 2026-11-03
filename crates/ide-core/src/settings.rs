@@ -332,7 +332,6 @@ pub struct AppearanceSettings {
     pub editor_antialiasing: String,
     pub show_tool_window_bars: bool,
     pub show_tool_window_names: bool,
-    pub show_tool_window_badges: bool,
     pub widescreen_tool_windows: bool,
     /// Status bar widgets shown (`true`) or hidden (`false`) by the user
     /// (status bar context menu); widgets not listed use their default.
@@ -380,7 +379,6 @@ impl Default for AppearanceSettings {
             editor_antialiasing: "greyscale".into(),
             show_tool_window_bars: true,
             show_tool_window_names: false,
-            show_tool_window_badges: true,
             widescreen_tool_windows: false,
             status_bar_widgets: BTreeMap::new(),
             main_toolbar: None,
@@ -840,21 +838,6 @@ mod tests {
             assert_eq!(json["appearance"]["uiFontFallback"], family);
             let restored: Settings = serde_json::from_value(json).unwrap();
             assert_eq!(restored.appearance.ui_font_fallback, family);
-        }
-    }
-
-    #[test]
-    fn tool_window_badges_default_on_and_round_trip() {
-        let old: Settings = serde_json::from_str(r#"{"appearance":{"showToolWindowNames":true}}"#).unwrap();
-        assert!(old.appearance.show_tool_window_badges);
-        assert!(Settings::default().appearance.show_tool_window_badges);
-        for enabled in [false, true] {
-            let mut settings = Settings::default();
-            settings.appearance.show_tool_window_badges = enabled;
-            let json = serde_json::to_value(&settings).unwrap();
-            assert_eq!(json["appearance"]["showToolWindowBadges"], enabled);
-            let restored: Settings = serde_json::from_value(json).unwrap();
-            assert_eq!(restored.appearance.show_tool_window_badges, enabled);
         }
     }
 
