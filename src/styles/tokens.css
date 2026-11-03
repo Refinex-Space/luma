@@ -294,8 +294,8 @@ html {
   /* PyCharm "Islands" contract */
   --bg-frame: #26282c;
   --bg-island: #191a1c;
-  --island-gap: 6px;
-  --island-radius: 10px;
+  --island-gap: 4px;
+  --island-radius: 6px;
   --bg-stripe: var(--bg-frame);
   --bg-stripe-hover: #ffffff17;
   --bg-stripe-selected: #ffffff29;
