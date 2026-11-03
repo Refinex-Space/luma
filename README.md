@@ -1,52 +1,123 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="src-tauri/icons/source/openidea-wordmark-dark.svg">
-    <img src="src-tauri/icons/source/openidea-wordmark.svg" alt="OpenIDEA" height="56">
-  </picture>
-</p>
+# Lama
 
-<p align="center">
-  The IDE you know, rebuilt in Rust.
-</p>
+面向日常开发的独立桌面 IDE。键位、工具窗口与 Search Everywhere 沿用 IntelliJ IDEA 的习惯，运行时是 Rust 与 Tauri 2 的原生应用。
 
-<p align="center">
-  <a href="https://github.com/l0ng-ai/openidea/releases/latest"><b>Download</b></a>
-  &nbsp;·&nbsp;
-  <a href="#benchmark">Benchmark</a>
-  &nbsp;·&nbsp;
-  <a href="https://discord.gg/2Zy4yn7gP">Discord</a>
-</p>
+代码自开源项目 [OpenIDEA](https://github.com/l0ng-ai/openidea) fork，并在本仓库持续演进。应用内标识、包名与二进制名仍多为 `openidea`，重品牌会分批落地。编辑器、代码洞察、调试器、Git、终端、数据库与 HTTP 客户端覆盖 60+ 语言，可在 macOS、Windows、Linux 上构建。
 
-https://github.com/user-attachments/assets/234dd54c-1255-4b3a-b35c-533d78d737c0
+## 与上游的关系
 
-OpenIDEA brings the IntelliJ IDEA way of working — its keymap, its tool windows,
-its search-everything habits — to a native app with a Rust core.
+本仓库由 [l0ng-ai/openidea](https://github.com/l0ng-ai/openidea) fork 而来，协议同为 Apache 2.0。上游版权与第三方声明见 [`NOTICE`](NOTICE)、[`LICENSE`](LICENSE)、[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
 
-Editor, code insight, debugger, Git, terminal, database and HTTP clients,
-for 60+ languages. Builds for macOS, Windows and Linux.
+合并上游时，优先对照其 `main`；Lama 侧的产品决策与品牌改动在本仓库独立推进。
 
-## Benchmark
+## 本地开发
 
-Opening [freqtrade](https://github.com/freqtrade/freqtrade) (Python, ~770 files)
-with warm caches, median of 5 runs:
+读完这一节，你应能在本机打开可调试的桌面窗口。
 
-|                             | OpenIDEA          | IntelliJ IDEA 2026.2.3 |
-| --------------------------- | ----------------- | ---------------------- |
-| Window with the project     | **0.9 s**         | 3.1 s                  |
-| Ready (CPU settled)         | **1.1 s**         | 13.2 s                 |
-| Memory (USS, all processes) | **169 MB**        | 2011 MB                |
-| CPU time until ready        | **2.4 s**         | 47.9 s                 |
-| Idle CPU                    | **4 %** of a core | 7 % of a core          |
-| Quit                        | **0.3 s**         | 5.9 s                  |
+### 环境
 
-A release build of OpenIDEA from `main` and IDEA with default settings and plugins, on
-Windows 11, 32-core AMD, 62 GB RAM.
-IDEA analyses Python more deeply, so "ready" doesn't mean the same work on
-both sides. Both are measured from the outside, the same way: see
-[`perf/compare`](perf/compare) to run it on your machine and projects.
+| 依赖 | 版本基线 | 说明 |
+| --- | --- | --- |
+| Rust | `1.96`（见 `Cargo.toml` 的 `rust-version`） | 建议用 `rustup` 安装 stable，并带上 `clippy`、`rustfmt` |
+| Node.js | `22`（与 CI 一致） | |
+| pnpm | `11`（与 CI 一致） | |
+| 系统库 | [Tauri 2 前置依赖](https://v2.tauri.app/start/prerequisites/) | macOS 需要 Xcode Command Line Tools；Linux 需 WebKitGTK 等，见下方 |
 
-## License
+Linux（Ubuntu 22.04 一类）可先装：
 
-[Apache 2.0](LICENSE). Bundled third-party assets are listed in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  libwebkit2gtk-4.1-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  libxdo-dev \
+  libssl-dev \
+  patchelf
+```
 
-<sub>Not affiliated with JetBrains. IntelliJ IDEA is a trademark of JetBrains s.r.o.</sub>
+### 启动桌面应用
+
+```bash
+git clone https://github.com/Refinex-Space/luma.git
+cd luma
+pnpm install
+pnpm tauri dev
+```
+
+`pnpm tauri dev` 会起 Vite 前端，再编译并拉起 Tauri 窗口。首次编译 Rust 工作区会较久；成功后应出现 IDE 窗口。同一 worktree 已有会话在跑时，脚本会提示已有进程，可用 `pnpm dev:status` 查看状态。
+
+需要给前端挂上全局 Tauri 桥接时，用：
+
+```bash
+pnpm dev:app
+```
+
+只改界面、不跑原生壳时：
+
+```bash
+pnpm dev
+```
+
+打发布包：
+
+```bash
+pnpm tauri build
+```
+
+### 检查与测试
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm build
+
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo nextest run --workspace --no-fail-fast
+```
+
+端到端（需本机 Playwright 浏览器环境）：
+
+```bash
+pnpm e2e
+```
+
+Notebook 内核相关的忽略测试需两套装了 `ipykernel` 的 Python，按需再开：
+
+```bash
+OPENIDEA_TEST_PYTHON=/first/env/bin/python \
+OPENIDEA_TEST_PYTHON_SECOND=/second/env/bin/python \
+cargo test -p ide-notebook --test kernel_runtime -- --ignored --test-threads=1
+```
+
+## 文档
+
+| 主题 | 路径 |
+| --- | --- |
+| 主题与配色 | [`docs/themes.md`](docs/themes.md) |
+| 插件（含主题插件） | [`plugins/README.md`](plugins/README.md)、[`docs/plugins/themes.md`](docs/plugins/themes.md) |
+| 工作区与窗口组 | [`docs/workspaces-and-window-groups.md`](docs/workspaces-and-window-groups.md) |
+| Kotlin 调试 | [`docs/kotlin-debugging.md`](docs/kotlin-debugging.md) |
+| 外部对比压测 | [`perf/compare`](perf/compare) |
+
+## 上游性能参考
+
+以下数据来自 OpenIDEA 上游 README：在 Windows 11、32 核 AMD、62 GB 内存上，热缓存打开 [freqtrade](https://github.com/freqtrade/freqtrade)（Python，约 770 个文件），各跑 5 次取中位数。IDEA 对 Python 的分析更深，两边「就绪」的工作量不同；方法见 [`perf/compare`](perf/compare)。
+
+| | OpenIDEA | IntelliJ IDEA 2026.2.3 |
+| --- | --- | --- |
+| 出现项目窗口 | **0.9 s** | 3.1 s |
+| 就绪（CPU 平稳） | **1.1 s** | 13.2 s |
+| 内存（USS，全部进程） | **169 MB** | 2011 MB |
+| 就绪前 CPU 时间 | **2.4 s** | 47.9 s |
+| 空闲 CPU | **单核 4%** | 单核 7% |
+| 退出 | **0.3 s** | 5.9 s |
+
+## 许可证
+
+[Apache 2.0](LICENSE)。捆绑的第三方资源见 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
+
+<sub>与 JetBrains 无隶属、背书或赞助关系。IntelliJ IDEA 是 JetBrains s.r.o. 的商标。</sub>
