@@ -20,6 +20,8 @@ type Row =
 
 const ROW = 24;
 const CURRENT_FILE_LABEL = "Current File";
+/** Sticky footer action — kept out of the scrollable list so it stays pinned. */
+export const EDIT_ROW: Row = { type: "edit", key: "edit" };
 
 export function buildRows(
   configs: readonly RunConfig[],
@@ -41,7 +43,6 @@ export function buildRows(
     rows.push({ type: "section", key: `s:${group.kind}`, label: group.label });
     for (const { c, indices } of matched) rows.push({ type: "config", key: `c:${c.id}`, config: c, indices });
   }
-  rows.push({ type: "edit", key: "edit" });
   return rows;
 }
 
@@ -90,6 +91,8 @@ function ConfigChooser() {
       ),
     [configs, query, selectedId, temporary],
   );
+  // Edit Configurations stays pinned under the scrollable list but remains keyboard-reachable.
+  const navRows = useMemo(() => [...rows, EDIT_ROW], [rows]);
   const isSection = (r: Row) => r.type === "section";
   const initial = Math.max(
     0,
@@ -104,7 +107,8 @@ function ConfigChooser() {
     closedAt = Date.now();
     useRun.setState({ chooserOpen: false });
   };
-  const clamped = Math.min(active, rows.length - 1);
+  const clamped = Math.min(active, navRows.length - 1);
+  const editActive = clamped === rows.length;
   const numbers = useMemo(
     () => (mode === "select" || query ? new Map<string, number>() : mnemonics(rows)),
     [mode, query, rows],
@@ -152,7 +156,7 @@ function ConfigChooser() {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const row = rows[clamped];
+    const row = navRows[clamped];
     if (e.key === "Enter") {
       e.preventDefault();
       // The widget (select mode) keeps Shift+Enter = Debug and Alt/⌘+Enter = Run.
@@ -184,14 +188,14 @@ function ConfigChooser() {
         return;
       }
     }
-    const next = listNavigate(e.key, { items: rows, active: clamped, isSection, wrap: true });
+    const next = listNavigate(e.key, { items: navRows, active: clamped, isSection, wrap: true });
     if (next !== null) {
       e.preventDefault();
       setActive(next);
     }
   };
 
-  const height = Math.min(rows.length * ROW, 14 * ROW);
+  const height = Math.min(Math.max(rows.length, 1) * ROW, 14 * ROW);
 
   return (
     <Popup
@@ -230,7 +234,7 @@ function ConfigChooser() {
           getKey={(r) => r.key}
           isSection={isSection}
           renderSection={(r) => (r.type === "section" ? r.label : null)}
-          activeIndex={clamped}
+          activeIndex={editActive ? -1 : clamped}
           onActiveChange={setActive}
           focusable={false}
           hoverSelects
@@ -256,17 +260,6 @@ function ConfigChooser() {
                       <T>{CURRENT_FILE_LABEL}</T>
                     )}
                   </span>
-                </span>
-              );
-            }
-            if (r.type === "edit") {
-              return (
-                <span className={clsx(styles.chooserRow, styles.chooserEdit)}>
-                  <Icon name="edit" size={13} />
-                  <span>
-                    <T>Edit Configurations…</T>
-                  </span>
-                  <span className={styles.chooserShortcut}>{shortcutLabel("run.editConfigs")}</span>
                 </span>
               );
             }
@@ -329,6 +322,28 @@ function ConfigChooser() {
             );
           }}
         />
+      </div>
+      <div className={clsx(styles.chooserFooter, editActive && styles.chooserFooterActive)}>
+        <div
+          role="option"
+          aria-selected={editActive}
+          className={styles.chooserFooterItem}
+          onPointerMove={!editActive ? () => setActive(rows.length) : undefined}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            setActive(rows.length);
+          }}
+          onClick={() => activate(EDIT_ROW)}
+        >
+          <span className={clsx(styles.chooserRow, styles.chooserEdit)}>
+            <Icon name="edit" size={13} />
+            <span>
+              <T>Edit Configurations…</T>
+            </span>
+            <span className={styles.chooserShortcut}>{shortcutLabel("run.editConfigs")}</span>
+          </span>
+        </div>
       </div>
       {mode !== "select" && (
         <div className={styles.chooserHint}>

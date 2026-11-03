@@ -361,6 +361,24 @@
 .chooserEdit {
   color: var(--fg-secondary);
 }
+/* Pinned under the scrollable list so Edit Configurations never scrolls away. */
+.chooserFooter {
+  flex: none;
+  border-top: 1px solid var(--border-popup);
+  padding: 0 6px;
+}
+.chooserFooterItem {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-selection, 5px);
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+.chooserFooterActive .chooserFooterItem,
+.chooserFooterItem:hover {
+  background: var(--bg-tree-selected);
+}
 /* IDEA draws temporary configurations with a translucent icon. */
 .chooserTemporary {
   opacity: 0.55;

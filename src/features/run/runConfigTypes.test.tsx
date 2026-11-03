@@ -673,7 +673,7 @@ describe("debug-only types (Remote JVM Debug)", () => {
 describe("Current File", () => {
   it("is always offered in the chooser", () => {
     expect(buildRows([], "")[0]).toMatchObject({ type: "current" });
-    expect(buildRows([cfg("a")], "cur").map((r) => r.type)).toEqual(["current", "edit"]);
+    expect(buildRows([cfg("a")], "cur").map((r) => r.type)).toEqual(["current"]);
     selectConfig(CURRENT_FILE);
     expect(useRun.getState().selectedId).toBe(CURRENT_FILE);
   });
