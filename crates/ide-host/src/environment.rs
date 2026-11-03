@@ -151,7 +151,7 @@ impl Environment {
     pub(crate) fn spawn_post_start(&self, cmd: LifecycleCommand, root: PathBuf, sink: SharedSink) {
         let cancel = self.cancel.child_token();
         self.state.lock().post_commands.insert(root.clone(), cancel.clone());
-        let spawned = std::thread::Builder::new().name("openidea-post-start".into()).spawn(move || {
+        let spawned = std::thread::Builder::new().name("lama-post-start".into()).spawn(move || {
             run_post_start(&cmd, &root, &sink, &cancel);
         });
         if let Err(e) = spawned {
@@ -381,18 +381,17 @@ mod tests {
 
     #[test]
     fn project_variables_win_and_see_the_reloaded_login_values() {
-        let login = vec![change("OPENIDEA_TEST_TOOLS", Some("/reloaded")), change("A", Some("login"))];
-        let config = devcontainer::parse(
-            r#"{ "remoteEnv": { "A": "project", "B": "${containerEnv:OPENIDEA_TEST_TOOLS}/bin" } }"#,
-        )
-        .unwrap();
+        let login = vec![change("LAMA_TEST_TOOLS", Some("/reloaded")), change("A", Some("login"))];
+        let config =
+            devcontainer::parse(r#"{ "remoteEnv": { "A": "project", "B": "${containerEnv:LAMA_TEST_TOOLS}/bin" } }"#)
+                .unwrap();
         let project = project_changes(&config, Path::new("/p"), &login);
         assert_eq!(project, [change("A", Some("project")), change("B", Some("/reloaded/bin"))]);
         let merged = merge(&login, &project);
         assert_eq!(
             merged,
             [
-                change("OPENIDEA_TEST_TOOLS", Some("/reloaded")),
+                change("LAMA_TEST_TOOLS", Some("/reloaded")),
                 change("A", Some("project")),
                 change("B", Some("/reloaded/bin"))
             ]
@@ -475,10 +474,10 @@ mod tests {
 
         let parallel = LifecycleCommand::Parallel(vec![
             ("ok".into(), LifecycleCommand::Shell("true".into())),
-            ("missing".into(), LifecycleCommand::Exec(vec!["openidea-no-such-program".into()])),
+            ("missing".into(), LifecycleCommand::Exec(vec!["lama-no-such-program".into()])),
         ]);
         let body = failure(&run(parallel, tmp.path())).unwrap();
-        assert!(body.starts_with("missing: cannot start openidea-no-such-program"), "{body}");
+        assert!(body.starts_with("missing: cannot start lama-no-such-program"), "{body}");
     }
 
     #[cfg(unix)]

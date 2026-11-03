@@ -9,8 +9,8 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { editorsFor } from "@/editor/api";
 import type { EditorSettings } from "@/platform/ipc";
 import type { DocBackend } from "../backend";
-import { openideaHighlightStyle } from "./highlight";
-import { openideaTheme } from "./theme";
+import { lamaHighlightStyle } from "./highlight";
+import { lamaTheme } from "./theme";
 import { findLanguageDescription, loadSupport, loadedSupport, uiModeForPath } from "./languages";
 import { fontExtension } from "./setup";
 import { tx } from "@/platform/i18n";
@@ -28,10 +28,10 @@ export async function previewExtensions(
   const support = desc ? (loadedSupport(desc) ?? (await loadSupport(desc))) : null;
   return [
     fontExtension(settings),
-    openideaTheme,
+    lamaTheme,
     lineNumbers(),
     highlightSpecialChars(),
-    syntaxHighlighting(openideaHighlightStyle),
+    syntaxHighlighting(lamaHighlightStyle),
     EditorState.readOnly.of(true),
     EditorView.editable.of(false),
     // Not editable, so selection and Copy need the text opted back in and a tab stop.

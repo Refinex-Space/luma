@@ -19,7 +19,7 @@ use tokio::sync::Notify;
 
 const DELAY: Duration = Duration::from_millis(750);
 const SOURCE: &str = "kotlin-bridge";
-const COMMAND: &str = "openidea.kotlin.replace";
+const COMMAND: &str = "lama.kotlin.replace";
 
 #[derive(Default)]
 struct Revision {
@@ -318,10 +318,7 @@ fn relevant_change(root: &Path, path: &Path, settings: &ide_core::settings::Sett
     // Build outputs and generated sources (e.g. KSP's `.kt` under target/) never trigger,
     // so a build cannot schedule itself.
     if relative.components().any(|c| {
-        matches!(
-            c.as_os_str().to_str(),
-            Some("target" | "build" | "out" | "bin" | ".git" | "node_modules" | ".openidea")
-        )
+        matches!(c.as_os_str().to_str(), Some("target" | "build" | "out" | "bin" | ".git" | "node_modules" | ".lama"))
     }) || ide_vfs::ExcludeMatcher::new(&settings.exclude_globs()).is_excluded(relative)
     {
         return false;

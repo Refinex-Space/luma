@@ -1,6 +1,6 @@
 # Theme plugin template
 
-A complete OpenIDEA theme plugin with one worked example, **Harbor Night**: a
+A complete Lama theme plugin with one worked example, **Harbor Night**: a
 dark theme with slate surfaces, a teal accent and a warm syntax palette. Copy
 this folder to start your own theme. Full documentation, the token reference
 and porting guides are in [`docs/plugins/themes.md`](../../docs/plugins/themes.md).
@@ -17,7 +17,7 @@ A theme plugin is data only: no code, no WebAssembly, no build step.
 
 ## Make your own
 
-1. Copy the folder, for example to `~/openidea-themes/theme-my-theme`.
+1. Copy the folder, for example to `~/lama-themes/theme-my-theme`.
 2. In `plugin.toml`, change `id` (lowercase, `a-z 0-9 - _`), `name`,
    `description`, `authors` and the two paths.
 3. Rename the theme files. In the theme file, set `id`, `name` and `kind`
@@ -27,14 +27,14 @@ A theme plugin is data only: no code, no WebAssembly, no build step.
    Comments (`//`, `/* */`) are allowed. Delete a line to keep the built-in value.
 
 Porting an IntelliJ theme? `pnpm theme:import-intellij <file.theme.json> [file.icls] --out <dir>`
-in the OpenIDEA repository generates a package in this layout.
+in the Lama repository generates a package in this layout.
 
 ## Package and install
 
 The folder is the package. To share it, publish the folder as a Git repository
 or a zip that users extract.
 
-1. In OpenIDEA open **Settings › Plugins**, click the gear menu and choose
+1. In Lama open **Settings › Plugins**, click the gear menu and choose
    **Install Plugin from Disk…** (or run the _Install Plugin from Disk…_
    action), then pick the folder that contains `plugin.toml`.
 2. Select the plugin in the _Installed_ tab and press **Apply** next to the theme.
@@ -42,12 +42,12 @@ or a zip that users extract.
 
 ## Iterate
 
-Put (or symlink) the folder in `<project>/.openidea/plugins/` of an open
+Put (or symlink) the folder in `<project>/.lama/plugins/` of an open
 project. It loads as a _dev_ plugin, and **Reload** in Settings › Plugins (or
 the _Reload Plugins_ action) re-reads your edits without reinstalling. Invalid
 JSON or values are reported in Settings › Plugins with the file and line.
 
 ## Licence
 
-The template and Harbor Night are part of OpenIDEA (Apache-2.0). When you port
+The template and Harbor Night are part of Lama (Apache-2.0). When you port
 someone else's theme, keep its licence and credit its authors.

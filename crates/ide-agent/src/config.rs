@@ -5,7 +5,7 @@ use crate::model::{AgentCommand, AgentConfigOption, AgentConfigValue, AgentConfi
 use serde_json::{Value, json};
 
 /// Cursor exposes execution modes over ACP, but leaves approval policy to its client.
-pub(crate) const CURSOR_APPROVAL: &str = "openidea.cursor.approval";
+pub(crate) const CURSOR_APPROVAL: &str = "lama.cursor.approval";
 
 pub(crate) fn add_client_options(provider: &str, config: &mut Vec<AgentConfigOption>) {
     if provider != "cursor" || config.iter().any(|o| o.id == CURSOR_APPROVAL) {

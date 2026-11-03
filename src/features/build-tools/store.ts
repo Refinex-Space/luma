@@ -77,8 +77,8 @@ export const useBuild = create<BuildState>(() => ({
 // ---------------------------------------------------------------------------
 // Settings (per project)
 
-const SETTINGS_KEY = "openidea.buildTools:";
-const HISTORY_KEY = "openidea.buildTools.history:";
+const SETTINGS_KEY = "lama.buildTools:";
+const HISTORY_KEY = "lama.buildTools.history:";
 
 export function readSettings(root: string): BuildSettings {
   try {

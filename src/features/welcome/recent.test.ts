@@ -13,7 +13,7 @@ const p = (name: string, path: string, branch: string | null = null): RecentProj
 
 const projects = [
   p("acme-api", "/Users/me/dev/acme", "main"),
-  p("openidea-ide", "/Users/me/dev/openidea"),
+  p("lama-ide", "/Users/me/dev/lama"),
   p("tokio", "/Users/me/oss/tokio"),
   p("notes", "/Volumes/data/acme-notes"),
 ];
@@ -21,7 +21,7 @@ const projects = [
 describe("filterRecent", () => {
   it("returns everything in recency order for an empty query", () => {
     const all = filterRecent(projects, "  ", "/Users/me");
-    expect(all.map((m) => m.project.name)).toEqual(["acme-api", "openidea-ide", "tokio", "notes"]);
+    expect(all.map((m) => m.project.name)).toEqual(["acme-api", "lama-ide", "tokio", "notes"]);
     expect(all[0]!.displayPath).toBe("~/dev/acme");
     expect(all[3]!.displayPath).toBe("/Volumes/data/acme-notes");
   });
@@ -35,7 +35,7 @@ describe("filterRecent", () => {
   });
 
   it("matches camel-hump / word starts and is case-insensitive", () => {
-    expect(filterRecent(projects, "EIde").map((m) => m.project.name)).toEqual(["openidea-ide"]);
+    expect(filterRecent(projects, "EIde").map((m) => m.project.name)).toEqual(["lama-ide"]);
     expect(filterRecent(projects, "TOK").map((m) => m.project.name)).toEqual(["tokio"]);
     expect(filterRecent(projects, "zzz")).toEqual([]);
   });

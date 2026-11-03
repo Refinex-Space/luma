@@ -81,7 +81,7 @@ impl Drop for CommandSession {
 fn detected_git() -> Option<&'static Path> {
     static GIT: OnceLock<Option<PathBuf>> = OnceLock::new();
     GIT.get_or_init(|| {
-        if let Some(explicit) = std::env::var_os("OPENIDEA_GIT").map(PathBuf::from).filter(|p| p.is_file()) {
+        if let Some(explicit) = std::env::var_os("LAMA_GIT").map(PathBuf::from).filter(|p| p.is_file()) {
             return Some(explicit);
         }
         if let Ok(found) = which::which("git") {
@@ -647,7 +647,7 @@ mod command_session_tests {
         let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let seen = events.clone();
         set_git_command_observer(
-            "OPENIDEA_TEST_COMMAND_ID",
+            "LAMA_TEST_COMMAND_ID",
             std::sync::Arc::new(move |id, success, stderr| {
                 seen.lock().unwrap().push((id, success, stderr.to_owned()));
             }),
@@ -659,7 +659,7 @@ mod command_session_tests {
         let (first_id, second_id) = (first.id, second.id);
         assert_ne!(first_id, second_id);
         for (cmd, id) in [(&first_cmd, first_id), (&second_cmd, second_id)] {
-            let value = cmd.get_envs().find(|(key, _)| *key == "OPENIDEA_TEST_COMMAND_ID").unwrap().1.unwrap();
+            let value = cmd.get_envs().find(|(key, _)| *key == "LAMA_TEST_COMMAND_ID").unwrap().1.unwrap();
             assert_eq!(value, std::ffi::OsStr::new(&id.to_string()));
         }
         drop(second); // cancellation discards this command's state

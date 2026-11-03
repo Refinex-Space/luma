@@ -237,7 +237,7 @@ export function runGutter(ctx: EditorDocContext): Extension {
     targetsField,
     detector,
     gutter({
-      class: `${styles.runGutter} cm-openidea-gutter-run`,
+      class: `${styles.runGutter} cm-lama-gutter-run`,
       markers: (view) => markers(view.state, path),
       initialSpacer: () => new RunMarker({ line: 0, pos: 0, kind: "test", name: "", path: [] }, path),
       domEventHandlers: {

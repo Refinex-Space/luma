@@ -43,7 +43,7 @@ import { tx } from "@/platform/i18n";
 
 export const DB_TOOL_WINDOW = "database";
 export const RESULTS_VIEW = "dbResults";
-const BINDINGS_KEY = "openidea.database.consoles";
+const BINDINGS_KEY = "lama.database.consoles";
 const MAX_TABS = 12;
 
 export interface ResultTab {

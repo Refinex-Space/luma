@@ -22,8 +22,8 @@ mod bindings {
     });
 }
 
-use bindings::openidea::plugin::host::{self as wit_host};
-use bindings::openidea::plugin::types::{self as wit_types, LogLevel};
+use bindings::lama::plugin::host::{self as wit_host};
+use bindings::lama::plugin::types::{self as wit_types, LogLevel};
 
 /// client → path of its focused editor.
 pub(crate) type ActiveFileFn = Arc<dyn Fn(Option<&str>) -> Option<String> + Send + Sync>;

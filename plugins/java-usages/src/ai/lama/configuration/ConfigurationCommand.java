@@ -1,4 +1,4 @@
-package ai.openidea.configuration;
+package ai.lama.configuration;
 
 import java.net.URI;
 import java.nio.file.Files;

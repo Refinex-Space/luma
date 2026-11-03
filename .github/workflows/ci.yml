@@ -68,8 +68,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { key: server-musl }
       - run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - run: cargo build --locked -p ide-host --bin openidea-server --target x86_64-unknown-linux-musl
-      - run: target/x86_64-unknown-linux-musl/debug/openidea-server --version
+      - run: cargo build --locked -p ide-host --bin lama-server --target x86_64-unknown-linux-musl
+      - run: target/x86_64-unknown-linux-musl/debug/lama-server --version
 
   deny:
     name: Cargo deny

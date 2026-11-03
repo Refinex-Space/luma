@@ -5,7 +5,7 @@ use ide_run::RunConfig;
 use ide_run::wrap::{self, program_name};
 use std::path::Path;
 
-const GRADLE_INIT: &str = r#"// Written by OpenIDEA for Run with Coverage.
+const GRADLE_INIT: &str = r#"// Written by Lama for Run with Coverage.
 allprojects {
     plugins.withId('java') {
         apply plugin: 'jacoco'
@@ -140,7 +140,7 @@ fn gradle(config: &RunConfig, dir: &Path, out: &Path) -> CoveragePrepared {
     if !runs_tests(&config.args) {
         return unsupported("Coverage runs Gradle configurations that run tests (`test`, `check`).");
     }
-    let script = out.join("openidea-jacoco.init.gradle");
+    let script = out.join("lama-jacoco.init.gradle");
     if let Err(e) = std::fs::write(&script, GRADLE_INIT) {
         return unsupported(format!("Cannot write the Gradle init script: {e}"));
     }

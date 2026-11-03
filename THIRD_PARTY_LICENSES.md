@@ -2,7 +2,7 @@
 
 ## Project Lombok
 
-`plugins/lombok/lombok-1.18.48-openidea.2.jar` contains Project Lombok v1.18.48 with the Equinox
+`plugins/lombok/lombok-1.18.48-lama.2.jar` contains Project Lombok v1.18.48 with the Equinox
 classloader fix from [projectlombok/lombok#4059](https://github.com/projectlombok/lombok/pull/4059)
 and the ECJ constructor-call fix from [projectlombok/lombok#4089](https://github.com/projectlombok/lombok/pull/4089).
 Copyright (C) 2009-2021 The Project Lombok Authors. MIT license and bundled component
@@ -65,15 +65,15 @@ from its tests (`LineComparisonUtilTest`, `WordComparisonUtilTest`,
 `SplitComparisonUtilTest`). Modified from the originals. Copyright 2000-2026
 JetBrains s.r.o. and contributors. Apache License 2.0 (below).
 
-`src/ui/openidea/**` holds OpenIDEA's own file-type icons drawn in the expui style for
+`src/ui/lama/**` holds OpenIDEA's own file-type icons drawn in the expui style for
 languages whose JetBrains icons are not open source (Go, Ruby, Dart, Lua, Zig,
 Svelte, …). Those using the page-with-corner-badge layout (`goMod`, `goWork`,
 `dotenv`, `readme`, `lock`, `license`) reuse the page outline of the Apache-2.0
 expui `fileTypes/h.svg`; that outline is modified from the original by JetBrains.
-`src/ui/openidea/runConfigurations/springBoot*.svg` (the Spring Boot run configuration
+`src/ui/lama/runConfigurations/springBoot*.svg` (the Spring Boot run configuration
 leaf) is OpenIDEA's own drawing.
 
-The lettering in `src-tauri/icons/source/openidea-wordmark*.svg` is outlined from
+The lettering in `src-tauri/icons/source/upstream-wordmark*.svg` is outlined from
 Inter Tight (Copyright 2022 The Inter Project Authors, SIL Open Font License 1.1,
 https://github.com/rsms/inter-tight).
 

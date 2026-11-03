@@ -10,7 +10,7 @@ import { schemeCss } from "@/platform/colorScheme";
 export function installColorScheme(): () => void {
   if (typeof document === "undefined") return () => {};
   const el = document.createElement("style");
-  el.id = "openidea-editor-color-scheme";
+  el.id = "lama-editor-color-scheme";
   document.head.appendChild(el);
   const root = document.documentElement;
   const apply = () => {

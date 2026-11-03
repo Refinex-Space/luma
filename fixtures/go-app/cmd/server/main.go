@@ -12,7 +12,7 @@ import (
 
 func main() {
 	s := store.New()
-	s.Create("Welcome", "This is the OpenIDEA Go fixture.")
+	s.Create("Welcome", "This is the Lama Go fixture.")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /notes", func(w http.ResponseWriter, r *http.Request) {

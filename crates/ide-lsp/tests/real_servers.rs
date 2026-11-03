@@ -74,7 +74,7 @@ async fn intellij_java_formatter_preserves_manual_breaks_and_wraps_long_lines() 
     std::fs::write(&path, source).unwrap();
     let mut java = LanguageRegistry::load(None).unwrap().get(&LanguageId::new("java")).unwrap();
     let server = &mut java.language_servers[0];
-    if let Ok(bin) = std::env::var("OPENIDEA_TEST_JDTLS") {
+    if let Ok(bin) = std::env::var("LAMA_TEST_JDTLS") {
         server.command = bin;
     }
     server.args.extend(["-data".into(), root.join("jdtls-workspace").to_string_lossy().into_owned()]);
@@ -114,7 +114,7 @@ async fn missing_binary_is_reported_with_install_hint() {
     let dir = tempfile::tempdir().unwrap();
     let server = LanguageServerConfig {
         name: "nope-ls".into(),
-        command: "openidea-definitely-not-installed-ls".into(),
+        command: "lama-definitely-not-installed-ls".into(),
         args: vec![],
         env: Default::default(),
         root_markers: vec![],
@@ -301,10 +301,10 @@ async fn rust_analyzer_end_to_end() {
     let main = root.join("src/main.rs");
     std::fs::write(&main, MAIN_RS).unwrap();
 
-    // `OPENIDEA_TEST_RUST_ANALYZER` overrides the binary (e.g. when the rustup proxy
+    // `LAMA_TEST_RUST_ANALYZER` overrides the binary (e.g. when the rustup proxy
     // has no rust-analyzer component for the default toolchain).
     let mut rust = LanguageRegistry::load(None).unwrap().get(&LanguageId::new("rust")).unwrap();
-    if let Ok(bin) = std::env::var("OPENIDEA_TEST_RUST_ANALYZER") {
+    if let Ok(bin) = std::env::var("LAMA_TEST_RUST_ANALYZER") {
         rust.language_servers[0].command = bin;
     }
     let (mgr, events) = manager(&root, LanguageRegistry::from_configs(vec![rust]));
@@ -444,11 +444,11 @@ fn npm_server(tools: &Path, name: &str, bin: &str, init: Option<serde_json::Valu
 
 /// Vue Language Server 3 in hybrid mode: its `tsserver/request`s go through the
 /// client to vtsls with `@vue/typescript-plugin` (issue #25). Set
-/// `OPENIDEA_TEST_NPM_TOOLS` to a dir with `npm i @vue/language-server typescript@6 @vtsls/language-server`.
+/// `LAMA_TEST_NPM_TOOLS` to a dir with `npm i @vue/language-server typescript@6 @vtsls/language-server`.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires @vue/language-server and @vtsls/language-server (OPENIDEA_TEST_NPM_TOOLS)"]
+#[ignore = "requires @vue/language-server and @vtsls/language-server (LAMA_TEST_NPM_TOOLS)"]
 async fn vue_hybrid_mode_end_to_end() {
-    let tools = std::path::PathBuf::from(std::env::var("OPENIDEA_TEST_NPM_TOOLS").expect("OPENIDEA_TEST_NPM_TOOLS"));
+    let tools = std::path::PathBuf::from(std::env::var("LAMA_TEST_NPM_TOOLS").expect("LAMA_TEST_NPM_TOOLS"));
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().canonicalize().unwrap();
     std::fs::write(root.join("package.json"), "{\"name\":\"app\",\"private\":true}").unwrap();
@@ -520,14 +520,14 @@ fn edited_lines(edit: &ide_core::WorkspaceEdit, path: &Path) -> Vec<u32> {
 }
 
 /// The Angular Language Server next to vtsls, in an external and an inline
-/// template. Set `OPENIDEA_TEST_NPM_TOOLS` to a dir with `npm i
+/// template. Set `LAMA_TEST_NPM_TOOLS` to a dir with `npm i
 /// @angular/language-server @vtsls/language-server @angular/core @angular/common
 /// @angular/compiler rxjs`; the project is created inside it, so that it
 /// resolves `@angular/core`.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires @angular/language-server, @vtsls/language-server and @angular/core (OPENIDEA_TEST_NPM_TOOLS)"]
+#[ignore = "requires @angular/language-server, @vtsls/language-server and @angular/core (LAMA_TEST_NPM_TOOLS)"]
 async fn angular_language_server_end_to_end() {
-    let tools = std::path::PathBuf::from(std::env::var("OPENIDEA_TEST_NPM_TOOLS").expect("OPENIDEA_TEST_NPM_TOOLS"));
+    let tools = std::path::PathBuf::from(std::env::var("LAMA_TEST_NPM_TOOLS").expect("LAMA_TEST_NPM_TOOLS"));
     let dir = tempfile::tempdir_in(&tools).unwrap();
     let root = dir.path().canonicalize().unwrap();
     std::fs::write(root.join("angular.json"), "{\"version\":1,\"projects\":{}}").unwrap();

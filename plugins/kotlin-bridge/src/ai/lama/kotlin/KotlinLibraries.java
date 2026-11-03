@@ -1,4 +1,4 @@
-package ai.openidea.kotlin;
+package ai.lama.kotlin;
 
 import com.google.gson.Gson;
 import java.io.File;
@@ -12,7 +12,7 @@ import org.eclipse.jdt.ls.core.internal.IDelegateCommandHandler;
 
 /** Owns only marked binary entries; Maven and user entries retain their identities. */
 public final class KotlinLibraries implements IDelegateCommandHandler {
-    private static final String OWNER = "ai.openidea.kotlin";
+    private static final String OWNER = "ai.lama.kotlin";
     private static final Object LOCK = new Object();
     private static List<ProjectLibraries> desired = List.of();
     private static boolean listening;
@@ -32,7 +32,7 @@ public final class KotlinLibraries implements IDelegateCommandHandler {
     private static class ProjectLibraries { String projectUri; List<Library> libraries; }
 
     @Override public Object executeCommand(String command, List<Object> arguments, IProgressMonitor monitor) throws Exception {
-        if (!"openidea.kotlin.replace".equals(command) || arguments.size() != 1)
+        if (!"lama.kotlin.replace".equals(command) || arguments.size() != 1)
             throw new IllegalArgumentException("Expected one Kotlin library snapshot");
         Gson gson = new Gson();
         ProjectLibraries[] snapshot = gson.fromJson(gson.toJson(arguments.get(0)), ProjectLibraries[].class);

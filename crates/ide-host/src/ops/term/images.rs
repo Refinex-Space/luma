@@ -353,10 +353,10 @@ mod windows {
                     "-NoProfile",
                     "-NonInteractive",
                     "-Command",
-                    "New-Item -ItemType Junction -Path $env:OPENIDEA_TEST_JUNCTION -Target $env:OPENIDEA_TEST_TARGET -ErrorAction Stop | Out-Null",
+                    "New-Item -ItemType Junction -Path $env:LAMA_TEST_JUNCTION -Target $env:LAMA_TEST_TARGET -ErrorAction Stop | Out-Null",
                 ])
-                .env("OPENIDEA_TEST_JUNCTION", path)
-                .env("OPENIDEA_TEST_TARGET", target)
+                .env("LAMA_TEST_JUNCTION", path)
+                .env("LAMA_TEST_TARGET", target)
                 .output()
                 .unwrap();
             assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));

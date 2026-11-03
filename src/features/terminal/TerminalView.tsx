@@ -36,11 +36,11 @@ import {
 import { TerminalFindBar } from "./FindBar";
 import styles from "./Terminal.module.css";
 
-const TAB_PREFIX = "openidea-terminal";
+const TAB_PREFIX = "lama-terminal";
 
 /** Dragging a tab reorders the sessions, like IDEA's terminal tabs. */
 const TAB_DND: TabsDnd = {
-  type: "application/x-openidea-terminal-tab",
+  type: "application/x-lama-terminal-tab",
   payload: (id) => id,
   onDrop: (id, index) => moveTab(id, index),
 };

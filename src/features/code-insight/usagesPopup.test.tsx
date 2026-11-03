@@ -38,7 +38,7 @@ afterEach(() =>
   act(() => {
     dismissUsagesPopup();
     useUsageAccessOptions.setState({ read: true, write: true });
-    localStorage.removeItem("openidea.usages.accessFilter.v1");
+    localStorage.removeItem("lama.usages.accessFilter.v1");
   }),
 );
 

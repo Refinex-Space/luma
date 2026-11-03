@@ -23,7 +23,7 @@ beforeEach(() => {
   openProject.mockReset();
   useProject.setState({ project: null, lightEdit: false });
   sessionStorage.clear();
-  localStorage.setItem("openidea.session.openProject", "/p/last");
+  localStorage.setItem("lama.session.openProject", "/p/last");
   _resetSessionForTests();
 });
 
@@ -49,7 +49,7 @@ describe("reopenLastProject", () => {
   it.each(["last session", "window session"])(
     "keeps launched loose files instead of restoring the %s project",
     async (remembered) => {
-      if (remembered === "window session") sessionStorage.setItem("openidea.window.project", "/p/window");
+      if (remembered === "window session") sessionStorage.setItem("lama.window.project", "/p/window");
       provideStartupLaunch(
         Promise.resolve().then(() => {
           useProject.setState({ lightEdit: true });

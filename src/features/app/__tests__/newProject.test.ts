@@ -20,10 +20,10 @@ describe("File › New Project…", () => {
 describe("Manage IDE Settings › Export Settings…", () => {
   it("exports templates, macros and layouts, not per-project state", () => {
     const data: Record<string, string> = {
-      "openidea.liveTemplates.v1": "[]",
-      "openidea.macros.v1": "{}",
-      "openidea.toolWindowLayouts.v1": "{}",
-      "openidea.runAnything.history.v1:/p": "[]",
+      "lama.liveTemplates.v1": "[]",
+      "lama.macros.v1": "{}",
+      "lama.toolWindowLayouts.v1": "{}",
+      "lama.runAnything.history.v1:/p": "[]",
     };
     const keys = Object.keys(data);
     const storage = {
@@ -32,9 +32,9 @@ describe("Manage IDE Settings › Export Settings…", () => {
       getItem: (k: string) => data[k] ?? null,
     };
     expect(Object.keys(exportedStorage(storage)).sort()).toEqual([
-      "openidea.liveTemplates.v1",
-      "openidea.macros.v1",
-      "openidea.toolWindowLayouts.v1",
+      "lama.liveTemplates.v1",
+      "lama.macros.v1",
+      "lama.toolWindowLayouts.v1",
     ]);
   });
 });

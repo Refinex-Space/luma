@@ -79,8 +79,8 @@ const previewMarks = StateField.define<DecorationSet>({
   },
   provide: (f) => EditorView.decorations.from(f),
 });
-const matchMark = Decoration.mark({ class: "cm-openidea-findMatch" });
-const currentMatchMark = Decoration.mark({ class: "cm-openidea-findMatch cm-openidea-findMatch-current" });
+const matchMark = Decoration.mark({ class: "cm-lama-findMatch" });
+const currentMatchMark = Decoration.mark({ class: "cm-lama-findMatch cm-lama-findMatch-current" });
 const currentLineMark = Decoration.line({ class: "cm-activeLine" });
 const readOnly = [EditorState.readOnly.of(true), EditorView.editable.of(false)];
 

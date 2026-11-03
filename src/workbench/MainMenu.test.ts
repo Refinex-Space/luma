@@ -65,9 +65,9 @@ describe("main menu model", () => {
           {
             kind: "action",
             id: "file.openRecentProject",
-            label: "openidea  —  ~/openidea",
+            label: "lama  —  ~/lama",
             hint: null,
-            arg: "/p/openidea",
+            arg: "/p/lama",
           },
           { kind: "placeholder", id: "recent.none", label: "No Recent Projects" },
         ],
@@ -80,8 +80,8 @@ describe("main menu model", () => {
     expect(sub[0]).toEqual({
       kind: "action",
       action: "file.openRecentProject",
-      arg: "/p/openidea",
-      label: "openidea  —  ~/openidea",
+      arg: "/p/lama",
+      label: "lama  —  ~/lama",
     });
     expect(sub[1]).toMatchObject({ label: "No Recent Projects", disabled: true });
   });

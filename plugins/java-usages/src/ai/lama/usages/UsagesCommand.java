@@ -1,4 +1,4 @@
-package ai.openidea.usages;
+package ai.lama.usages;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

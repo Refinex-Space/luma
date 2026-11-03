@@ -126,7 +126,7 @@ describe("Diff toolbar", () => {
     // The lock turns scrolling together off without rebuilding the panes.
     const divider = document.querySelector(".cm-diffDivider");
     (await screen.findByRole("button", { name: "Synchronize Scrolling" })).click();
-    await waitFor(() => expect(JSON.parse(localStorage.getItem("openidea.vcs.diffOptions")!).syncScroll).toBe(false));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("lama.vcs.diffOptions")!).syncScroll).toBe(false));
     expect(document.querySelector(".cm-diffDivider")).toBe(divider);
     (await screen.findByRole("button", { name: "Settings" })).click();
     const item = await screen.findByRole("menuitemcheckbox", { name: "Align Changes" });
@@ -135,7 +135,7 @@ describe("Diff toolbar", () => {
     // Padded panes, the changed lines' gutters still tinted as in IDEA.
     await waitFor(() => expect(document.querySelector(".cm-diffDivider")).toBeNull());
     expect(document.querySelector(".cm-merge-b .cm-lineNumbers .cm-diffGutter-inserted")?.textContent).toBe("2");
-    expect(JSON.parse(localStorage.getItem("openidea.vcs.diffOptions")!)).toMatchObject({
+    expect(JSON.parse(localStorage.getItem("lama.vcs.diffOptions")!)).toMatchObject({
       alignChanges: true,
       syncScroll: false,
     });
@@ -216,7 +216,7 @@ describe("Unified Revert", () => {
       ["", "added"],
       ["deleted", ""],
     ])(`${control} restores %j from %j`, async (original, changed) => {
-      localStorage.setItem("openidea.vcs.diffOptions", JSON.stringify({ mode: "unified", collapse: false }));
+      localStorage.setItem("lama.vcs.diffOptions", JSON.stringify({ mode: "unified", collapse: false }));
       texts.HEAD = original;
       working = changed;
       const mounted = render(

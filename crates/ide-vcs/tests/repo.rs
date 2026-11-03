@@ -1116,7 +1116,7 @@ fn partial_commit_of_chosen_hunks_leaves_worktree_and_index_alone() {
     let st = repo.status().unwrap();
     assert_eq!(status_of(&st, "f.txt").unstaged, Some(ChangeKind::Modified));
     assert_eq!(status_of(&st, "f.txt").staged, None);
-    assert!(!fx.dir.join(".git/openidea-partial-index").exists());
+    assert!(!fx.dir.join(".git/lama-partial-index").exists());
 
     // A stale hunk (the file changed since the UI computed it) refuses to commit anything.
     let before = fx.git(&["rev-parse", "HEAD"]);
@@ -1128,7 +1128,7 @@ fn partial_commit_of_chosen_hunks_leaves_worktree_and_index_alone() {
     assert!(err.message.contains("changed"), "{}", err.message);
     assert_eq!(fx.git(&["rev-parse", "HEAD"]), before);
     assert_eq!(fx.git(&["diff", "--cached", "--name-only"]), "");
-    assert!(!fx.dir.join(".git/openidea-partial-index").exists());
+    assert!(!fx.dir.join(".git/lama-partial-index").exists());
 
     // The remaining hunk commits on its own; then nothing is left.
     let rest = diff_hunks(&repo.file_at(&fx.path("f.txt"), None, encoding_rs::UTF_8).unwrap().unwrap(), edited);
@@ -1313,11 +1313,11 @@ fn linked_worktree_and_submodule() {
     assert_eq!(status_of(&st, "sub").unstaged, Some(ChangeKind::Modified));
 }
 
-/// Manual benchmark: `OPENIDEA_VCS_BENCH_REPO=/path/to/large/repo cargo test -p ide-vcs --release -- --ignored bench`.
+/// Manual benchmark: `LAMA_VCS_BENCH_REPO=/path/to/large/repo cargo test -p ide-vcs --release -- --ignored bench`.
 #[test]
 #[ignore]
 fn bench_status_on_large_repo() {
-    let Some(path) = std::env::var_os("OPENIDEA_VCS_BENCH_REPO") else { return };
+    let Some(path) = std::env::var_os("LAMA_VCS_BENCH_REPO") else { return };
     let repo = Repo::discover(Path::new(&path)).unwrap().unwrap();
     for i in 0..3 {
         let t = Instant::now();
@@ -1582,7 +1582,7 @@ fn restricted_conflict_preview_uses_host_owned_temporary_files() {
     f.commit_all("mine");
     let output = Command::new("git").current_dir(&f.dir).args(["merge", "other"]).output().unwrap();
     assert!(!output.status.success());
-    let trap = f.path(&format!(".git/openidea-merge-{}", std::process::id()));
+    let trap = f.path(&format!(".git/lama-merge-{}", std::process::id()));
     std::fs::create_dir_all(&trap).unwrap();
     let marker = f._tmp.path().join("user-data");
     std::fs::write(&marker, "untouched").unwrap();

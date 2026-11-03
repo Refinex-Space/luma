@@ -8,7 +8,7 @@ Use **File → New Workspace…**. Choose a name and a separate directory for th
 
 When opening another local project, choose **Attach** to add it to this window. A plain project becomes a workspace automatically under the IDE app data directory's `workspaces` folder, named after the current project (with a unique directory suffix when needed). The existing editor session carries over after the unsaved-changes guard. **Don't ask again** remembers Attach; change it in **Settings → System Settings → Project → Open project in**. Already linked projects are revealed in Project view. Right-click a non-first linked root and choose **Remove from Workspace** to unlink it without deleting files.
 
-The workspace stores its manifest in `.openidea/workspace.json`:
+The workspace stores its manifest in `.lama/workspace.json`:
 
 ```json
 {

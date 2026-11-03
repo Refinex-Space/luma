@@ -196,7 +196,7 @@ function extension(doc: EditorDocContext): Extension {
       return dependencyFixes(view, selection.from, selection.to);
     }),
     quickFixProviders.of(dependencyFixes),
-    EditorState.languageData.of(() => [{ openideaCompletion: completion }]),
+    EditorState.languageData.of(() => [{ lamaCompletion: completion }]),
   ];
 }
 

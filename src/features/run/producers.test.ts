@@ -17,7 +17,7 @@ import {
 } from "./producers";
 
 const ROOT = "/work/app";
-const SCRATCH = "/Users/me/Library/Application Support/ai.l0ng.openidea/scratches";
+const SCRATCH = "/Users/me/Library/Application Support/space.refinex.lama/scratches";
 
 const cfg = (over: Partial<RunConfig> & { id: string; kind: string }): RunConfig => ({
   name: over.id,
@@ -35,7 +35,7 @@ const cfg = (over: Partial<RunConfig> & { id: string; kind: string }): RunConfig
 function env(tools: Record<string, string | null>, extra: Partial<ToolEnv> = {}): ToolEnv {
   return {
     tool: (n): LocatedTool | null => (n in tools ? { path: `/bin/${n}`, version: tools[n] ?? null } : null),
-    compileDir: "/tmp/openidea-run",
+    compileDir: "/tmp/lama-run",
     ...extra,
   };
 }
@@ -232,12 +232,12 @@ describe("single-file producers (scratches)", () => {
     expect(p.config!.cwd).toBe(SCRATCH);
     expect(p.config!.args).toEqual([]);
     expect(p.config!.command).toMatch(
-      /^mkdir -p \/tmp\/openidea-run && \/bin\/rustc -g --edition 2021 -o \/tmp\/openidea-run\/hihi-\w+ hihi\.rs && \/tmp\/openidea-run\/hihi-\w+$/,
+      /^mkdir -p \/tmp\/lama-run && \/bin\/rustc -g --edition 2021 -o \/tmp\/lama-run\/hihi-\w+ hihi\.rs && \/tmp\/lama-run\/hihi-\w+$/,
     );
     expect(p.config!.kind).toBe("rustc");
     expect(p.debug!.build.command).toMatch(/rustc -g .* hihi\.rs$/);
     expect(p.debug!.config).toMatchObject({ kind: "native", debugAdapter: "codelldb", args: [] });
-    expect(p.debug!.config.command).toMatch(/^\/tmp\/openidea-run\/hihi-\w+$/);
+    expect(p.debug!.config.command).toMatch(/^\/tmp\/lama-run\/hihi-\w+$/);
     expect(produceContext(scratch("hihi.rs", "fn main() {}"), env({}))!.missing!.body).toMatch(/rustup/);
   });
 
@@ -381,7 +381,7 @@ describe("single-file producers (scratches)", () => {
   it("C / C++: compile with debug info into the compile directory", () => {
     const c = produceContext(scratch("a.c", "int main(void) { return 0; }"), ALL)!;
     expect(c.config!.command).toMatch(
-      /^mkdir -p \/tmp\/openidea-run && \/bin\/clang -g -o \/tmp\/openidea-run\/a-\w+ a\.c && \/tmp\/openidea-run\/a-\w+$/,
+      /^mkdir -p \/tmp\/lama-run && \/bin\/clang -g -o \/tmp\/lama-run\/a-\w+ a\.c && \/tmp\/lama-run\/a-\w+$/,
     );
     const cpp = produceContext(scratch("a.cpp", "int main() {}"), env({ "g++": null }))!;
     expect(cpp.config!.command).toMatch(/\/bin\/g\+\+ -g -std=c\+\+17 -o/);
@@ -628,7 +628,7 @@ describe("Kotlin single file (.kt)", () => {
     expect(p.name).toBe("hello.kt");
     expect(p.config).toMatchObject({ kind: "kotlinc", cwd: SCRATCH, args: [], debugAdapter: null });
     expect(p.config!.command).toMatch(
-      /^mkdir -p \/tmp\/openidea-run && \/bin\/kotlinc -include-runtime -d \/tmp\/openidea-run\/hello-\w+\.jar hello\.kt && \/bin\/java -jar \/tmp\/openidea-run\/hello-\w+\.jar$/,
+      /^mkdir -p \/tmp\/lama-run && \/bin\/kotlinc -include-runtime -d \/tmp\/lama-run\/hello-\w+\.jar hello\.kt && \/bin\/java -jar \/tmp\/lama-run\/hello-\w+\.jar$/,
     );
     expect(p.debug).toBeUndefined();
     // `suspend fun main()` and the gutter on it (scratch mains with a class name).
@@ -666,10 +666,10 @@ describe("compile-and-run lines on Windows", () => {
     ({
       tool: (n: string): LocatedTool | null =>
         n in tools ? { path: `C:\\Program Files\\Tools\\${n}.exe`, version: tools[n] ?? null } : null,
-      compileDir: "C:\\Users\\me\\AppData\\Local\\Temp\\openidea-run",
+      compileDir: "C:\\Users\\me\\AppData\\Local\\Temp\\lama-run",
       windows: true,
     }) satisfies ToolEnv;
-  const DIR = String.raw`C:\Users\me\AppData\Local\Temp\openidea-run`;
+  const DIR = String.raw`C:\Users\me\AppData\Local\Temp\lama-run`;
   /** The command with the per-file hash replaced by `H`. */
   const line = (p: { config?: { command: string } } | null) =>
     p!.config!.command.replace(/-[0-9a-z]+(-test)?\.(exe|jar)/g, "-H$1.$2");
@@ -719,13 +719,13 @@ describe("compile-and-run lines on Windows", () => {
   });
 
   it("a compile directory with spaces is quoted for cmd", () => {
-    const e = { ...WIN({ clang: null }), compileDir: "C:/Users/John Smith/Temp/openidea-run/" };
+    const e = { ...WIN({ clang: null }), compileDir: "C:/Users/John Smith/Temp/lama-run/" };
     const p = produceContext(scratch("a.c", "int main() {}"), e)!;
     expect(p.config!.command).toMatch(
-      /^\(if not exist "C:\\Users\\John Smith\\Temp\\openidea-run" mkdir "C:\\Users\\John Smith\\Temp\\openidea-run"\) && /,
+      /^\(if not exist "C:\\Users\\John Smith\\Temp\\lama-run" mkdir "C:\\Users\\John Smith\\Temp\\lama-run"\) && /,
     );
     expect(p.config!.command).toMatch(
-      / -o "C:\\Users\\John Smith\\Temp\\openidea-run\\a-\w+\.exe" a\.c && "C:\\Users\\John Smith\\Temp\\openidea-run\\a-\w+\.exe"$/,
+      / -o "C:\\Users\\John Smith\\Temp\\lama-run\\a-\w+\.exe" a\.c && "C:\\Users\\John Smith\\Temp\\lama-run\\a-\w+\.exe"$/,
     );
   });
 });

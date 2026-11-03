@@ -325,7 +325,7 @@ impl DbManager {
         let (recorder, statements) = std::sync::mpsc::channel::<(String, String, f64)>();
         {
             let history = history.clone();
-            let spawned = std::thread::Builder::new().name("openidea-db-history".into()).spawn(move || {
+            let spawned = std::thread::Builder::new().name("lama-db-history".into()).spawn(move || {
                 for (source, text, time) in statements {
                     if let Err(e) = history.add(&source, &text, time) {
                         tracing::warn!("{}", e.message);

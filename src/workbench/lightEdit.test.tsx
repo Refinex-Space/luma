@@ -49,7 +49,7 @@ describe("LightEdit window", () => {
     expect(screen.queryByText("branch widget")).toBeNull();
     const items = [...document.querySelectorAll("[data-status-item]")].map((el) => el.getAttribute("data-status-item"));
     expect(items).toEqual(["editor.caret"]);
-    expect(screen.queryByText("Welcome to OpenIDEA")).toBeNull();
+    expect(screen.queryByText("Welcome to Lama")).toBeNull();
   });
 
   it("hints only at opening files in an empty editor", () => {

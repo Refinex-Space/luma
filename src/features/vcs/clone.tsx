@@ -10,7 +10,7 @@ import { openDialog } from "./dialogs";
 import { progressFraction } from "./model";
 import styles from "./common.module.css";
 
-const PARENT_KEY = "openidea.vcs.cloneParent";
+const PARENT_KEY = "lama.vcs.cloneParent";
 
 /** Folder name git would pick for `url` (`https://h/o/repo.git` → `repo`, `git@h:o/r` → `r`). */
 export function cloneDirName(url: string): string {

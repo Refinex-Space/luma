@@ -1,6 +1,6 @@
-# Writing OpenIDEA plugins
+# Writing Lama plugins
 
-OpenIDEA plugins are sandboxed **WebAssembly components** (wasmtime, component
+Lama plugins are sandboxed **WebAssembly components** (wasmtime, component
 model, WASI preview 2), in the style of Zed extensions. A plugin can register
 commands (they become IDE actions you can search for and bind to keys), read
 project files, insert text into the editor, show notifications and contribute
@@ -14,7 +14,7 @@ plugins/
 └─ language-toy/            # manifest-only: a language definition
 ```
 
-The API is defined in [`wit/plugin.wit`](../wit/plugin.wit) (`openidea:plugin/plugin@0.1.0`).
+The API is defined in [`wit/plugin.wit`](../wit/plugin.wit) (`lama:plugin/plugin@0.1.0`).
 
 ## 1. The package
 
@@ -27,7 +27,7 @@ version = "0.1.0"               # semver
 description = "Inserts today's date and counts words."
 authors = ["You <you@example.com>"]
 homepage = "https://example.com" # optional
-openidea-api = "0.1"                # API version this plugin targets
+lama-api = "0.1"                # API version this plugin targets
 wasm = "dist/plugin.wasm"       # omit for contribution-only plugins
 permissions = ["project-read", "editor-read", "editor-write"]
 
@@ -93,9 +93,9 @@ panic = "abort"
 `src/lib.rs`:
 
 ```rust
-wit_bindgen::generate!({ world: "plugin", path: "path/to/openidea/wit" });
+wit_bindgen::generate!({ world: "plugin", path: "path/to/lama/wit" });
 
-use openidea::plugin::host::{self, LogLevel, NotificationLevel};
+use lama::plugin::host::{self, LogLevel, NotificationLevel};
 
 struct MyPlugin;
 
@@ -204,7 +204,7 @@ Markers are matched like a language server's `root-markers`.
 - **Install:** Settings › Plugins › _Install Plugin from Disk…_ (or the action
   _Install Plugin from Disk…_) and pick the package folder. The manifest and the
   files it references are copied to `<app-data>/plugins/<id>/`.
-- **Dev plugins:** put (or symlink) the package in `<project>/.openidea/plugins/<name>/`.
+- **Dev plugins:** put (or symlink) the package in `<project>/.lama/plugins/<name>/`.
   It loads when the project is opened, is listed with a _dev_ tag, and _Reload_
   (or the _Reload Plugins_ action) picks up a rebuilt `plugin.wasm` without
   restarting the IDE.

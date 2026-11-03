@@ -108,8 +108,8 @@ describe("editor font size actions", () => {
     const view = new EditorView({ state: EditorState.create({ extensions: [fontExtension(settings), fontZoom] }) });
     views.push(view);
     view.dispatch({ effects: setFontZoom.of(2) });
-    expect(view.dom.style.getPropertyValue("--openidea-editor-base-size")).toBe("13px");
-    expect(view.dom.style.getPropertyValue("--openidea-editor-font-size")).toContain("+ 2px");
+    expect(view.dom.style.getPropertyValue("--lama-editor-base-size")).toBe("13px");
+    expect(view.dom.style.getPropertyValue("--lama-editor-font-size")).toContain("+ 2px");
   });
 
   it("leaves ⌘= / ⌘- to fold and unfold", () => {

@@ -1,11 +1,11 @@
-//! Sample OpenIDEA plugin. Build with `../build.sh hello` (see plugins/README.md).
+//! Sample Lama plugin. Build with `../build.sh hello` (see plugins/README.md).
 
 wit_bindgen::generate!({
     world: "plugin",
     path: "../../wit",
 });
 
-use openidea::plugin::host::{self, LogLevel, NotificationLevel};
+use lama::plugin::host::{self, LogLevel, NotificationLevel};
 
 struct Hello;
 
@@ -45,10 +45,8 @@ impl Guest for Hello {
 
 /// Today's UTC date as `YYYY-MM-DD` (WASI wall clock).
 fn today() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+    let secs =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
     format!("{y:04}-{m:02}-{d:02}")
 }

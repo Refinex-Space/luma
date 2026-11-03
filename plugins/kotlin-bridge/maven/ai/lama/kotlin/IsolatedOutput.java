@@ -1,4 +1,4 @@
-package ai.openidea.kotlin;
+package ai.lama.kotlin;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +21,7 @@ public final class IsolatedOutput extends AbstractMavenLifecycleParticipant {
     private final Set<MavenProject> sources = new HashSet<>();
 
     @Override public void afterProjectsRead(MavenSession session) throws MavenExecutionException {
-        String destination = session.getUserProperties().getProperty("openidea.kotlin.staging");
+        String destination = session.getUserProperties().getProperty("lama.kotlin.staging");
         if (destination == null) throw new MavenExecutionException("Missing Kotlin staging directory", (File) null);
         staging = new File(destination);
         int index = 0;
@@ -88,7 +88,7 @@ public final class IsolatedOutput extends AbstractMavenLifecycleParticipant {
     private static boolean hasKotlin(Path root, Path directory, List<MavenProject> projects) throws MavenExecutionException {
         if (!directory.equals(root)) {
             String name = directory.getFileName().toString();
-            if (Arrays.asList("target", "build", "out", "bin", ".git", "node_modules", ".openidea").contains(name)) return false;
+            if (Arrays.asList("target", "build", "out", "bin", ".git", "node_modules", ".lama").contains(name)) return false;
             for (MavenProject project : projects) if (project.getBasedir().toPath().equals(directory)) return false;
         }
         if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) return false;

@@ -75,7 +75,7 @@ impl Handler for FakeAgent {
 
     fn on_request_with_data(&self, method: &str, params: Value) -> Result<Value, (i64, String, Option<Value>)> {
         if method == "session/prompt" && params.pointer("/prompt/0/text") == Some(&json!("limit")) {
-            let data = json!({"openidea": {"usageLimit": {"resetsAtMs": 1234.0}}});
+            let data = json!({"lama": {"usageLimit": {"resetsAtMs": 1234.0}}});
             return Err((codes::INTERNAL_ERROR, "You've hit your usage limit".into(), Some(data)));
         }
         self.on_request(method, params).map_err(|(code, message)| (code, message, None))
@@ -90,14 +90,14 @@ impl Handler for FakeAgent {
                     self.calls.lock().push("subagents".into());
                 }
                 Ok(json!({"protocolVersion": 1, "agentCapabilities": {"loadSession": true,
-                    "sessionCapabilities": {"fork": {}}, "_meta": {"openidea": {"rollback": true, "steer": true}}}}))
+                    "sessionCapabilities": {"fork": {}}, "_meta": {"lama": {"rollback": true, "steer": true}}}}))
             }
             "session/new" => Ok(json!({"sessionId": "s1",
                 "modes": {"currentModeId": "ask", "availableModes": [{"id": "ask", "name": "Ask"}, {"id": "code", "name": "Code"}]},
                 "configOptions": [{"id": "model", "category": "model", "type": "select", "currentValue": "big",
                     "options": [{"value": "big", "name": "Big"}, {"value": "small", "name": "Small"}]}]})),
             "session/fork" => Ok(json!({"sessionId": "s2"})),
-            "_openidea/rollback" | "_openidea/steer" => {
+            "_lama/rollback" | "_lama/steer" => {
                 let detail = params.get("turns").cloned().unwrap_or_else(|| params["prompt"][0]["text"].clone());
                 self.calls.lock().push(format!("{method} {detail}"));
                 Ok(json!({}))
@@ -602,11 +602,11 @@ async fn cancelling_resolves_the_open_permission_and_delete_forgets_the_task() {
 }
 
 /// Drives the real Claude Code adapter (needs `npx`, network and a signed-in `claude`):
-/// `OPENIDEA_AGENT_E2E=1 cargo test -p ide-agent real_claude -- --ignored --nocapture`.
+/// `LAMA_AGENT_E2E=1 cargo test -p ide-agent real_claude -- --ignored --nocapture`.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn real_claude_task_in_a_worktree() {
-    if std::env::var_os("OPENIDEA_AGENT_E2E").is_none() {
+    if std::env::var_os("LAMA_AGENT_E2E").is_none() {
         return;
     }
     let tmp = tempfile::tempdir().unwrap();
@@ -707,20 +707,20 @@ async fn forks_rollbacks_and_steering() {
     {
         let calls = agent.calls.lock();
         let load = calls.iter().rposition(|c| c == "session/load").unwrap();
-        assert!(calls[load..].iter().any(|c| c == "_openidea/rollback 1"));
+        assert!(calls[load..].iter().any(|c| c == "_lama/rollback 1"));
     }
 
     // Undoing the last turn hands its message back.
     let undone = mgr.rollback(&task.id, 1).await.unwrap().unwrap();
     assert_eq!(undone.text, "again");
     assert_eq!(turn_starts(&mgr.entries(&task.id, None).unwrap()).len(), 1);
-    assert!(agent.calls.lock().iter().any(|c| c == "_openidea/rollback 1"));
+    assert!(agent.calls.lock().iter().any(|c| c == "_lama/rollback 1"));
 
     // A message sent now while the agent works joins the turn.
     mgr.prompt(&task.id, text("wait"), false).await.unwrap();
     wait_for(&mgr, &task.id, AgentStatus::Running).await;
     mgr.prompt(&task.id, text("also this"), true).await.unwrap();
-    assert!(agent.calls.lock().iter().any(|c| c == "_openidea/steer \"also this\""));
+    assert!(agent.calls.lock().iter().any(|c| c == "_lama/steer \"also this\""));
     let entries = mgr.entries(&task.id, None).unwrap();
     assert!(matches!(entries.last(), Some(AgentEntry::User { steered: true, .. })));
     assert!(mgr.task(&task.id).unwrap().state.lock().task.queue.is_empty());

@@ -802,7 +802,7 @@ export function removeWatch(expression: string) {
   persistWatches();
 }
 
-const WATCH_KEY = "openidea.debugger.watches";
+const WATCH_KEY = "lama.debugger.watches";
 
 function persistWatches() {
   try {

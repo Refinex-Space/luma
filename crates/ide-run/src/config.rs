@@ -1,4 +1,4 @@
-//! User-defined run configurations persisted in `<root>/.openidea/run.toml`:
+//! User-defined run configurations persisted in `<root>/.lama/run.toml`:
 //!
 //! ```toml
 //! [[configurations]]
@@ -338,12 +338,12 @@ fn write_array(path: &Path, key: &str, configs: &[&RunConfig], suppressed: Optio
     Ok(())
 }
 
-/// Keeps the workspace-local file out of version control (`.openidea/.gitignore`).
+/// Keeps the workspace-local file out of version control (`.lama/.gitignore`).
 fn ignore_local(root: &Path) -> IdeResult<()> {
     ignore_private(root, &format!("/{LOCAL_FILE}"))
 }
 
-/// Adds `entry` to `.openidea/.gitignore` unless it is already listed.
+/// Adds `entry` to `.lama/.gitignore` unless it is already listed.
 pub(crate) fn ignore_private(root: &Path, entry: &str) -> IdeResult<()> {
     let file = project_dir::path(root, ".gitignore");
     let current = fs::read_to_string(&file).unwrap_or_default();

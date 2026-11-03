@@ -53,8 +53,8 @@ import styles from "./RunServices.module.css";
 export const RUN_PROVIDER = "runConfigurations";
 const TYPE_PREFIX = "run:type:";
 const CONFIG_PREFIX = "run:config:";
-const STORAGE_KEY = "openidea.services.runTypes:";
-const RAN_KEY = "openidea.services.ran:";
+const STORAGE_KEY = "lama.services.runTypes:";
+const RAN_KEY = "lama.services.ran:";
 /** Types shown in Services until the user changes the list. */
 export const DEFAULT_TYPES: readonly string[] = ["spring-boot"];
 

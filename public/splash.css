@@ -43,10 +43,11 @@ body,
   width: 56px;
   height: 56px;
 }
-/* 15px Inter: 2048 units per em, the line box from ascender to descender. */
 .splash-wordmark {
-  width: 73.2px;
-  height: 18.15px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0.02em;
 }
 .splash-bar {
   width: 120px;

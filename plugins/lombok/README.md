@@ -1,6 +1,6 @@
 # Lombok agent for JDT LS
 
-`lombok-1.18.48-openidea.2.jar` is the app-provided Java agent for JDT LS. It includes:
+`lombok-1.18.48-lama.2.jar` is the app-provided Java agent for JDT LS. It includes:
 
 - [projectlombok/lombok#4059](https://github.com/projectlombok/lombok/pull/4059), which restores
   `lombok.config` lookup after Equinox removed `getModuleClassLoader(boolean)`.
@@ -33,26 +33,26 @@ workspace migration test when changing its path.
   - PR #4089 (`Rawi01/lombok` `eclipse-constructor-call-statement`):
     - `7832faa49b35c839088866daf865384c82cd555f`
     - `3f3a80b857a969839ab1baba12767aec4965ac32`
-- Upstream version: `1.18.48`; `openidea.2` identifies this distribution of the patched agent
-  (`openidea.1` had #4059 only).
+- Upstream version: `1.18.48`; `lama.2` identifies this distribution of the patched agent
+  (`lama.1` had #4059 only).
   Upstream's own `java -jar ... --version` still reports `1.18.48`.
 - SHA-256: `2978d8b2d55dac1bb4936ba44562bc4549931d4e71a7ebfeaebccd60bcdf7379`
 - License: [MIT, including bundled component notices](LICENSE), also retained inside the jar.
 - Build environment: macOS arm64, Temurin 25.0.5, Apache Ant 1.10.15, upstream Ivy setup
-  (`openidea.1` was built with OpenJDK 23.0.1).
+  (`lama.1` was built with OpenJDK 23.0.1).
 
 Build using the upstream Ant entry point described in its contributing guide:
 
 ```sh
 git clone https://github.com/projectlombok/lombok.git
 cd lombok
-git checkout -b openidea-1.18.48 v1.18.48
+git checkout -b lama-1.18.48 v1.18.48
 git fetch https://github.com/chagong/lombok.git fix-equinox-bundle-wiring
 git fetch https://github.com/Rawi01/lombok.git eclipse-constructor-call-statement
 git cherry-pick 2d535482a913de46c27d06c5b0b294918ede3f9c 3098f4dd78b5349c2f382e7310e64db810dd380b
 git cherry-pick 7832faa49b35c839088866daf865384c82cd555f 3f3a80b857a969839ab1baba12767aec4965ac32
 ant dist
-cp dist/lombok.jar /path/to/openidea/plugins/lombok/lombok-1.18.48-openidea.2.jar
+cp dist/lombok.jar /path/to/lama/plugins/lombok/lombok-1.18.48-lama.2.jar
 ```
 
 The changelog context conflicts because the first commit adds a release-note line under the
@@ -85,18 +85,18 @@ On macOS arm64 with JDT LS 1.63.0 / Equinox 3.25.0, server OpenJDK 25 and projec
   identical `javap` output, including default `void` setters.
 - Upstream `PatchFixesHiderTest` passed both the standard OSGi and legacy Equinox lookup tests.
 
-`openidea.2` (#4089) on macOS arm64, JDT LS 1.63.0-202610191322 (ECJ
+`lama.2` (#4089) on macOS arm64, JDT LS 1.63.0-202610191322 (ECJ
 `compiler.batch_3.46.200.v20261008-1115`), server Temurin 25:
 
 - ECJ batch with the agent, compliance 17 and 25, against ECJ 3.46.200 and 3.46.100: `@SneakyThrows`
   constructors with implicit `super()`, explicit `super()` and `this()`; `@NonNull` constructor
   parameters; `@RequiredArgsConstructor` with an initialized final field, `@AllArgsConstructor`,
-  `@NoArgsConstructor`, `@Builder` record, `@Value @Builder`, `@UtilityClass`. `openidea.1` failed
-  with "Internal Error compiling" on 3.46.200; `openidea.2` compiled on both ECJ versions, the
+  `@NoArgsConstructor`, `@Builder` record, `@Value @Builder`, `@UtilityClass`. `lama.1` failed
+  with "Internal Error compiling" on 3.46.200; `lama.2` compiled on both ECJ versions, the
   programs ran with identical output, and `@NonNull` checks run after the constructor call again.
-- Real JDT LS `java/buildWorkspace(true)` of the same sources with the agent: `openidea.1` reported
-  Failed with three internal errors and wrote no classes; `openidea.2` Succeeded with all classes.
-- `plugins/java-usages/tests/verify.py` and `read-write.py` passed with `openidea.2`.
+- Real JDT LS `java/buildWorkspace(true)` of the same sources with the agent: `lama.1` reported
+  Failed with three internal errors and wrote no classes; `lama.2` Succeeded with all classes.
+- `plugins/java-usages/tests/verify.py` and `read-write.py` passed with `lama.2`.
 
 Windows and Linux runtime validation has not been performed. Rust tests cover source selection
 for both supported architectures on all three OS variants, offline provisioning, corruption

@@ -1,6 +1,6 @@
 # Spring configuration navigation
 
-`openidea.java.configuration` bridges YAML / properties to the existing JDT LS
+`lama.java.configuration` bridges YAML / properties to the existing JDT LS
 Java model. It is bundled with the Java usages extension; it does not install a
 second language server, run a build, change the application's dependencies, or
 connect to external configuration services.
@@ -97,8 +97,8 @@ Use the JDT LS distribution / Java version documented in [README](README.md).
 ```sh
 python3 plugins/java-usages/build.py /path/to/jdtls
 python3 plugins/java-usages/tests/configuration.py /path/to/jdtls
-OPENIDEA_CONFIGURATION_STRESS=1 python3 plugins/java-usages/tests/configuration.py /path/to/jdtls
-OPENIDEA_SPRING_BOOT_JAR=/path/to/spring-boot-autoconfigure.jar python3 plugins/java-usages/tests/configuration.py /path/to/jdtls
+LAMA_CONFIGURATION_STRESS=1 python3 plugins/java-usages/tests/configuration.py /path/to/jdtls
+LAMA_SPRING_BOOT_JAR=/path/to/spring-boot-autoconfigure.jar python3 plugins/java-usages/tests/configuration.py /path/to/jdtls
 cargo test -p ide-language -p ide-lsp
 ```
 

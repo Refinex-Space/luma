@@ -16,8 +16,8 @@ interface ExceptionState {
   known: Record<string, ExceptionFilter[]>;
 }
 
-const CHOICES_PREFIX = "openidea.debugger.exceptions:";
-const KNOWN_KEY = "openidea.debugger.exceptionFilters";
+const CHOICES_PREFIX = "lama.debugger.exceptions:";
+const KNOWN_KEY = "lama.debugger.exceptionFilters";
 
 function readJson(key: string): unknown {
   try {

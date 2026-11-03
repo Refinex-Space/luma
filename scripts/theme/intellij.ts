@@ -1,13 +1,13 @@
 /**
  * Converts an IntelliJ theme (`.theme.json`, optionally with its editor scheme
- * `.icls`) into an OpenIDEA theme + editor scheme. The mapping covers the
+ * `.icls`) into an Lama theme + editor scheme. The mapping covers the
  * main keys only; anything unmapped keeps the built-in value of the base
  * (`kind`). Pure functions, no dependencies: see import-intellij-theme.ts
  * for the command line.
  */
 import { stripJsonComments } from "./tokens.ts";
 
-/** OpenIDEA token ← IntelliJ `ui` keys, first present wins. `*.prop` wildcards apply too. */
+/** Lama token ← IntelliJ `ui` keys, first present wins. `*.prop` wildcards apply too. */
 export const UI_KEYS: Record<string, string[]> = {
   "--bg-app": ["Panel.background"],
   "--bg-frame": ["MainWindow.background", "MainToolbar.background", "Panel.background"],
@@ -272,7 +272,7 @@ export function slug(name: string): string {
   );
 }
 
-/** Converts an IntelliJ `.theme.json` (and optionally its `.icls`) into OpenIDEA theme files. */
+/** Converts an IntelliJ `.theme.json` (and optionally its `.icls`) into Lama theme files. */
 export function convertIntellijTheme(themeJson: string, icls?: string, id?: string): ConvertedTheme {
   const src = JSON.parse(stripJsonComments(themeJson)) as { [k: string]: Json };
   const name = typeof src.name === "string" ? src.name : "Imported Theme";
@@ -299,7 +299,7 @@ export function convertIntellijTheme(themeJson: string, icls?: string, id?: stri
   }
   const scheme = icls ? convertIcls(icls) : null;
   const dark = typeof src.dark === "boolean" ? src.dark : (scheme?.dark ?? true);
-  // The editor surface sits on an island in OpenIDEA: keep it on the editor background.
+  // The editor surface sits on an island in Lama: keep it on the editor background.
   if (scheme?.tokens["--bg-editor"] && !tokens["--bg-island"]) tokens["--bg-island"] = scheme.tokens["--bg-editor"];
   return {
     theme: { id: id ?? slug(name), name, kind: dark ? "dark" : "light", tokens },
@@ -317,7 +317,7 @@ export function pluginManifest(c: ConvertedTheme, author: string, sourceName: st
     `version = "1.0.0"`,
     `description = ${q(`${c.theme.name}, converted from an IntelliJ theme.`)}`,
     `authors = [${q(author)}]`,
-    `openidea-api = "0.1"`,
+    `lama-api = "0.1"`,
     "",
     "[[contributes.themes]]",
     `path = ${q(`themes/${c.theme.id}.theme.json`)}`,

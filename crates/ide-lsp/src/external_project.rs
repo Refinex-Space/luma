@@ -100,7 +100,7 @@ fn source_files(root: &Path, exclude_root: &Path, excludes: Vec<String>, limit: 
 }
 
 fn project_name(server: &Server) -> PathBuf {
-    server.root.join(".openidea-external-project")
+    server.root.join(".lama-external-project")
 }
 
 async fn request(run: &Running, command: &str, args: Value) -> bool {

@@ -1,6 +1,6 @@
 # Theme plugins
 
-OpenIDEA ships seven [built-in themes](../themes.md): Islands Light, Islands Dark,
+Lama ships seven [built-in themes](../themes.md): Islands Light, Islands Dark,
 High Contrast, Solarized Light, Solarized Dark, One Light and One Dark. Additional
 themes come from **theme plugins**, the same model as
 IntelliJ IDEA, where most themes are plugins rather than part of the IDE.
@@ -30,7 +30,7 @@ name = "Harbor Night Theme"
 version = "1.0.0"
 description = "..."
 authors = ["You <you@example.com>"]
-openidea-api = "0.1"
+lama-api = "0.1"
 
 [[contributes.themes]]             # one entry per theme; a plugin may ship several
 path = "themes/harbor-night.theme.json"
@@ -116,7 +116,7 @@ There is no build step. The package *is* the folder.
    to the theme. *Use Default Theme* switches back.
 
 To iterate without reinstalling, put (or symlink) the package in
-`<project>/.openidea/plugins/<name>/` of an open project. It loads as a *dev*
+`<project>/.lama/plugins/<name>/` of an open project. It loads as a *dev*
 plugin, and *Reload* (or the *Reload Plugins* action) picks up your edits.
 
 To share a theme, publish the folder (a Git repository or a zip). Users
@@ -148,7 +148,7 @@ ship no `.icls` at all keep the built-in syntax colours.
 
 #### `.theme.json` → UI theme
 
-| OpenIDEA token | IntelliJ `ui` key (first present wins) |
+| Lama token | IntelliJ `ui` key (first present wins) |
 |---|---|
 | `--bg-app` | `Panel.background` |
 | `--bg-frame` | `MainWindow.background`, `MainToolbar.background` |
@@ -180,7 +180,7 @@ The full table is `UI_KEYS` in [`scripts/theme/intellij.ts`](../../scripts/theme
 
 #### `.icls` → editor scheme
 
-| OpenIDEA token | `.icls` option |
+| Lama token | `.icls` option |
 |---|---|
 | `--fg-editor`, `--bg-editor` | attribute `TEXT` (foreground, background) |
 | `--caret`, `--bg-current-line` | colour `CARET_COLOR`, `CARET_ROW_COLOR` |
@@ -211,7 +211,7 @@ A VS Code theme (`themes/*.json` in the extension) has `type` (`dark` / `light`
 / `hc`), `colors` (workbench) and `tokenColors` (TextMate scopes). Set `kind`
 from `type`, then map:
 
-| OpenIDEA token | VS Code `colors` key |
+| Lama token | VS Code `colors` key |
 |---|---|
 | `--bg-frame` | `titleBar.activeBackground`, `activityBar.background` |
 | `--bg-island`, `--bg-app` | `editor.background`, `sideBar.background` |
@@ -249,7 +249,7 @@ from `type`, then map:
 
 `tokenColors` → syntax tokens, by TextMate scope:
 
-| OpenIDEA token | Scope |
+| Lama token | Scope |
 |---|---|
 | `--syn-keyword` | `keyword`, `storage.type`, `storage.modifier` |
 | `--syn-string` | `string` |

@@ -2,7 +2,7 @@
 
 Spring YAML / properties navigation is described in [CONFIGURATION.md](CONFIGURATION.md).
 
-The app-owned OSGi command `openidea.java.usages` returns `{location, kind, access}`.
+The app-owned OSGi command `lama.java.usages` returns `{location, kind, access}`.
 `kind` retains field/getter/setter/unknown identity for compatibility. Optional
 `access` is read/write/readWrite/unknown. Missing access metadata is unknown;
 old servers and ordinary LSP locations remain visible under either filter.
@@ -100,7 +100,7 @@ not rebuild this jar. A maintainer must:
 ```sh
 python3 plugins/java-usages/tests/verify.py /path/to/jdtls /path/to/lombok.jar
 python3 plugins/java-usages/tests/read-write.py /path/to/jdtls /path/to/lombok.jar > /tmp/read-write.json
-OPENIDEA_USAGES_INDEX_STRESS=1 python3 plugins/java-usages/tests/read-write.py /path/to/jdtls /path/to/lombok.jar > /tmp/read-write-indexed.json
+LAMA_USAGES_INDEX_STRESS=1 python3 plugins/java-usages/tests/read-write.py /path/to/jdtls /path/to/lombok.jar > /tmp/read-write-indexed.json
 ```
 
 The harnesses select the JDT LS configuration for the current platform. The first

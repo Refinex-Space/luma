@@ -410,7 +410,7 @@ async fn initialize_and_incremental_sync() {
     let s = h.launcher.state("mock");
 
     let init = &s.requested("initialize")[0];
-    assert_eq!(init["clientInfo"]["name"], "OpenIDEA");
+    assert_eq!(init["clientInfo"]["name"], "Lama");
     assert_eq!(init["capabilities"]["general"]["positionEncodings"], json!(["utf-16"]));
     assert_eq!(init["capabilities"]["textDocument"]["completion"]["completionItem"]["snippetSupport"], true);
     assert_eq!(init["initializationOptions"], json!({ "flag": true, "nested": { "deep": 1 } }));
@@ -1061,7 +1061,7 @@ async fn java_formatter_profiles_reach_initialization_and_live_configuration_wit
     let init = state.requested("initialize")[0].clone();
     assert_eq!(
         init["initializationOptions"]["settings"]["java"]["format"]["settings"]["profile"],
-        "OpenIDEA IntelliJ IDEA"
+        "Lama IntelliJ IDEA"
     );
     for mode in ["custom", "default", "intellij", "default"] {
         style.lock().formatter = Some(mode.into());
@@ -1090,7 +1090,7 @@ async fn java_formatter_profiles_reach_initialization_and_live_configuration_wit
             .await
             .unwrap();
         assert_eq!(result[0]["url"], expected);
-        assert_eq!(result[0]["profile"], if mode == "intellij" { "OpenIDEA IntelliJ IDEA" } else { "" });
+        assert_eq!(result[0]["profile"], if mode == "intellij" { "Lama IntelliJ IDEA" } else { "" });
         assert_eq!(result[1], false);
         assert_eq!(state.launches.load(Ordering::SeqCst), 1);
     }
@@ -2212,7 +2212,7 @@ async fn references_report_a_capped_candidate_search() {
 #[tokio::test(flavor = "multi_thread")]
 async fn classified_java_references_widen_without_losing_metadata() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.usages"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.usages"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     *s.responder.lock() = Some(Arc::new(|s, method, _| {
@@ -2267,7 +2267,7 @@ async fn classified_java_references_widen_without_losing_metadata() {
 async fn failed_java_command_falls_back_to_unclassified_native_references() {
     for project_wide in [false, true] {
         let mut caps = incremental_caps();
-        caps["executeCommandProvider"] = json!({"commands": ["openidea.java.usages"]});
+        caps["executeCommandProvider"] = json!({"commands": ["lama.java.usages"]});
         let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
         let s = h.launcher.state("jdtls");
         s.errors.lock().insert("workspace/executeCommand".into(), (-32603, "NoSuchMethodError".into()));
@@ -2287,7 +2287,7 @@ async fn failed_java_command_falls_back_to_unclassified_native_references() {
 #[tokio::test(flavor = "multi_thread")]
 async fn failed_widened_java_command_retries_with_native_references() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.usages"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.usages"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     let native = open_files_only(Vec::new());
@@ -2324,7 +2324,7 @@ async fn failed_widened_java_command_retries_with_native_references() {
 #[tokio::test(flavor = "multi_thread")]
 async fn superseded_java_command_does_not_fall_back() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.usages"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.usages"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     let (doc, _) = h.open("a.java", "int target;");
@@ -2346,7 +2346,7 @@ async fn superseded_java_command_does_not_fall_back() {
 #[tokio::test(flavor = "multi_thread")]
 async fn cancelled_java_command_does_not_fall_back() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.usages"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.usages"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     s.errors.lock().insert("workspace/executeCommand".into(), (-32800, "cancelled".into()));
@@ -2921,7 +2921,7 @@ async fn clang_tidy_warning_requires_apple_binary_and_a_config() {
     for (binary, config) in [
         ("/usr/bin/clangd", false),
         ("/opt/homebrew/opt/llvm/bin/clangd", true),
-        ("/Users/me/Library/Application Support/openidea/tools/clangd/bin/clangd", true),
+        ("/Users/me/Library/Application Support/lama/tools/clangd/bin/clangd", true),
     ] {
         let h = harness_for("cpp", "cpp", &[("clangd", incremental_caps())], &[]);
         *h.launcher.state("clangd").binary.lock() = Some(PathBuf::from(binary));
@@ -2954,7 +2954,7 @@ async fn clang_tidy_config_for_a_later_opened_file_warns_on_a_running_server() {
 #[tokio::test(flavor = "multi_thread")]
 async fn configuration_definition_uses_java_without_yaml_definition_capability() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.configuration"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.configuration"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     std::fs::write(h.root.join("pom.xml"), "<project/>").unwrap();
     let s = h.launcher.state("jdtls");
@@ -2976,7 +2976,7 @@ async fn configuration_definition_uses_java_without_yaml_definition_capability()
 #[tokio::test(flavor = "multi_thread")]
 async fn configuration_usages_merge_native_and_unsaved_profiles_without_sibling_modules() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.configuration"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.configuration"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     let (doc, path) = h.open("Settings.java", "int timeOut;");
@@ -3023,7 +3023,7 @@ async fn configuration_usages_merge_native_and_unsaved_profiles_without_sibling_
 #[tokio::test(flavor = "multi_thread")]
 async fn configuration_extension_failure_preserves_native_java_navigation() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.configuration"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.configuration"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     let (doc, path) = h.open("Settings.java", "@Value(\"${app.port}\") int port;");
@@ -3047,7 +3047,7 @@ async fn configuration_extension_failure_preserves_native_java_navigation() {
 #[tokio::test(flavor = "multi_thread")]
 async fn java_definition_consults_configuration_only_inside_key_arguments() {
     let mut caps = incremental_caps();
-    caps["executeCommandProvider"] = json!({"commands": ["openidea.java.configuration"]});
+    caps["executeCommandProvider"] = json!({"commands": ["lama.java.configuration"]});
     let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
     let s = h.launcher.state("jdtls");
     let text = "class A {\n  @Value(\"${app.port}\") int port;\n  String a() { return env.getProperty(Keys.HOST) + x.getValue(); }\n}\n";

@@ -64,7 +64,7 @@ pub fn has_kotlin(root: &Path) -> bool {
             kind.is_dir()
                 && !matches!(
                     entry.file_name().to_str(),
-                    Some("target" | "build" | "out" | "bin" | "node_modules" | ".git" | ".openidea")
+                    Some("target" | "build" | "out" | "bin" | "node_modules" | ".git" | ".lama")
                 )
                 && has_kotlin(&entry.path())
         }
@@ -102,7 +102,7 @@ pub fn build(
         });
         let extension_path = std::env::join_paths(extensions).map_err(|e| IdeError::invalid(e.to_string()))?;
         step.args.push(format!("-Dmaven.ext.class.path={}", extension_path.to_string_lossy()));
-        step.args.push(format!("-Dopenidea.kotlin.staging={}", directory.join("staging").display()));
+        step.args.push(format!("-Dlama.kotlin.staging={}", directory.join("staging").display()));
     }
     let mut messages = Vec::new();
     // Independent linked reactors must still run after another reactor's javac fails.

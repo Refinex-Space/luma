@@ -123,7 +123,7 @@ const COLOR_NAMES: Record<string, [string, "foreground" | "background"]> = {
 };
 // Preserve editor attributes without a standard exchange name on our own round trip.
 for (const attr of ATTRIBUTES)
-  if (!Object.values(ATTRIBUTE_NAMES).includes(attr.id)) ATTRIBUTE_NAMES[`OPENIDEA_${attr.id}`] = attr.id;
+  if (!Object.values(ATTRIBUTE_NAMES).includes(attr.id)) ATTRIBUTE_NAMES[`LAMA_${attr.id}`] = attr.id;
 
 const EFFECTS: Record<string, TextAttributesOverride["effect"]> = {
   "0": "underline",

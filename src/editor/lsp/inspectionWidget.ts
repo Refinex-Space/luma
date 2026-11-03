@@ -34,7 +34,7 @@ export function countsOf(view: EditorView): Counts {
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = "cm-openidea-inspection-button";
+  b.className = "cm-lama-inspection-button";
   b.setAttribute("aria-label", label);
   b.title = label;
   b.addEventListener("mousedown", (e) => e.preventDefault());
@@ -48,7 +48,7 @@ class InspectionWidget {
 
   constructor(private view: EditorView) {
     this.dom = document.createElement("div");
-    this.dom.className = "cm-openidea-inspection";
+    this.dom.className = "cm-lama-inspection";
     this.dom.setAttribute("role", "toolbar");
     this.dom.setAttribute("aria-label", "Inspections");
     editorCorner(view).appendChild(this.dom);
@@ -78,20 +78,20 @@ class InspectionWidget {
         : "No problems found",
       open,
     );
-    summary.classList.add("cm-openidea-inspection-summary");
-    if (!total) summary.appendChild(iconNode("check", 14, "cm-openidea-inspection-ok"));
+    summary.classList.add("cm-lama-inspection-summary");
+    if (!total) summary.appendChild(iconNode("check", 14, "cm-lama-inspection-ok"));
     const add = (n: number, icon: string, cls: string) => {
       if (!n) return;
       const item = document.createElement("span");
-      item.className = `cm-openidea-inspection-count ${cls}`;
+      item.className = `cm-lama-inspection-count ${cls}`;
       item.appendChild(iconNode(icon, 14));
       item.appendChild(document.createTextNode(String(n)));
       summary.appendChild(item);
     };
-    add(c.error, "error", "cm-openidea-inspection-error");
-    add(c.warning, "warning", "cm-openidea-inspection-warning");
-    add(c.info, "warning", "cm-openidea-inspection-weak");
-    add(c.typo, "info", "cm-openidea-inspection-typo");
+    add(c.error, "error", "cm-lama-inspection-error");
+    add(c.warning, "warning", "cm-lama-inspection-warning");
+    add(c.info, "warning", "cm-lama-inspection-weak");
+    add(c.typo, "info", "cm-lama-inspection-typo");
     const children: HTMLElement[] = [summary];
     if (total) {
       const prev = button(
@@ -123,7 +123,7 @@ class InspectionWidget {
 const inspectionPlugin = ViewPlugin.fromClass(InspectionWidget);
 
 const inspectionTheme = EditorView.theme({
-  ".cm-openidea-inspection": {
+  ".cm-lama-inspection": {
     display: "flex",
     alignItems: "center",
     gap: "1px",
@@ -136,7 +136,7 @@ const inspectionTheme = EditorView.theme({
     WebkitUserSelect: "none",
     userSelect: "none",
   },
-  ".cm-openidea-inspection-button": {
+  ".cm-lama-inspection-button": {
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
@@ -150,16 +150,16 @@ const inspectionTheme = EditorView.theme({
     color: "inherit",
     font: "inherit",
   },
-  ".cm-openidea-inspection-button:hover": { backgroundColor: "var(--bg-toolbar-hover)" },
-  ".cm-openidea-inspection-button:focus-visible": { outline: "1px solid var(--focus-ring)", outlineOffset: "-1px" },
-  ".cm-openidea-inspection-summary": { padding: "0 5px" },
-  ".cm-openidea-inspection-count": { display: "inline-flex", alignItems: "center", gap: "3px" },
-  ".cm-openidea-icon": { display: "inline-flex", alignItems: "center" },
-  ".cm-openidea-inspection-error .cm-openidea-icon": { color: "var(--danger)" },
-  ".cm-openidea-inspection-warning .cm-openidea-icon": { color: "var(--warning)" },
-  ".cm-openidea-inspection-weak .cm-openidea-icon": { color: "var(--fg-weak-warning, var(--fg-faint))" },
-  ".cm-openidea-inspection-typo .cm-openidea-icon": { color: "var(--success)" },
-  ".cm-openidea-inspection-ok": { color: "var(--success)" },
+  ".cm-lama-inspection-button:hover": { backgroundColor: "var(--bg-toolbar-hover)" },
+  ".cm-lama-inspection-button:focus-visible": { outline: "1px solid var(--focus-ring)", outlineOffset: "-1px" },
+  ".cm-lama-inspection-summary": { padding: "0 5px" },
+  ".cm-lama-inspection-count": { display: "inline-flex", alignItems: "center", gap: "3px" },
+  ".cm-lama-icon": { display: "inline-flex", alignItems: "center" },
+  ".cm-lama-inspection-error .cm-lama-icon": { color: "var(--danger)" },
+  ".cm-lama-inspection-warning .cm-lama-icon": { color: "var(--warning)" },
+  ".cm-lama-inspection-weak .cm-lama-icon": { color: "var(--fg-weak-warning, var(--fg-faint))" },
+  ".cm-lama-inspection-typo .cm-lama-icon": { color: "var(--success)" },
+  ".cm-lama-inspection-ok": { color: "var(--success)" },
 });
 
 export function inspectionWidgetExtension() {

@@ -3,7 +3,7 @@
 //!
 //! Each ACP session runs its own `claude` process, whose session id is the ACP one.
 //! The CLI writes a session's transcript only once it has a message, so a fork or an
-//! undo that has not been prompted yet is kept as a pending start (`<temp>/openidea-claude/
+//! undo that has not been prompted yet is kept as a pending start (`<temp>/lama-claude/
 //! <id>.json`): loading that session, from this connection or a fresh one, starts it that
 //! way.
 
@@ -62,7 +62,7 @@ pub(crate) fn connect(
         args: spec.args.clone(),
         env: spec.env.clone(),
         config_dir: cli::config_dir(&spec.env),
-        pending_dir: std::env::temp_dir().join("openidea-claude"),
+        pending_dir: std::env::temp_dir().join("lama-claude"),
         cwd: cwd.to_path_buf(),
     };
     let shim = Shim::new(config, Arc::new(cli::Process), Arc::from(on_stderr));
@@ -312,7 +312,7 @@ impl Shim {
                         "loadSession": true,
                         "promptCapabilities": { "image": true, "embeddedContext": true },
                         "sessionCapabilities": { "fork": {} },
-                        "_meta": { "openidea": { "rollback": true, "steer": true } },
+                        "_meta": { "lama": { "rollback": true, "steer": true } },
                     },
                     "agentInfo": { "name": "claude", "title": "Claude Code", "version": self.version() },
                     "authMethods": [],
@@ -391,12 +391,12 @@ impl Shim {
                     TurnEnd::Fail { message, data } => Err((codes::INTERNAL_ERROR, message, data)),
                 }
             }
-            "_openidea/steer" => {
+            "_lama/steer" => {
                 let session = self.session(&params)?;
                 session.steer(params.get("prompt").cloned().unwrap_or_default()).map_err(invalid)?;
                 Ok(json!({}))
             }
-            "_openidea/rollback" => {
+            "_lama/rollback" => {
                 let session = self.session(&params)?;
                 let turns = params.get("turns").and_then(Value::as_u64).unwrap_or(0) as usize;
                 rt.block_on(session.rollback(turns)).map_err(internal)?;
@@ -1233,7 +1233,7 @@ fn failure_of(msg: &Value, limit_resets_ms: Option<f64>) -> Option<TurnEnd> {
 fn usage_limit(text: &str, resets_ms: Option<f64>) -> TurnEnd {
     TurnEnd::Fail {
         message: text.to_owned(),
-        data: Some(json!({ "openidea": { "usageLimit": { "resetsAtMs": resets_ms } } })),
+        data: Some(json!({ "lama": { "usageLimit": { "resetsAtMs": resets_ms } } })),
     }
 }
 

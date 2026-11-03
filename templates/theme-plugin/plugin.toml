@@ -4,9 +4,9 @@ id = "theme-harbor-night"
 name = "Harbor Night Theme"
 version = "1.0.0"
 description = "Example dark theme: slate surfaces, a teal accent and a warm syntax palette."
-authors = ["OpenIDEA contributors"]
+authors = ["Lama contributors"]
 change-notes = "1.0.0 — first release."
-openidea-api = "0.1"
+lama-api = "0.1"
 
 # One entry per theme. `editor-scheme` is optional: its tokens are merged over
 # the theme's (IntelliJ's .theme.json + .icls pair).

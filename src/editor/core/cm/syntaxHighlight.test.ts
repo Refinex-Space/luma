@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { highlightingFor, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
-import { openideaHighlightStyle } from "./highlight";
+import { lamaHighlightStyle } from "./highlight";
 import { setSyntaxHighlights, syntaxHighlightField } from "./syntaxHighlight";
 
 function marks(state: EditorState) {
@@ -17,7 +17,7 @@ describe("syntaxHighlightField", () => {
   const create = () =>
     EditorState.create({
       doc: "def hi, do: :ok",
-      extensions: [syntaxHighlighting(openideaHighlightStyle), syntaxHighlightField],
+      extensions: [syntaxHighlighting(lamaHighlightStyle), syntaxHighlightField],
     });
 
   it("styles backend ranges with the active highlight style and maps them through edits", () => {

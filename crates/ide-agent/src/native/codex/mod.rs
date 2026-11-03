@@ -233,8 +233,8 @@ impl CodexShim {
             "session/fork" => self.fork_session(&params).await,
             "session/set_config_option" => self.set_config(&params).await,
             "session/prompt" => self.prompt(&params).await,
-            "_openidea/steer" => self.steer(&params).await,
-            "_openidea/rollback" => self.rollback(&params).await,
+            "_lama/steer" => self.steer(&params).await,
+            "_lama/rollback" => self.rollback(&params).await,
             "session/close" => self.close(&params).await,
             _ => Err(error(codes::METHOD_NOT_FOUND, format!("unsupported method {method}"))),
         }
@@ -245,7 +245,7 @@ impl CodexShim {
             .call(
                 "initialize",
                 json!({
-                    "clientInfo": { "name": "openidea", "title": "OpenIDEA", "version": env!("CARGO_PKG_VERSION") },
+                    "clientInfo": { "name": "lama", "title": "Lama", "version": env!("CARGO_PKG_VERSION") },
                     "capabilities": { "experimentalApi": true, "optOutNotificationMethods": OPT_OUT },
                 }),
             )
@@ -266,7 +266,7 @@ impl CodexShim {
                 "promptCapabilities": { "image": true, "audio": false, "embeddedContext": true },
                 "mcpCapabilities": { "http": false, "sse": false },
                 "sessionCapabilities": { "fork": {}, "close": {} },
-                "_meta": { "openidea": { "rollback": true, "steer": true } },
+                "_meta": { "lama": { "rollback": true, "steer": true } },
             },
             "agentInfo": { "name": "codex", "title": "Codex", "version": version },
             "authMethods": [],
@@ -982,7 +982,7 @@ fn stop_reason(turn: &Value, last_error: Option<Value>, rate_limits: Option<&Val
                 Failure::UsageLimit(resets) => Err(ResponseError {
                     code: codes::INTERNAL_ERROR,
                     message,
-                    data: Some(json!({ "openidea": { "usageLimit": { "resetsAtMs": resets } } })),
+                    data: Some(json!({ "lama": { "usageLimit": { "resetsAtMs": resets } } })),
                 }),
                 Failure::Auth => Err(error(AUTH_REQUIRED, format!("Codex authentication failed: {message}"))),
                 Failure::Other => Err(error(codes::INTERNAL_ERROR, message)),

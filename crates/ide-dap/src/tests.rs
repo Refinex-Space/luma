@@ -310,7 +310,7 @@ async fn full_protocol_flow() {
         "lifecycle order"
     );
     let init = h.request("initialize");
-    assert_eq!(init["arguments"]["clientID"], "openidea");
+    assert_eq!(init["arguments"]["clientID"], "lama");
     assert_eq!(init["arguments"]["linesStartAt1"], true);
     assert_eq!(init["arguments"]["columnsStartAt1"], true);
     assert_eq!(init["arguments"]["pathFormat"], "path");
@@ -946,7 +946,7 @@ async fn godot_connects_to_the_editor_adapter() {
         fake_adapter(stream, server_log, Script::default()).await;
     });
     let (owner, _events) = recording_owner("main");
-    let manager = DebugManager::new(godot_registry(port, "openidea-no-such-godot", &[]));
+    let manager = DebugManager::new(godot_registry(port, "lama-no-such-godot", &[]));
     let project = std::env::temp_dir();
     let id = manager.start(godot_launch(&project), owner).await.unwrap();
     let launch = log.lock().iter().find(|m| m["command"] == "launch").cloned().unwrap();
@@ -960,7 +960,7 @@ async fn godot_connects_to_the_editor_adapter() {
 async fn godot_without_editor_or_executable_says_what_to_do() {
     let port = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port();
     let (owner, _events) = recording_owner("main");
-    let manager = DebugManager::new(godot_registry(port, "openidea-no-such-godot", &[]));
+    let manager = DebugManager::new(godot_registry(port, "lama-no-such-godot", &[]));
     let err = manager.start(godot_launch(&std::env::temp_dir()), owner).await.unwrap_err();
     assert_eq!(err.kind, ide_core::error::ErrorKind::Unavailable);
     assert!(err.message.contains("Open the project in the Godot editor"), "{}", err.message);
@@ -993,8 +993,8 @@ async fn godot_starts_a_headless_editor_when_none_is_open() {
 #[cfg(unix)]
 #[tokio::test]
 async fn godot_gets_resolved_paths() {
-    let real = std::env::temp_dir().join(format!("openidea-godot-real-{}", std::process::id()));
-    let link = std::env::temp_dir().join(format!("openidea-godot-link-{}", std::process::id()));
+    let real = std::env::temp_dir().join(format!("lama-godot-real-{}", std::process::id()));
+    let link = std::env::temp_dir().join(format!("lama-godot-link-{}", std::process::id()));
     std::fs::create_dir_all(&real).unwrap();
     std::fs::write(real.join("player.gd"), "extends Node\n").unwrap();
     let _ = std::fs::remove_file(&link);

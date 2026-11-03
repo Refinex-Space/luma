@@ -103,7 +103,7 @@ const SAMPLE_THEMES: ActiveTheme["theme"][] = [
 
 function samplePlugins(): PluginInfo[] {
   const base = {
-    authors: ["OpenIDEA contributors"],
+    authors: ["Lama contributors"],
     homepage: null,
     changeNotes: null,
     source: "installed" as const,
@@ -121,7 +121,7 @@ function samplePlugins(): PluginInfo[] {
       name: "Hello",
       version: "0.1.0",
       description: "Sample plugin: inserts today's date and counts words in the active file.",
-      path: "~/Library/Application Support/ai.l0ng.openidea/plugins/hello",
+      path: "~/Library/Application Support/space.refinex.lama/plugins/hello",
       status: "active",
       hasCode: true,
       permissions: ["project-read", "editor-read", "editor-write"],
@@ -136,7 +136,7 @@ function samplePlugins(): PluginInfo[] {
       name: "Harbor Night Theme",
       version: "1.0.0",
       description: "Example dark theme: slate surfaces, a teal accent and a warm syntax palette.",
-      path: "~/Library/Application Support/ai.l0ng.openidea/plugins/theme-harbor-night",
+      path: "~/Library/Application Support/space.refinex.lama/plugins/theme-harbor-night",
       status: "static",
       hasCode: false,
       themes: SAMPLE_THEMES.map(({ id, name, kind }) => ({ id, name, kind })),
@@ -147,7 +147,7 @@ function samplePlugins(): PluginInfo[] {
       name: "Toy Language",
       version: "0.1.0",
       description: "Language support for .toy files: detection, comments and indentation.",
-      path: "~/Library/Application Support/ai.l0ng.openidea/plugins/language-toy",
+      path: "~/Library/Application Support/space.refinex.lama/plugins/language-toy",
       status: "static",
       hasCode: false,
       languages: [{ id: "toy", name: "Toy", extensions: ["toy"] }],

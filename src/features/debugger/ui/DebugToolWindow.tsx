@@ -129,7 +129,7 @@ export function DebugTabs() {
       items={items}
       activeId={active != null ? String(active) : null}
       onSelect={(id) => selectSession(+id)}
-      panelIdPrefix="openidea-debug"
+      panelIdPrefix="lama-debug"
     />
   );
 }

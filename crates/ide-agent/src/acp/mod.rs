@@ -141,7 +141,7 @@ impl Negotiated {
         self.capabilities.pointer(&format!("/sessionCapabilities/{name}")).is_some_and(|v| !v.is_null())
     }
 
-    /// `agentCapabilities._meta` at `pointer` (e.g. `/openidea/rollback`).
+    /// `agentCapabilities._meta` at `pointer` (e.g. `/lama/rollback`).
     pub fn meta(&self, pointer: &str) -> Option<&Value> {
         self.capabilities.get("_meta")?.pointer(pointer)
     }

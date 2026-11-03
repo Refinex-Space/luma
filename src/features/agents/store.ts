@@ -74,10 +74,10 @@ interface AgentsState {
   homeOpen: boolean;
 }
 
-const DRAFT_KEY = "openidea.agents.draft.v2";
-const HISTORY_KEY = "openidea.agents.history.v1";
+const DRAFT_KEY = "lama.agents.draft.v2";
+const HISTORY_KEY = "lama.agents.history.v1";
 const HISTORY_SIZE = 50;
-const SESSION_LOCATION_KEY = "openidea.agents.sessionLocation.v1";
+const SESSION_LOCATION_KEY = "lama.agents.sessionLocation.v1";
 
 function load<T>(key: string, fallback: T): T {
   try {

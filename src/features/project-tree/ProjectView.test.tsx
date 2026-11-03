@@ -421,7 +421,7 @@ describe("Show Members", () => {
       ipc.docOpen.mockResolvedValue(ok({ id: 7 }));
       ipc.docClose.mockResolvedValue(ok(null));
       ipc.docOutline.mockResolvedValue(ok([item("restored", "function", 3)]));
-      localStorage.setItem(`openidea.projectTree.expanded:${ROOT}`, JSON.stringify([ROOT, "/w/acme/src", APP]));
+      localStorage.setItem(`lama.projectTree.expanded:${ROOT}`, JSON.stringify([ROOT, "/w/acme/src", APP]));
       initProjectTree(ROOT, "acme");
       setViewOption("showMembers", enabled);
       ipc.docOutline.mockClear();
@@ -589,7 +589,7 @@ describe("Show Members", () => {
 });
 
 it("renders workspace member roots with their own paths, without the settings directory", async () => {
-  fs = new MemoryFs({ "/z/first.txt": "", "/a/second.txt": "", "/workspace/.openidea/workspace.json": "{}" });
+  fs = new MemoryFs({ "/z/first.txt": "", "/a/second.txt": "", "/workspace/.lama/workspace.json": "{}" });
   setProjectFsForTests(fs, "/workspace");
   initProjectTree("/workspace", "Workspace", ["/z", "/a"]);
   const { rows } = setup();

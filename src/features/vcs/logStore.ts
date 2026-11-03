@@ -160,7 +160,7 @@ export function resolveLogBranches(remembered: readonly string[] | undefined, br
   return valid.length ? valid : ["HEAD"];
 }
 
-const branchMemoryKey = (repo: string) => `openidea.vcs.logBranches:${repo}`;
+const branchMemoryKey = (repo: string) => `lama.vcs.logBranches:${repo}`;
 
 /** The main Log's branch filter last chosen for `repo`; undefined when none was. */
 export function rememberedLogBranches(repo: string): string[] | undefined {

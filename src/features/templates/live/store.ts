@@ -7,7 +7,7 @@ import { loadJson, saveJson } from "../storage";
 import { BUILTIN_TEMPLATES, BUILTIN_IDS } from "./builtins";
 import type { LiveTemplate } from "./model";
 
-export const LIVE_TEMPLATES_KEY = "openidea.liveTemplates.v1";
+export const LIVE_TEMPLATES_KEY = "lama.liveTemplates.v1";
 const KEY = LIVE_TEMPLATES_KEY;
 
 export interface LiveTemplateCustomizations {
@@ -76,7 +76,7 @@ export function newTemplateId(): string {
 // ---------------------------------------------------------------------------
 // Options
 
-export const LIVE_TEMPLATE_OPTIONS_KEY = "openidea.liveTemplates.options.v1";
+export const LIVE_TEMPLATE_OPTIONS_KEY = "lama.liveTemplates.options.v1";
 const OPTIONS_KEY = LIVE_TEMPLATE_OPTIONS_KEY;
 
 export interface LiveTemplateOptions {

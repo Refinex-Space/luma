@@ -16,18 +16,18 @@ export const findLocals = {
 
 /** Find in file highlights (cm/find.ts), also for viewers with their own theme (diff). */
 export const findStyles = {
-  ".cm-openidea-findMatch": {
+  ".cm-lama-findMatch": {
     backgroundColor: "var(--editor-search)",
     borderRadius: "2px",
   },
-  ".cm-openidea-findExcluded": {
+  ".cm-lama-findExcluded": {
     textDecoration: "line-through",
     textDecorationColor: "var(--fg-muted)",
   },
-  ".cm-openidea-findScope": {
+  ".cm-lama-findScope": {
     backgroundColor: "var(--editor-selection-inactive, var(--bg-editor-selection-inactive))",
   },
-  ".cm-openidea-findMatch-current": {
+  ".cm-lama-findMatch-current": {
     backgroundColor: "var(--editor-search-current)",
     outline: "1px solid color-mix(in srgb, var(--editor-search-current) 60%, var(--fg-strong))",
   },
@@ -40,31 +40,31 @@ export const caretStyles = {
     marginLeft: "-1px",
   },
   // Use block caret (Settings › Editor › General › Appearance)
-  "&.cm-openidea-blockCaret .cm-cursor": {
+  "&.cm-lama-blockCaret .cm-cursor": {
     borderLeft: "none",
     width: "1ch",
     marginLeft: "0",
     background: "color-mix(in srgb, var(--caret, var(--fg-strong)) 55%, transparent)",
   },
   // Use smooth caret blinking: fade through CodeMirror's blink keyframes instead of stepping; rounded caret.
-  "&.cm-openidea-smoothCaretBlink.cm-focused > .cm-scroller > .cm-cursorLayer": {
+  "&.cm-lama-smoothCaretBlink.cm-focused > .cm-scroller > .cm-cursorLayer": {
     animationTimingFunction: "cubic-bezier(0.7, 0, 0.3, 1)",
   },
-  "&.cm-openidea-smoothCaretBlink .cm-cursor": { borderRadius: "1px" },
-  "&.cm-openidea-smoothCaretBlink.cm-openidea-blockCaret .cm-cursor": { borderRadius: "2px" },
+  "&.cm-lama-smoothCaretBlink .cm-cursor": { borderRadius: "1px" },
+  "&.cm-lama-smoothCaretBlink.cm-lama-blockCaret .cm-cursor": { borderRadius: "2px" },
   // Use smooth caret movement: Snappy lands at once and settles, Gliding travels visibly.
-  "&.cm-openidea-caretMotion-snappy": { "--openidea-caret-motion": "110ms cubic-bezier(0.16, 1, 0.3, 1)" },
-  "&.cm-openidea-caretMotion-gliding": { "--openidea-caret-motion": "180ms cubic-bezier(0.45, 0, 0.25, 1)" },
-  ".cm-cursorLayer.cm-openidea-caretGlide > .cm-cursor": {
+  "&.cm-lama-caretMotion-snappy": { "--lama-caret-motion": "110ms cubic-bezier(0.16, 1, 0.3, 1)" },
+  "&.cm-lama-caretMotion-gliding": { "--lama-caret-motion": "180ms cubic-bezier(0.45, 0, 0.25, 1)" },
+  ".cm-cursorLayer.cm-lama-caretGlide > .cm-cursor": {
     transition:
-      "left var(--openidea-caret-motion), top var(--openidea-caret-motion), width var(--openidea-caret-motion), height var(--openidea-caret-motion)",
+      "left var(--lama-caret-motion), top var(--lama-caret-motion), width var(--lama-caret-motion), height var(--lama-caret-motion)",
   },
   "@media (prefers-reduced-motion: reduce)": {
-    ".cm-cursorLayer.cm-openidea-caretGlide > .cm-cursor": { transition: "none" },
+    ".cm-cursorLayer.cm-lama-caretGlide > .cm-cursor": { transition: "none" },
   },
 };
 
-export const openideaTheme = EditorView.theme({
+export const lamaTheme = EditorView.theme({
   "&": {
     height: "100%",
     backgroundColor: "var(--bg-editor, var(--bg-island, var(--bg-app)))",
@@ -85,10 +85,10 @@ export const openideaTheme = EditorView.theme({
   ".cm-scroller": {
     // The workbench body uses the arrow cursor; the text area gets the I-beam (also past the last line).
     cursor: "text",
-    fontFamily: "var(--openidea-editor-font, var(--font-mono))",
+    fontFamily: "var(--lama-editor-font, var(--font-mono))",
     fontWeight: "var(--fw-code, 400)",
-    fontSize: "var(--openidea-editor-font-size, var(--fs-code))",
-    lineHeight: "var(--openidea-editor-line-height, var(--lh-code))",
+    fontSize: "var(--lama-editor-font-size, var(--fs-code))",
+    lineHeight: "var(--lama-editor-line-height, var(--lh-code))",
     fontVariantLigatures: "none",
     overscrollBehavior: "contain",
   },
@@ -98,25 +98,25 @@ export const openideaTheme = EditorView.theme({
   },
   ".cm-line": { padding: "0 16px 0 6px" },
   ...caretStyles,
-  "&.cm-openidea-ligatures .cm-scroller, &.cm-openidea-ligatures .cm-openidea-sticky": {
+  "&.cm-lama-ligatures .cm-scroller, &.cm-lama-ligatures .cm-lama-sticky": {
     fontVariantLigatures: "normal",
   },
-  "&.cm-openidea-methodSeparators .cm-openidea-methodSeparator": {
+  "&.cm-lama-methodSeparators .cm-lama-methodSeparator": {
     boxShadow: "inset 0 1px 0 var(--border-method-separator, var(--border))",
   },
-  "&.cm-openidea-hideGutter-run .cm-openidea-gutter-run, &.cm-openidea-hideGutter-bookmarks .cm-openidea-bookmarks": {
+  "&.cm-lama-hideGutter-run .cm-lama-gutter-run, &.cm-lama-hideGutter-bookmarks .cm-lama-bookmarks": {
     display: "none !important",
   },
   // Inheritance markers share one gutter: each group hides its own icons.
-  "&.cm-openidea-hideGutter-inheritors :is(.cm-openidea-lineMarker-implemented, .cm-openidea-lineMarker-overridden), &.cm-openidea-hideGutter-supers :is(.cm-openidea-lineMarker-implementing, .cm-openidea-lineMarker-overriding)":
+  "&.cm-lama-hideGutter-inheritors :is(.cm-lama-lineMarker-implemented, .cm-lama-lineMarker-overridden), &.cm-lama-hideGutter-supers :is(.cm-lama-lineMarker-implementing, .cm-lama-lineMarker-overriding)":
     { display: "none" },
   // Distraction Free Mode: no gutter; the text column (n chars + line padding) is centred.
-  "&.cm-openidea-distractionFree": { "--openidea-df-width": "calc(var(--openidea-df-columns, 80) * 1ch + 22px)" },
-  "&.cm-openidea-distractionFree .cm-gutters": { display: "none" },
-  "&.cm-openidea-distractionFree .cm-content": {
-    marginInlineStart: "max(0px, calc((100% - var(--openidea-df-width)) / 2))",
+  "&.cm-lama-distractionFree": { "--lama-df-width": "calc(var(--lama-df-columns, 80) * 1ch + 22px)" },
+  "&.cm-lama-distractionFree .cm-gutters": { display: "none" },
+  "&.cm-lama-distractionFree .cm-content": {
+    marginInlineStart: "max(0px, calc((100% - var(--lama-df-width)) / 2))",
   },
-  "&.cm-openidea-distractionFree .cm-content.cm-lineWrapping": { maxWidth: "var(--openidea-df-width)" },
+  "&.cm-lama-distractionFree .cm-content.cm-lineWrapping": { maxWidth: "var(--lama-df-width)" },
   ".cm-fat-cursor": { background: "color-mix(in srgb, var(--caret, var(--fg-strong)) 45%, transparent)" },
   ".cm-selectionBackground": { background: "var(--editor-selection-inactive)" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
@@ -161,9 +161,9 @@ export const openideaTheme = EditorView.theme({
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--editor-caret-row)" },
   ".cm-lineNumbers .cm-activeLineGutter": { color: "var(--editor-line-number-current)" },
-  ".cm-openidea-lane": { width: "4px" },
-  ".cm-openidea-lane .cm-gutterElement": { padding: "0", position: "relative" },
-  ".cm-openidea-laneBar": {
+  ".cm-lama-lane": { width: "4px" },
+  ".cm-lama-lane .cm-gutterElement": { padding: "0", position: "relative" },
+  ".cm-lama-laneBar": {
     position: "absolute",
     top: "0",
     bottom: "0",
@@ -172,7 +172,7 @@ export const openideaTheme = EditorView.theme({
     borderRadius: "0 1px 1px 0",
     background: "var(--lane-color)",
   },
-  ".cm-openidea-laneDeleted": {
+  ".cm-lama-laneDeleted": {
     position: "absolute",
     left: "0",
     top: "-3px",
@@ -192,9 +192,9 @@ export const openideaTheme = EditorView.theme({
     cursor: "pointer",
     transition: "opacity var(--dur-fast) var(--ease)",
   },
-  ".cm-foldGutter .cm-openidea-foldOpen": { opacity: "0", display: "inline-flex" },
-  ".cm-foldGutter .cm-openidea-foldClosed": { display: "inline-flex" },
-  ".cm-gutters:hover .cm-foldGutter .cm-openidea-foldOpen": { opacity: "1" },
+  ".cm-foldGutter .cm-lama-foldOpen": { opacity: "0", display: "inline-flex" },
+  ".cm-foldGutter .cm-lama-foldClosed": { display: "inline-flex" },
+  ".cm-gutters:hover .cm-foldGutter .cm-lama-foldOpen": { opacity: "1" },
   ".cm-foldGutter .cm-gutterElement:hover": { color: "var(--fg-secondary)" },
   ".cm-foldPlaceholder": {
     backgroundColor: "var(--editor-fold-chip)",
@@ -208,10 +208,10 @@ export const openideaTheme = EditorView.theme({
   ".cm-foldPlaceholder:hover": { backgroundColor: "color-mix(in srgb, var(--fg-muted) 24%, transparent)" },
 
   // Indent guides (cm/indentGuides.ts)
-  ".cm-openidea-guides": {
+  ".cm-lama-guides": {
     backgroundImage:
-      "repeating-linear-gradient(to right, var(--editor-indent-guide) 0 1px, transparent 1px calc(var(--openidea-guide-step) * 1ch))",
-    backgroundSize: "calc(var(--openidea-guide-levels) * var(--openidea-guide-step) * 1ch) 100%",
+      "repeating-linear-gradient(to right, var(--editor-indent-guide) 0 1px, transparent 1px calc(var(--lama-guide-step) * 1ch))",
+    backgroundSize: "calc(var(--lama-guide-levels) * var(--lama-guide-step) * 1ch) 100%",
     backgroundRepeat: "no-repeat",
     backgroundPosition: "6px 0",
   },
@@ -264,7 +264,7 @@ export const openideaTheme = EditorView.theme({
   ".cm-panels.cm-panels-bottom": { borderTop: "1px solid var(--border)" },
 
   // Error stripe over the scrollbar (cm/lanes.ts)
-  ".cm-openidea-overview": {
+  ".cm-lama-overview": {
     position: "absolute",
     top: "0",
     right: "0",
@@ -273,7 +273,7 @@ export const openideaTheme = EditorView.theme({
     pointerEvents: "none",
     zIndex: "3",
   },
-  ".cm-openidea-overviewMark": {
+  ".cm-lama-overviewMark": {
     position: "absolute",
     left: "3px",
     width: "6px",
@@ -282,10 +282,10 @@ export const openideaTheme = EditorView.theme({
     pointerEvents: "auto",
     cursor: "pointer",
   },
-  ".cm-openidea-overviewMark-thin": { left: "4px", width: "4px", minHeight: "2px" },
+  ".cm-lama-overviewMark-thin": { left: "4px", width: "4px", minHeight: "2px" },
   // The scrollbar thumb wins over the marks under it (cm/lanes.ts, #752).
-  ".cm-openidea-overview-onThumb .cm-openidea-overviewMark": { pointerEvents: "none" },
-  ".cm-openidea-overviewCaret": {
+  ".cm-lama-overview-onThumb .cm-lama-overviewMark": { pointerEvents: "none" },
+  ".cm-lama-overviewCaret": {
     position: "absolute",
     left: "2px",
     right: "2px",
@@ -294,7 +294,7 @@ export const openideaTheme = EditorView.theme({
   },
 
   // Sticky lines (cm/stickyScroll.ts)
-  ".cm-openidea-sticky": {
+  ".cm-lama-sticky": {
     position: "absolute",
     top: "0",
     left: "0",
@@ -303,23 +303,23 @@ export const openideaTheme = EditorView.theme({
     backgroundColor: "var(--bg-editor, var(--bg-island, var(--bg-app)))",
     borderBottom: "1px solid var(--editor-gutter-border)",
     boxShadow: "0 3px 6px -2px color-mix(in srgb, var(--fg-strong) 12%, transparent)",
-    fontFamily: "var(--openidea-editor-font, var(--font-mono))",
+    fontFamily: "var(--lama-editor-font, var(--font-mono))",
     fontWeight: "var(--fw-code, 400)",
-    fontSize: "var(--openidea-editor-font-size, var(--fs-code))",
-    lineHeight: "var(--openidea-editor-line-height, var(--lh-code))",
+    fontSize: "var(--lama-editor-font-size, var(--fs-code))",
+    lineHeight: "var(--lama-editor-line-height, var(--lh-code))",
     overflow: "hidden",
     cursor: "pointer",
   },
-  ".cm-openidea-stickyLine": { display: "flex", whiteSpace: "pre" },
-  ".cm-openidea-stickyLine:hover": { backgroundColor: "var(--editor-caret-row)" },
-  ".cm-openidea-stickyNumber": {
+  ".cm-lama-stickyLine": { display: "flex", whiteSpace: "pre" },
+  ".cm-lama-stickyLine:hover": { backgroundColor: "var(--editor-caret-row)" },
+  ".cm-lama-stickyNumber": {
     flex: "none",
     textAlign: "right",
     color: "var(--editor-line-number)",
     boxSizing: "border-box",
     paddingRight: "8px",
   },
-  ".cm-openidea-stickyText": { flex: "1", overflow: "hidden" },
+  ".cm-lama-stickyText": { flex: "1", overflow: "hidden" },
 
   // Soft-wrap: continuation rows indent slightly, like IDEA's wrap sign column.
   "&.cm-lineWrapping .cm-line, .cm-lineWrapping .cm-line": { paddingRight: "24px" },

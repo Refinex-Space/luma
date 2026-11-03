@@ -271,7 +271,7 @@ export function RunTabs() {
       activeId={"session" in current ? current.session.id : current.trace.id}
       onSelect={(id) => useRun.setState({ activeSession: id })}
       onClose={(id) => (traces.some((t) => t.id === id) ? closeStackTrace(id) : void closeSessionTab(id))}
-      panelIdPrefix="openidea-run"
+      panelIdPrefix="lama-run"
     />
   );
 }
@@ -312,12 +312,7 @@ export function RunView() {
   const id = "session" in current ? current.session.id : current.trace.id;
   return (
     <div className={styles.root}>
-      <div
-        className={styles.panel}
-        role="tabpanel"
-        id={`openidea-run-panel-${id}`}
-        aria-labelledby={`openidea-run-tab-${id}`}
-      >
+      <div className={styles.panel} role="tabpanel" id={`lama-run-panel-${id}`} aria-labelledby={`lama-run-tab-${id}`}>
         {"session" in current ? (
           <SessionPanel key={id} session={current.session} />
         ) : (

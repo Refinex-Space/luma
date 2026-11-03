@@ -127,12 +127,12 @@ fn cargo_workspace() {
         ("crates/core/src/lib.rs", ""),
         ("crates/skip/Cargo.toml", "[package]\nname = \"skip\"\n"),
         ("crates/skip/src/main.rs", ""),
-        ("cli/Cargo.toml", "[package]\nname = \"openidea-cli\"\n"),
+        ("cli/Cargo.toml", "[package]\nname = \"lama-cli\"\n"),
         ("cli/src/main.rs", ""),
     ]);
     let c = detect(dir.path());
-    assert_eq!(ids(&c), ["cargo:run:openidea-cli", "cargo:test", "cargo:build"]);
-    assert_eq!(cmdline(&c[0]), "cargo run -p openidea-cli --bin openidea-cli");
+    assert_eq!(ids(&c), ["cargo:run:lama-cli", "cargo:test", "cargo:build"]);
+    assert_eq!(cmdline(&c[0]), "cargo run -p lama-cli --bin lama-cli");
     assert_eq!(cmdline(find(&c, "cargo:test")), "cargo test --workspace");
 }
 
@@ -656,7 +656,7 @@ fn go_default_build_output_is_ignored_by_version_control() {
     let mut config = detect(dir.path()).into_iter().find(|c| c.kind == "go" && !c.is_test).unwrap();
     config.extras.params.insert("goKind".into(), "package".into());
     assert!(ide_run::go::plan(dir.path(), &config).unwrap().is_some());
-    let ignore = fs::read_to_string(dir.path().join(".openidea/.gitignore")).unwrap();
+    let ignore = fs::read_to_string(dir.path().join(".lama/.gitignore")).unwrap();
     assert!(ignore.lines().any(|l| l == "/bin/"), "{ignore}");
 }
 

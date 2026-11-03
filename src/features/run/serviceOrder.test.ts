@@ -38,15 +38,12 @@ describe("service display order", () => {
 
 describe("service order storage", () => {
   it("isolates project locations and normalizes malformed records and duplicate IDs", () => {
-    localStorage.setItem(
-      "openidea.services.runOrder:/app",
-      JSON.stringify({ npm: ["b", "b", 4, "", "a"], python: null }),
-    );
+    localStorage.setItem("lama.services.runOrder:/app", JSON.stringify({ npm: ["b", "b", 4, "", "a"], python: null }));
     expect(readServiceOrder("/app")).toEqual({ npm: ["b", "a"] });
     expect(readServiceOrder("ssh://other/app")).toEqual({});
-    localStorage.setItem("openidea.services.runOrder:/app", "broken");
+    localStorage.setItem("lama.services.runOrder:/app", "broken");
     expect(readServiceOrder("/app")).toEqual({});
-    localStorage.setItem("openidea.services.runOrder:/app", "[]");
+    localStorage.setItem("lama.services.runOrder:/app", "[]");
     expect(readServiceOrder("/app")).toEqual({});
   });
 
@@ -71,9 +68,9 @@ describe("service order storage", () => {
     const next = renderHook(() => useServiceOrder("/persist"));
     expect(next.result.current).toEqual({ npm: ["b", "a"] });
     act(() => {
-      localStorage.setItem("openidea.services.runOrder:/persist", '{"npm":["a","b"]}');
+      localStorage.setItem("lama.services.runOrder:/persist", '{"npm":["a","b"]}');
       window.dispatchEvent(
-        new StorageEvent("storage", { key: "openidea.services.runOrder:/persist", storageArea: localStorage }),
+        new StorageEvent("storage", { key: "lama.services.runOrder:/persist", storageArea: localStorage }),
       );
     });
     expect(next.result.current).toEqual({ npm: ["a", "b"] });

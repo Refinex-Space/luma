@@ -758,8 +758,8 @@ impl DebugManager {
             .request_timeout(
                 "initialize",
                 json!({
-                    "clientID": "openidea",
-                    "clientName": "OpenIDEA",
+                    "clientID": "lama",
+                    "clientName": "Lama",
                     "adapterID": s.adapter,
                     "locale": "en",
                     "linesStartAt1": true,

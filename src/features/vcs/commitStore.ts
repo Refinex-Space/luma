@@ -43,8 +43,8 @@ export const useCommit = create<CommitState>(() => ({
   signOff: false,
   author: "",
   runHooks: true,
-  groupByDir: readBool("openidea.vcs.groupByDir", false),
-  diffPreview: readBool("openidea.vcs.diffPreview", true),
+  groupByDir: readBool("lama.vcs.groupByDir", false),
+  diffPreview: readBool("lama.vcs.diffPreview", true),
   checks: new Map(),
   excludedHunks: new Map(),
   selection: [],
@@ -68,7 +68,7 @@ function readBool(key: string, fallback: boolean): boolean {
 export function setGroupByDir(v: boolean) {
   useCommit.setState({ groupByDir: v });
   try {
-    localStorage.setItem("openidea.vcs.groupByDir", String(v));
+    localStorage.setItem("lama.vcs.groupByDir", String(v));
   } catch {
     // ignore
   }
@@ -77,13 +77,13 @@ export function setGroupByDir(v: boolean) {
 export function setDiffPreview(v: boolean) {
   useCommit.setState({ diffPreview: v });
   try {
-    localStorage.setItem("openidea.vcs.diffPreview", String(v));
+    localStorage.setItem("lama.vcs.diffPreview", String(v));
   } catch {
     // ignore
   }
 }
 
-const historyKey = () => `openidea.vcs.commitMessages:${useVcs.getState().root ?? ""}`;
+const historyKey = () => `lama.vcs.commitMessages:${useVcs.getState().root ?? ""}`;
 const MAX_HISTORY = 20;
 
 export function messageHistory(): string[] {

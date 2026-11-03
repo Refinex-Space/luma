@@ -317,7 +317,7 @@ fn terminate(session: &Session) {
             libc::kill(-pid, libc::SIGHUP);
         }
         let exited = session.exited.clone();
-        let _ = std::thread::Builder::new().name("openidea-term-reaper".into()).spawn(move || {
+        let _ = std::thread::Builder::new().name("lama-term-reaper".into()).spawn(move || {
             let deadline = Instant::now() + KILL_GRACE;
             while Instant::now() < deadline {
                 if exited.load(Ordering::Acquire) {
@@ -336,7 +336,7 @@ fn terminate(session: &Session) {
 }
 
 fn spawn_reader(id: TerminalId, mut reader: Box<dyn Read + Send>, tx: mpsc::Sender<Msg>) -> std::io::Result<()> {
-    std::thread::Builder::new().name(format!("openidea-term-read-{}", id.0)).spawn(move || {
+    std::thread::Builder::new().name(format!("lama-term-read-{}", id.0)).spawn(move || {
         let mut buf = vec![0u8; 16 * 1024];
         loop {
             match reader.read(&mut buf) {
@@ -360,7 +360,7 @@ fn spawn_waiter(
     mut child: Box<dyn portable_pty::Child + Send + Sync>,
     tx: mpsc::Sender<Msg>,
 ) -> std::io::Result<()> {
-    std::thread::Builder::new().name(format!("openidea-term-wait-{}", id.0)).spawn(move || {
+    std::thread::Builder::new().name(format!("lama-term-wait-{}", id.0)).spawn(move || {
         let code = match child.wait() {
             Ok(status) if status.signal().is_none() => Some(status.exit_code() as i32),
             Ok(_) => None,
@@ -382,7 +382,7 @@ fn spawn_pump(
     sessions: Sessions,
     sink: SharedSink,
 ) -> std::io::Result<()> {
-    std::thread::Builder::new().name(format!("openidea-term-pump-{}", id.0)).spawn(move || {
+    std::thread::Builder::new().name(format!("lama-term-pump-{}", id.0)).spawn(move || {
         let mut decoder = Utf8Decoder::new();
         let mut pending = String::new();
         let mut batch_started: Option<Instant> = None;
@@ -580,7 +580,7 @@ fn terminal_env(user: &BTreeMap<String, String>) -> BTreeMap<String, String> {
     let mut env = BTreeMap::new();
     env.insert("TERM".to_owned(), "xterm-256color".to_owned());
     env.insert("COLORTERM".to_owned(), "truecolor".to_owned());
-    env.insert("TERM_PROGRAM".to_owned(), "OpenIDEA".to_owned());
+    env.insert("TERM_PROGRAM".to_owned(), "Lama".to_owned());
     env.insert("TERM_PROGRAM_VERSION".to_owned(), env!("CARGO_PKG_VERSION").to_owned());
     let has_lang = user.contains_key("LANG") || std::env::var_os("LANG").is_some_and(|v| !v.is_empty());
     if !has_lang {
@@ -696,12 +696,12 @@ mod tests {
     #[test]
     fn env_is_applied() {
         let h = harness();
-        let mut opts = sh("printf '%s|%s|%s' \"$TERM\" \"$TERM_PROGRAM\" \"$OPENIDEA_X\"");
-        opts.env.insert("OPENIDEA_X".into(), "42".into());
+        let mut opts = sh("printf '%s|%s|%s' \"$TERM\" \"$TERM_PROGRAM\" \"$LAMA_X\"");
+        opts.env.insert("LAMA_X".into(), "42".into());
         let (info, rx) = spawn_collect(&h, opts);
         assert_eq!(wait_exit(&h, info.id), Some(0));
         let out: String = rx.try_iter().collect();
-        assert!(out.contains("xterm-256color|OpenIDEA|42"), "{out:?}");
+        assert!(out.contains("xterm-256color|Lama|42"), "{out:?}");
     }
 
     #[cfg(unix)]

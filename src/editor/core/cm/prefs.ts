@@ -35,7 +35,7 @@ import {
 } from "@codemirror/commands";
 import { markdownImages } from "./markdownImages";
 import type { EditorExtras } from "@/platform/editorSettings";
-import { openideaHighlightStyle } from "./highlight";
+import { lamaHighlightStyle } from "./highlight";
 import {
   cursorHumpLeft,
   cursorHumpRight,
@@ -170,7 +170,7 @@ export function marginGuides(columns: readonly number[]): Extension {
 /** Lines (0-based) that start a function / method, from the document outline. */
 export const setMethodLines = StateEffect.define<number[]>();
 
-const separatorDeco = Decoration.line({ class: "cm-openidea-methodSeparator" });
+const separatorDeco = Decoration.line({ class: "cm-lama-methodSeparator" });
 
 const methodLines = StateField.define<number[]>({
   create: () => [],
@@ -321,7 +321,7 @@ export function richTextHtml(view: EditorView, from: number, to: number): string
   try {
     highlightTree(
       syntaxTree(state),
-      openideaHighlightStyle,
+      lamaHighlightStyle,
       (a, b, cls) => {
         const s = Math.max(a, from);
         const e = Math.min(b, to);
@@ -374,7 +374,7 @@ export const fontZoom = StateField.define<number>({
         const z = s.field(f);
         const attrs: Record<string, string> = {};
         if (z)
-          attrs.style = `--openidea-editor-font-size: calc(var(--openidea-editor-base-size, var(--fs-code)) + ${z}px); --openidea-editor-line-height: calc(var(--openidea-editor-base-line, var(--lh-code)) + ${Math.round(z * 1.6)}px)`;
+          attrs.style = `--lama-editor-font-size: calc(var(--lama-editor-base-size, var(--fs-code)) + ${z}px); --lama-editor-line-height: calc(var(--lama-editor-base-line, var(--lh-code)) + ${Math.round(z * 1.6)}px)`;
         return attrs;
       }),
     ),
@@ -428,10 +428,10 @@ const noSurround = EditorView.inputHandler.of((view, from, to, text) => {
 
 /** Gutter icon groups of Settings › Editor › General › Gutter Icons (stable gutter classes). */
 export const GUTTER_ICON_GROUPS = [
-  { id: "run", gutterClass: "cm-openidea-gutter-run" },
-  { id: "bookmarks", gutterClass: "cm-openidea-bookmarks" },
-  { id: "inheritors", gutterClass: "cm-openidea-gutter-lineMarkers" },
-  { id: "supers", gutterClass: "cm-openidea-gutter-lineMarkers" },
+  { id: "run", gutterClass: "cm-lama-gutter-run" },
+  { id: "bookmarks", gutterClass: "cm-lama-bookmarks" },
+  { id: "inheritors", gutterClass: "cm-lama-gutter-lineMarkers" },
+  { id: "supers", gutterClass: "cm-lama-gutter-lineMarkers" },
 ] as const;
 
 export interface PrefsOptions {
@@ -487,7 +487,7 @@ const caretGlide = ViewPlugin.fromClass(
     set(on: boolean) {
       if (on === this.on) return;
       this.on = on;
-      this.view.scrollDOM.querySelector(":scope > .cm-cursorLayer")?.classList.toggle("cm-openidea-caretGlide", on);
+      this.view.scrollDOM.querySelector(":scope > .cm-cursorLayer")?.classList.toggle("cm-lama-caretGlide", on);
     }
   },
 );
@@ -495,9 +495,9 @@ const caretGlide = ViewPlugin.fromClass(
 export function caretExtension(prefs: EditorExtras): Extension {
   const a = prefs.appearance;
   const classes = [
-    a.blockCaret && "cm-openidea-blockCaret",
-    a.smoothCaretBlinking && "cm-openidea-smoothCaretBlink",
-    a.smoothCaretMovement && `cm-openidea-caretMotion-${a.caretMovementStyle === "gliding" ? "gliding" : "snappy"}`,
+    a.blockCaret && "cm-lama-blockCaret",
+    a.smoothCaretBlinking && "cm-lama-smoothCaretBlink",
+    a.smoothCaretMovement && `cm-lama-caretMotion-${a.caretMovementStyle === "gliding" ? "gliding" : "snappy"}`,
   ].filter(Boolean);
   return [
     // Before drawSelection: its measure request must run before the cursor layer redraws.
@@ -525,14 +525,12 @@ export function prefsExtension(o: PrefsOptions): Extension {
   if (prefs.appearance.hardWrapGuides && !o.distractionFree)
     out.push(marginGuides([o.hardWrapAt, ...prefs.codeStyle.visualGuides]));
   if (prefs.appearance.methodSeparators)
-    out.push(EditorView.editorAttributes.of({ class: "cm-openidea-methodSeparators" }));
+    out.push(EditorView.editorAttributes.of({ class: "cm-lama-methodSeparators" }));
   const hidden = GUTTER_ICON_GROUPS.filter(
     (grp) => !prefs.showGutterIcons || prefs.gutterIconsDisabled.includes(grp.id),
   );
   if (hidden.length)
-    out.push(
-      EditorView.editorAttributes.of({ class: hidden.map((grp) => `cm-openidea-hideGutter-${grp.id}`).join(" ") }),
-    );
+    out.push(EditorView.editorAttributes.of({ class: hidden.map((grp) => `cm-lama-hideGutter-${grp.id}`).join(" ") }));
   if (g.wheelZoom) out.push(wheelZoom);
   if (!g.dragAndDrop) out.push(noTextDrag);
   if (g.caretScroll === "center") out.push(centerCaret);

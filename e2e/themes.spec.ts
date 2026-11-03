@@ -115,7 +115,7 @@ for (const palette of palettes) {
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("Meta+f");
     await page.getByRole("textbox", { name: "Find", exact: true }).fill("Order");
-    await expect(editor.locator(".cm-openidea-findMatch").first()).toBeVisible();
+    await expect(editor.locator(".cm-lama-findMatch").first()).toBeVisible();
     await page.screenshot({ path: info.outputPath(`${palette.id}-workbench.png`), animations: "disabled" });
     await page.keyboard.press("Escape");
     await settings(page);
@@ -127,7 +127,7 @@ for (const palette of palettes) {
     await page.reload();
     await expect(page.getByRole("tree", { name: "Project" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-color-theme", palette.id);
-    const cached = await page.evaluate(() => JSON.parse(localStorage.getItem("openidea.theme")!));
+    const cached = await page.evaluate(() => JSON.parse(localStorage.getItem("lama.theme")!));
     expect(cached).toMatchObject({ theme: palette.kind, colorTheme: palette.id });
   });
 }

@@ -255,7 +255,7 @@ pub(crate) fn prepare(config: &RunConfig, cwd: &Path) -> crate::IdeResult<()> {
                 fs::remove_dir_all(files)?;
             }
         }
-        let query = build.join(".cmake/api/v1/query/client-openidea");
+        let query = build.join(".cmake/api/v1/query/client-lama");
         fs::create_dir_all(&query)?;
         fs::write(query.join("codemodel-v2"), "")?;
     }
@@ -335,6 +335,6 @@ mod tests {
         assert!(!build.join("CMakeCache.txt").exists());
         assert!(!build.join("CMakeFiles").exists());
         assert!(build.join("keep.txt").exists());
-        assert!(build.join(".cmake/api/v1/query/client-openidea/codemodel-v2").exists());
+        assert!(build.join(".cmake/api/v1/query/client-lama/codemodel-v2").exists());
     }
 }

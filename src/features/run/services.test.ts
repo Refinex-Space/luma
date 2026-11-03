@@ -201,9 +201,9 @@ describe("types added to Services", () => {
 
   it("defaults to Spring Boot and persists the user's list per project", () => {
     expect(readTypes("/p")).toEqual(["spring-boot"]);
-    localStorage.setItem("openidea.services.runTypes:/p", JSON.stringify(["npm"]));
+    localStorage.setItem("lama.services.runTypes:/p", JSON.stringify(["npm"]));
     expect(readTypes("/p")).toEqual(["npm"]);
-    localStorage.setItem("openidea.services.runTypes:/p", "[]");
+    localStorage.setItem("lama.services.runTypes:/p", "[]");
     expect(readTypes("/p")).toEqual([]);
     expect(readTypes("/q")).toEqual(["spring-boot"]);
   });
@@ -216,7 +216,7 @@ describe("configurations that ran", () => {
 
   it("persists the ran configuration ids per project", () => {
     expect(readRan("/p")).toEqual([]);
-    localStorage.setItem("openidea.services.ran:/p", JSON.stringify(["dev"]));
+    localStorage.setItem("lama.services.ran:/p", JSON.stringify(["dev"]));
     expect(readRan("/p")).toEqual(["dev"]);
     expect(readRan("/q")).toEqual([]);
   });

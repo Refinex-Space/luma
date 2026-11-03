@@ -1,5 +1,5 @@
 [package]
-name = "openidea-plugin-hello"
+name = "lama-plugin-hello"
 version = "0.1.0"
 edition = "2024"
 publish = false

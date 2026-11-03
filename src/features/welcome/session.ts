@@ -10,10 +10,10 @@ import { openProject, startupLaunchHandled, useProject } from "@/platform/projec
 import { connectRemote, parseRemoteLocation, projectLocation } from "@/platform/remote";
 import { notifications } from "@/workbench/contributions";
 
-const SESSION_KEY = "openidea.session.openProject";
-const PREF_KEY = "openidea.welcome.reopenLastProject";
+const SESSION_KEY = "lama.session.openProject";
+const PREF_KEY = "lama.welcome.reopenLastProject";
 /** Per-window (sessionStorage): the project this window shows, restored when the webview reloads. */
-const WINDOW_KEY = "openidea.window.project";
+const WINDOW_KEY = "lama.window.project";
 
 function windowProject(value?: string | null): string | null {
   try {

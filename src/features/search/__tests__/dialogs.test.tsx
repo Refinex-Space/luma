@@ -118,7 +118,7 @@ describe("Search Everywhere dialog", () => {
     fireEvent.click(toggle);
     expect(useSearchEverywhere.getState().preview).toBe(true);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(localStorage.getItem("openidea.search.everywherePreview.v1")).toBe("true");
+    expect(localStorage.getItem("lama.search.everywherePreview.v1")).toBe("true");
     fireEvent.click(toggle);
     expect(useSearchEverywhere.getState().preview).toBe(false);
   });
@@ -139,7 +139,7 @@ describe("Search Everywhere dialog", () => {
   });
 
   it("⌥↑ / ⌥↓ browse the tab's search history and restore the draft", async () => {
-    localStorage.removeItem("openidea.search.everywhereHistory.v1");
+    localStorage.removeItem("lama.search.everywhereHistory.v1");
     pushSearchHistory("all", "older");
     pushSearchHistory("all", "newer");
     pushSearchHistory("files", "other tab");
@@ -205,9 +205,7 @@ describe("Search Everywhere dialog", () => {
     fireEvent.click(screen.getByLabelText("Kotlin"));
     await tick();
     expect(useSearchEverywhere.getState().filters.files.languages).toEqual(["kotlin"]);
-    expect(JSON.parse(localStorage.getItem("openidea.search.everywhereFilters.v1")!).files.languages).toEqual([
-      "kotlin",
-    ]);
+    expect(JSON.parse(localStorage.getItem("lama.search.everywhereFilters.v1")!).files.languages).toEqual(["kotlin"]);
     expect(document.getElementById("se-results")!.textContent).not.toContain("OrderController");
     act(() =>
       useSearchEverywhere.setState({
