@@ -158,7 +158,7 @@ class OverviewLane {
 
   /**
    * Over the scrollbar thumb the marks let the pointer through, so the thumb can be dragged
-   * even where a mark covers it (a new file is one mark the height of the lane, #752).
+   * even where marks cover it (a match on every line, #752).
    */
   private updateThumbPassThrough() {
     const p = this.pointer;

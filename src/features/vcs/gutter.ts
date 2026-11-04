@@ -9,7 +9,7 @@ import { EditorView, GutterMarker, ViewPlugin, type PluginValue, type ViewUpdate
 import { foldState, foldedRanges } from "@codemirror/language";
 import type { HunkKind, LineHunk } from "@/bindings";
 import { call, commands, isTauri } from "@/platform/ipc";
-import { LaneMarker, gutterLaneMarkers, scrollbarMarks, type EditorDocContext, type ScrollbarMark } from "@/editor/api";
+import { LaneMarker, gutterLaneMarkers, type EditorDocContext } from "@/editor/api";
 import { lineStarts } from "./hunks";
 import { useVcs } from "./store";
 
@@ -207,15 +207,6 @@ class HunkFetcher implements PluginValue {
   }
 }
 
-function scrollMarks(state: EditorState): ScrollbarMark[] {
-  return editorHunks(state).map((h) => ({
-    from: h.from,
-    to: h.to > h.from ? h.to - 1 : h.from,
-    color: COLOR[h.kind],
-    tooltip: TITLE[h.kind].replace(" (click to show)", ""),
-  }));
-}
-
 const laneTheme = EditorView.baseTheme({
   ".cm-luma-lane .cm-gutterElement:has(.cm-luma-laneBar, .cm-luma-laneDeleted)": { cursor: "pointer" },
 });
@@ -256,8 +247,9 @@ export function changeMarkers(ctx: EditorDocContext): Extension {
   const path = ctx.path;
   return [
     hunkField,
+    // The change lane beside the line numbers only: the overview lane over the scrollbar keeps to
+    // problems and search matches, rather than drawing every change a second time.
     gutterLaneMarkers.compute([hunkField, foldState], visibleMarkers),
-    scrollbarMarks.compute([hunkField], scrollMarks),
     laneClicks(path),
     laneTheme,
     ViewPlugin.define((view) => new HunkFetcher(view, path)),

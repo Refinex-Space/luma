@@ -8,7 +8,7 @@ test("the scrollbar thumb drags even where overview marks cover it (#752)", asyn
   await editor.locator(".cm-content").click();
   await page.keyboard.press("Meta+a");
   await page.keyboard.insertText(Array.from({ length: 400 }, (_, i) => `val mark${i} = ${i}`).join("\n"));
-  // A match on every line covers the overview lane, as a new file's change mark does.
+  // A match on every line covers the overview lane.
   await page.keyboard.press("Meta+f");
   await page.getByRole("textbox", { name: "Find" }).fill("mark");
   await expect(editor.locator(".cm-luma-overviewMark").first()).toBeVisible();
