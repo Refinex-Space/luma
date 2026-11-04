@@ -52,6 +52,13 @@ Their original copyright headers and Apache-2.0 licensing are retained.
 
 At render time `src/ui/icons.tsx` may recolour monochrome icons to `currentColor`.
 
+## Agent logos
+
+`src/ui/luma/agents/*.svg` for the agents of the
+[ACP Registry](https://github.com/agentclientprotocol/registry) (Apache-2.0) are the
+icons that registry publishes for each agent (`https://cdn.agentclientprotocol.com/registry/v1/latest/<id>.svg`),
+copied unmodified. The logos are trademarks of their respective owners and only identify the agents.
+
 ## JetBrains IntelliJ Platform diff algorithm
 
 `src/features/vcs/comparison/**` is a TypeScript port of the text comparison of

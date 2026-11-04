@@ -195,6 +195,39 @@ const ICONS = {
   "agent-auggie": "luma/agents/auggie",
   "agent-kiro": "luma/agents/kiro",
   "agent-vibe": "luma/agents/vibe",
+  "agent-agoragentic-acp": "luma/agents/agoragentic-acp",
+  "agent-amp-acp": "luma/agents/amp-acp",
+  "agent-antigravity-acp": "luma/agents/antigravity-acp",
+  "agent-autohand": "luma/agents/autohand",
+  "agent-bob": "luma/agents/bob",
+  "agent-claude-acp": "luma/agents/claude-acp",
+  "agent-cline": "luma/agents/cline",
+  "agent-codebuddy-code": "luma/agents/codebuddy-code",
+  "agent-codex-acp": "luma/agents/codex-acp",
+  "agent-cortex-code": "luma/agents/cortex-code",
+  "agent-corust-agent": "luma/agents/corust-agent",
+  "agent-crow-cli": "luma/agents/crow-cli",
+  "agent-deepagents": "luma/agents/deepagents",
+  "agent-devin": "luma/agents/devin",
+  "agent-dimcode": "luma/agents/dimcode",
+  "agent-dirac": "luma/agents/dirac",
+  "agent-factory-droid": "luma/agents/factory-droid",
+  "agent-fast-agent": "luma/agents/fast-agent",
+  "agent-glm-acp-agent": "luma/agents/glm-acp-agent",
+  "agent-grok-build": "luma/agents/grok-build",
+  "agent-harn": "luma/agents/harn",
+  "agent-junie": "luma/agents/junie",
+  "agent-kilo": "luma/agents/kilo",
+  "agent-kimchi": "luma/agents/kimchi",
+  "agent-minimax-code": "luma/agents/minimax-code",
+  "agent-minion-code": "luma/agents/minion-code",
+  "agent-nova": "luma/agents/nova",
+  "agent-pi-acp": "luma/agents/pi-acp",
+  "agent-poolside": "luma/agents/poolside",
+  "agent-qoder": "luma/agents/qoder",
+  "agent-sigit": "luma/agents/sigit",
+  "agent-stakpak": "luma/agents/stakpak",
+  "agent-vtcode": "luma/agents/vtcode",
   "toolwindow-maven": "toolwindows/maven",
   "toolwindow-gradle": "toolwindows/gradle",
   "toolwindow-build": "toolwindows/build",
@@ -551,6 +584,9 @@ function raw(path: string): string | undefined {
   return RAW[path.startsWith("luma/") ? `./${path}.svg` : `./expui/${path}.svg`];
 }
 
+/** Drawing attributes of the root `<svg>` that its children inherit; `build` draws them on a `<g>`. */
+const INHERITED = /\s((?:fill|fill-rule|clip-rule|fill-opacity|stroke|stroke-[a-z]+))="([^"]*)"/g;
+
 function parse(svg: string): Variant {
   const open = svg.indexOf("<svg");
   const start = svg.indexOf(">", open) + 1;
@@ -559,7 +595,9 @@ function parse(svg: string): Variant {
   const w = /\bwidth="([\d.]+)"/.exec(tag)?.[1] ?? "16";
   const h = /\bheight="([\d.]+)"/.exec(tag)?.[1] ?? w;
   const viewBox = /\bviewBox="([^"]+)"/.exec(tag)?.[1] ?? `0 0 ${w} ${h}`;
-  const body = svg
+  // The icon's own root is dropped, so a `fill="currentColor"` there would otherwise be lost.
+  const inherited = [...tag.matchAll(INHERITED)].filter(([, name, value]) => !(name === "fill" && value === "none"));
+  const content = svg
     .slice(start, end)
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(title|metadata)\b[\s\S]*?<\/\1>/g, "")
@@ -568,6 +606,9 @@ function parse(svg: string): Variant {
     .replace(/url\(#([^)]+)\)/g, "url(#__ID__$1)")
     .replace(/href="#([^"]+)"/g, 'href="#__ID__$1"')
     .trim();
+  const body = inherited.length
+    ? `<g${inherited.map(([, name, value]) => ` ${name}="${value}"`).join("")}>${content}</g>`
+    : content;
   return { viewBox, body };
 }
 

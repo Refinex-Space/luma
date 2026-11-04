@@ -25,12 +25,12 @@ import { focusedSession } from "./sessionFocus";
 import { connect, disconnect, openHome, useAgents } from "./store";
 import { taskActions } from "./taskActions";
 
-/** Settings › Tools › Agents (also used by the Settings window). */
+/** Settings › AI › Agents (also used by the Settings window). */
 export function activateSettingsPages(): () => void {
   return registerSettingsPage({
     id: REGISTRY_PAGE,
     title: "Agents",
-    group: "Tools",
+    group: "AI",
     order: 500,
     keywords: ["agent", "acp", "registry", "install", "update", "coding agent"],
     component: lazyComponent(() => import("./AgentRegistryPage").then((m) => m.AgentRegistryPage)),
@@ -116,7 +116,7 @@ export function activate(): () => void {
       {
         id: "agents.addAgent",
         title: "More Agents…",
-        description: "Opens Settings › Tools › Agents: installs, updates or removes agents from the ACP Registry.",
+        description: "Opens Settings › AI › Agents: installs, updates or removes agents from the ACP Registry.",
         category: "Agents",
         icon: "plugin",
         keywords: ["agent", "acp", "registry", "install", "update"],

@@ -212,9 +212,9 @@ function AgentRow({
   const titleId = `agent-${agent.id}`;
   return (
     <li className={styles.row} aria-labelledby={titleId}>
+      <Icon name={providerIcon(agent.id)} size={16} className={styles.icon} />
       <div className={styles.main}>
         <div className={styles.titleLine}>
-          <Icon name={providerIcon(agent.id)} size={16} />
           <span id={titleId} className={styles.name}>
             {agent.name}
           </span>

@@ -7,8 +7,8 @@ export const HOME_KEY = "agent:new";
 export const TOOL_WINDOW = "agents";
 /** MIME of a dragged agent task (a tree row or the docked conversation bar): the payload is the task id. */
 export const TASK_DRAG = "application/x-luma-agent-task";
-/** Settings › Tools › Agents: the ACP Registry. */
-export const REGISTRY_PAGE = "tools.agents";
+/** Settings › AI › Agents: the ACP Registry. */
+export const REGISTRY_PAGE = "ai.agents";
 
 export const sessionKey = (task: string) => `agent:${task}`;
 
@@ -54,11 +54,54 @@ const PROVIDER_ICONS = new Set([
   "auggie",
   "kiro",
   "vibe",
+  "agoragentic-acp",
+  "amp-acp",
+  "antigravity-acp",
+  "autohand",
+  "bob",
+  "claude-acp",
+  "cline",
+  "codebuddy-code",
+  "codex-acp",
+  "cortex-code",
+  "corust-agent",
+  "crow-cli",
+  "deepagents",
+  "devin",
+  "dimcode",
+  "dirac",
+  "factory-droid",
+  "fast-agent",
+  "glm-acp-agent",
+  "grok-build",
+  "harn",
+  "junie",
+  "kilo",
+  "kimchi",
+  "minimax-code",
+  "minion-code",
+  "nova",
+  "pi-acp",
+  "poolside",
+  "qoder",
+  "sigit",
+  "stakpak",
+  "vtcode",
 ]);
 
+/** Registry ids whose logo is the one of the same product under its built-in id. */
+const ICON_ALIAS: Record<string, string> = {
+  "github-copilot-cli": "copilot",
+  "mistral-vibe": "vibe",
+  "qwen-code": "qwen",
+  "opencode-v2": "opencode",
+};
+
 /** The agent's logo; custom agents get the generic agents icon. */
-export const providerIcon = (provider: string) =>
-  PROVIDER_ICONS.has(provider) ? `agent-${provider}` : "toolwindow-agents";
+export const providerIcon = (provider: string) => {
+  const key = ICON_ALIAS[provider] ?? provider;
+  return PROVIDER_ICONS.has(key) ? `agent-${key}` : "toolwindow-agents";
+};
 
 export interface TaskGroup {
   status: "needsInput" | "failed" | "limited" | "running" | "ready" | "archived";
