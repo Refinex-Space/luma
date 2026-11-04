@@ -23,7 +23,6 @@ import {
   SplitPanel,
   Tabs,
   Tree,
-  fileIconName,
   registerDropTarget,
   showContextMenu,
   startPointerDrag,
@@ -61,6 +60,7 @@ import { OperationBanner } from "./operations";
 import { ShelfPanel, loadShelves, useShelf } from "./shelf";
 import { refreshNow, repoName, selectRepo, useVcs } from "./store";
 import styles from "./CommitView.module.css";
+import { FileIcon } from "@/platform/FileIcon";
 
 /** MIME type of changed files dragged between change lists (absolute paths, newline-separated). */
 const CHANGES_MIME = "application/x-luma-changes";
@@ -624,12 +624,10 @@ export function ChangesTree({ mode }: { mode: "commit" | "local" | "dialog" }) {
                     onToggle={() => toggle(selected.has(n.key) && selected.size > 1 ? selectedNodes() : [n])}
                   />
                 )}
-                {n.type === "group" ? null : (
-                  <Icon
-                    name={n.type === "dir" ? (st.expanded ? "folder-open" : "folder") : fileIconName(n.label)}
-                    size={16}
-                    className={styles.icon}
-                  />
+                {n.type === "group" ? null : n.type === "dir" ? (
+                  <Icon name={st.expanded ? "folder-open" : "folder"} size={16} className={styles.icon} />
+                ) : (
+                  <FileIcon path={n.path ?? n.label} size={16} className={styles.icon} />
                 )}
                 {label}
                 {n.type === "group" && <span className={styles.detail}>{fileCount(n.files.length)}</span>}

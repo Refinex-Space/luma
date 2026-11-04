@@ -6,9 +6,10 @@ import { executeAction } from "@/platform/actions";
 import { shortcutLabel } from "@/platform/keymap";
 import { basename, dirname, projectFolder, relativePath, useProject } from "@/platform/project";
 import type { LineEnding, OutlineItem } from "@/platform/ipc";
-import { BarButton, Icon, Menu, badgeKind, fileIconName } from "@/ui";
+import { BarButton, Icon, Menu, badgeKind } from "@/ui";
 import { notifications } from "@/workbench/contributions";
 import { ENCODING_CHOICES, useEditorPrefs } from "@/platform/editorSettings";
+import { useFilePresentation } from "@/platform/filePresentation";
 import { isVirtualUri } from "@/platform/virtualDocs";
 import { editorController, useEditorStatus, useGotoLine } from "../controller";
 import { useDocMeta, useOutline } from "../model/document";
@@ -61,6 +62,8 @@ export function Breadcrumbs() {
   const outline = useOutline((s) => (path ? s[path] : undefined));
   const chain = useCaretSymbols(path, outline) ?? NO_SYMBOLS;
   const [popup, setPopup] = useState<{ nav: NavSegment; anchor: HTMLElement } | null>(null);
+  // The file as the Project view draws it: a class, interface, Spring Boot application…
+  const fileIcon = useFilePresentation(path ?? "").icon;
   if (!path) return null;
   const parent = dirname(path);
   const segments: Crumb[] = [];
@@ -100,7 +103,7 @@ export function Breadcrumbs() {
   const stem = file.includes(".") ? file.slice(0, file.lastIndexOf(".")) || file : file;
   segments.push({
     label: file,
-    icon: fileIconName(file),
+    icon: fileIcon,
     title: project ? relativePath(project.root, path) : path,
     nav: { kind: "file", path, label: file },
   });

@@ -279,6 +279,7 @@ export function DirectoryCompareDialog({ left, right, onClose }: { left: string;
           diffFor={(e) => directoryDiff(left, right, e)}
           openOnActivate={!busy && !operating}
           onOpen={onClose}
+          getPath={(e) => `${right}/${e.path}`}
           ariaLabel="Compared files"
           renderDetails={(n) => {
             const entry = n.file ?? n.directory;

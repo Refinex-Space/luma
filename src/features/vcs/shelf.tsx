@@ -13,7 +13,7 @@ import { showCreatePatchForShelf } from "./patches";
 import { executeAction } from "@/platform/actions";
 import { call, commands } from "@/platform/ipc";
 import { workflowSettings } from "@/platform/workflowSettings";
-import { Checkbox, Dialog, Icon, IconButton, Input, Select, Tree, fileIconName, showContextMenu, T } from "@/ui";
+import { Checkbox, Dialog, Icon, IconButton, Input, Select, Tree, showContextMenu, T } from "@/ui";
 import { notifications } from "@/workbench/contributions";
 import { groupOf } from "./changes";
 import { activeList, listOf, moveFiles, relOf, updateChangelists, useChangelists } from "./changelists";
@@ -27,6 +27,7 @@ import { repositoryPath } from "./repositoryPaths";
 import styles from "./common.module.css";
 import viewStyles from "./CommitView.module.css";
 import { tx } from "@/platform/i18n";
+import { FileIcon } from "@/platform/FileIcon";
 
 interface ShelfState {
   shelves: ShelvedChangeList[];
@@ -116,7 +117,7 @@ export function FileChecklist({
                 onChange(n);
               }}
             />
-            <Icon name={fileIconName(baseName(f.path))} size={14} />
+            <FileIcon path={f.path} root={root} size={14} />
             <span className={styles.fileName} style={{ color: KIND_COLOR[kind] }}>
               {baseName(stripSlash(f.path))}
             </span>
@@ -517,7 +518,7 @@ export function ShelfPanel() {
           renderNode={(n) =>
             n.file ? (
               <>
-                <Icon name={fileIconName(baseName(n.file.path))} size={16} className={viewStyles.icon} />
+                <FileIcon path={n.file.path} root={root} size={16} className={viewStyles.icon} />
                 <span
                   className={viewStyles.label}
                   style={{ color: KIND_COLOR[n.file.kind === "untracked" ? "added" : n.file.kind] }}

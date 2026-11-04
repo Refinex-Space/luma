@@ -13,6 +13,13 @@ vi.mock("../controller", async () => {
   };
 });
 
+// The file's icon comes from the Project view's presentation (class, interface, Spring Boot…).
+const filePresentation = vi.hoisted(() => vi.fn((_path: string) => ({ icon: "class", runnable: false })));
+vi.mock("@/platform/filePresentation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/platform/filePresentation")>()),
+  useFilePresentation: filePresentation,
+}));
+
 const { useEditorStatus } = await import("../controller");
 const { useOutline } = await import("../model/document");
 const { Breadcrumbs, CodeBreadcrumbs } = await import("./StatusItems");
@@ -42,7 +49,10 @@ const caret = (line: number, col: number): EditorStatus => ({
 });
 
 describe("caret-driven status widgets", () => {
-  it("re-render when the symbol at the caret changes, not on every caret move", () => {
+  it("re-render when the symbol at the caret changes, not on every caret move", async () => {
+    // The editor's own breadcrumbs are off by default (the status bar carries them): turn them on.
+    const { useProject } = await import("@/platform/project");
+    useProject.setState({ settings: { editor: { breadcrumbs: { show: true } } } as never });
     useOutline.setState({ [PATH]: [item("Orders", 0, 40, [item("place", 2, 10), item("cancel", 12, 20)])] });
     act(() => useEditorStatus.setState({ status: caret(3, 4) }));
     let commits = 0;
@@ -92,4 +102,12 @@ it("shows the member and its directories in workspace breadcrumbs", async () => 
   expect(screen.getByRole("navigation", { name: "Breadcrumbs" }).textContent).toBe("bsrcfile.ts");
   view.unmount();
   useProject.setState({ project: null });
+});
+
+it("draws the file as the Project view does (a Java class, not the file type)", () => {
+  useEditorStatus.setState({ status: { ...caret(0, 0), path: "/p/src/Orders.java" } });
+  filePresentation.mockClear();
+  const view = render(<Breadcrumbs />);
+  expect(filePresentation).toHaveBeenCalledWith("/p/src/Orders.java");
+  view.unmount();
 });

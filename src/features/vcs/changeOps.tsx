@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import type { FileStatus, PartialCommitFile, Stash } from "@/bindings";
 import { call, commands } from "@/platform/ipc";
-import { Checkbox, Dialog, Icon, Input, T, fileIconName } from "@/ui";
+import { Checkbox, Dialog, Input, T } from "@/ui";
 import { notifications } from "@/workbench/contributions";
 import { commitRepos, groupOf, planCommit, renamedFromPath } from "./changes";
 import { useChangelists, withListDefaults } from "./changelists";
@@ -13,9 +13,10 @@ import { confirmDialog, openDialog } from "./dialogs";
 import { hunkKeys } from "./hunks";
 import { KIND_COLOR, baseName, dirName, effectiveKind, relTo, rootOf, stripSlash } from "./model";
 import { logConsole, runOp, saveAll } from "./ops";
-import { currentRepo, loadStashes, refreshNow, useVcs } from "./store";
+import { currentRepo, currentRepoRoot, loadStashes, refreshNow, useVcs } from "./store";
 import styles from "./common.module.css";
 import { tx } from "@/platform/i18n";
+import { FileIcon } from "@/platform/FileIcon";
 
 export function firstLine(message: string): string {
   return (
@@ -245,7 +246,7 @@ function RollbackDialog({ files, onClose }: { files: FileStatus[]; onClose: () =
                   })
                 }
               />
-              <Icon name={fileIconName(baseName(f.path))} size={14} />
+              <FileIcon path={f.path} root={currentRepoRoot()} size={14} />
               <span className={styles.fileName} style={{ color: KIND_COLOR[kind] }}>
                 {baseName(f.path)}
               </span>

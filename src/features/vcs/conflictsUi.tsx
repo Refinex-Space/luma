@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { FileStatus } from "@/bindings";
 import { activeEditor } from "@/editor/api";
 import { call, commands } from "@/platform/ipc";
-import { Dialog, Icon, List, fileIconName, T } from "@/ui";
+import { Dialog, List, T } from "@/ui";
 import { editorService, notifications } from "@/workbench/contributions";
 import { blockAt, parseConflicts, resolutionText, type Resolution } from "./conflicts";
 import { openDialog } from "./dialogs";
@@ -15,6 +15,7 @@ import { executeAction } from "@/platform/actions";
 import { conflictedFiles, useVcs } from "./store";
 import styles from "./common.module.css";
 import { tx } from "@/platform/i18n";
+import { FileIcon } from "@/platform/FileIcon";
 
 export function showConflictsDialog() {
   if (!conflictedFiles().length) {
@@ -126,7 +127,7 @@ function ConflictsDialog({ onClose }: { onClose: () => void }) {
           }}
           renderItem={(f) => (
             <span className={styles.fileRow} style={{ flex: 1, padding: 0 }}>
-              <Icon name={fileIconName(baseName(f.path))} size={14} />
+              <FileIcon path={f.path} root={root} size={14} />
               <span className={styles.fileName} style={{ color: "var(--vcs-conflict)" }}>
                 {baseName(f.path)}
               </span>

@@ -108,7 +108,8 @@ export const EDITOR_EXTRA_DEFAULTS = {
     intentionBulb: true,
     distractionFreeWidth: 80,
   },
-  breadcrumbs: { show: true, placement: "bottom", disabledLanguages: [] as string[] },
+  // Off: the status bar's navigation bar already shows the file and the symbols at the caret.
+  breadcrumbs: { show: false, placement: "bottom", disabledLanguages: [] as string[] },
   completion: {
     matchCase: true,
     caseSensitivity: "first",

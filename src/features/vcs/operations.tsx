@@ -664,6 +664,7 @@ export function ChangesBetweenDialog({
           onSelect={setCurrent}
           diffFor={diffFor}
           getColor={(f) => KIND_COLOR[f.kind === "untracked" ? "added" : f.kind]}
+          getPath={(f) => `${f.root.replace(/[\\/]+$/, "")}/${f.path}`}
           ariaLabel="Changed files"
           renderDetails={(n) =>
             n.file ? (

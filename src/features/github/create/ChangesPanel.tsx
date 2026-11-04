@@ -10,12 +10,14 @@ import { openDiff, withChain } from "@/features/vcs/diffInput";
 import { KIND_COLOR, baseName, fileCount, type EffectiveKind } from "@/features/vcs/model";
 import type { Commit } from "@/platform/ipc";
 import { tx } from "@/platform/i18n";
-import { Icon, IconButton, Spinner, T, Tree, fileIconName, showContextMenu, type MenuItem } from "@/ui";
+import { Icon, IconButton, Spinner, T, Tree, showContextMenu, type MenuItem } from "@/ui";
 import { ChooserPopup } from "../ui/ChooserPopup";
 import { prettyDate } from "../ui/prettyDate";
 import { commitDescription } from "./model";
 import { selectCommit, useCreatePr, type CreateChange } from "./store";
 import styles from "./Create.module.css";
+import { FileIcon } from "@/platform/FileIcon";
+import { currentRepoRoot } from "@/features/vcs/store";
 
 function Centered({ children, error }: { children: ReactNode; error?: boolean }) {
   return <div className={error ? `${styles.centered} ${styles.errorText}` : styles.centered}>{children}</div>;
@@ -248,7 +250,7 @@ function ChangeRow({ node }: { node: FileTreeNode<CreateChange> }) {
   const f = node.file;
   return (
     <span className={styles.fileRow} title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}>
-      <Icon name={fileIconName(node.name)} size={16} />
+      <FileIcon path={f.path} root={currentRepoRoot()} size={16} />
       <span className={styles.fileName} style={{ color: KIND_COLOR[kindOf(f)] }}>
         {node.name}
       </span>

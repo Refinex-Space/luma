@@ -115,7 +115,8 @@ pub struct BreadcrumbsSettings {
 
 impl Default for BreadcrumbsSettings {
     fn default() -> Self {
-        Self { show: true, placement: "bottom".into(), disabled_languages: Vec::new() }
+        // Off: the status bar's navigation bar already shows the file and the symbols at the caret.
+        Self { show: false, placement: "bottom".into(), disabled_languages: Vec::new() }
     }
 }
 

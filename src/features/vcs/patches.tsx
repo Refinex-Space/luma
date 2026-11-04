@@ -3,7 +3,7 @@ import { commitRepo } from "./multiRoot";
 import { useEffect, useState } from "react";
 import type { Commit, FileStatus, PatchFile, PatchSource, ShelvedChangeList } from "@/bindings";
 import { call, commands } from "@/platform/ipc";
-import { Button, Checkbox, Dialog, Icon, Input, List, Spinner, fileIconName, T } from "@/ui";
+import { Button, Checkbox, Dialog, Icon, Input, List, Spinner, T } from "@/ui";
 import { workflowSettings } from "@/platform/workflowSettings";
 import { notifications } from "@/workbench/contributions";
 import { ask } from "@/workbench/messages";
@@ -16,6 +16,7 @@ import { activeList, useChangelists } from "./changelists";
 import { currentRepoRoot, useVcs } from "./store";
 import styles from "./common.module.css";
 import { tx } from "@/platform/i18n";
+import { FileIcon } from "@/platform/FileIcon";
 
 export type PatchOrigin =
   | { kind: "changes"; files: FileStatus[] }
@@ -305,7 +306,7 @@ function ApplyPatchDialog({ patch, source, onClose }: { patch: string; source: s
                   f.applies ? tx("Applies cleanly") : tx("Does not apply cleanly: a 3-way merge will be attempted")
                 }
               >
-                <Icon name={fileIconName(baseName(f.path))} size={14} />
+                <FileIcon path={f.path} root={currentRepoRoot()} size={14} />
                 <span
                   className={styles.fileName}
                   style={{

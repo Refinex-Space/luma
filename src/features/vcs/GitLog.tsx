@@ -30,7 +30,6 @@ import {
   Spinner,
   Tabs,
   Tree,
-  fileIconName,
   showContextMenu,
   type MenuItem,
   type TreeHandle,
@@ -64,7 +63,7 @@ import {
 import { logOptions, refLabels, useLogOptions, type LogOptions } from "./logOptions";
 import { KIND_COLOR, baseName, dirName, fileCount, formatTime, relTo, type EffectiveKind } from "./model";
 import { clearConsole, useVcsConsole } from "./ops";
-import { currentRepo, loadBranches, repoName, useVcs } from "./store";
+import { currentRepo, currentRepoRoot, loadBranches, repoName, useVcs } from "./store";
 import { loadFavoriteBranches, useFavoriteBranches } from "./branchOps";
 import { branchMenu, inRepo, tagMenu } from "./branchMenu";
 import {
@@ -95,6 +94,7 @@ import { useWorkflowSettings } from "@/platform/workflowSettings";
 import { gitTabs, shownTab } from "./gitTabs";
 import { LocalChangesView, StashContent, tabItems, useStashTabCounts } from "./CommitView";
 import { WorktreesPanel } from "./gitMenuDialogs";
+import { FileIcon } from "@/platform/FileIcon";
 
 const ROW = 26;
 const LANE = 14;
@@ -1550,7 +1550,12 @@ function ChangedFileRow({ node, flat = false }: { node: FileTreeNode<ChangedFile
   const kind: EffectiveKind = f.kind === "untracked" ? "added" : f.kind;
   return (
     <span className={styles.fileRow} title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}>
-      <Icon name={fileIconName(node.name)} size={16} className={styles.fileIcon} />
+      <FileIcon
+        path={f.path}
+        root={("repo" in f ? f.repo : null) ?? currentRepoRoot()}
+        size={16}
+        className={styles.fileIcon}
+      />
       <span className={styles.fileName} style={{ color: KIND_COLOR[kind] }}>
         {node.name}
       </span>

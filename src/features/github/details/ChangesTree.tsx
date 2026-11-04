@@ -13,7 +13,7 @@ import { dirKeys, type FileTreeNode } from "@/features/vcs/fileTree";
 import { baseName, dirName, fileCount, KIND_COLOR } from "@/features/vcs/model";
 import { currentRepoRoot } from "@/features/vcs/store";
 import { useTx } from "@/platform/i18n";
-import { Icon, Tree, fileIconName, showContextMenu, T, type MenuItem, type TreeHandle } from "@/ui";
+import { Icon, Tree, showContextMenu, T, type MenuItem, type TreeHandle } from "@/ui";
 import { editorService } from "@/workbench/contributions";
 import type { GHCommitFile, GHPullRequestFileViewedState, GHPullRequestReviewThread } from "../api/types";
 import { openPullRequestFileDiff } from "../data/local";
@@ -32,6 +32,7 @@ import {
 } from "./model";
 import { setGroupByDirectory, useChangesGrouping } from "./state";
 import styles from "./Details.module.css";
+import { FileIcon } from "@/platform/FileIcon";
 
 type Node = FileTreeNode<GHCommitFile>;
 
@@ -197,7 +198,7 @@ function ChangeRow(props: {
   const f = node.file;
   const name = f ? (
     <>
-      <Icon name={fileIconName(node.name)} size={16} className={styles.fileIcon} />
+      <FileIcon path={f.filename} root={currentRepoRoot()} size={16} className={styles.fileIcon} />
       <span className={styles.fileName} style={{ color: KIND_COLOR[changeKind(f)] }}>
         {node.name}
       </span>

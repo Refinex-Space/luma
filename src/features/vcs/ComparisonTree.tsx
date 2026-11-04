@@ -4,6 +4,7 @@ import { DiffEditor } from "./DiffEditor";
 import { diffInput, openDiff, type DiffData } from "./diffInput";
 import { dirKeys, type FileTreeNode } from "./fileTree";
 import styles from "./common.module.css";
+import { FileIcon } from "@/platform/FileIcon";
 
 /** Shared changes tree and on-demand diff surface for revisions and disk folders. */
 export function ComparisonTree<F>({
@@ -15,6 +16,7 @@ export function ComparisonTree<F>({
   ariaLabel,
   openOnActivate = false,
   getColor,
+  getPath,
   onOpen,
 }: {
   tree: FileTreeNode<F>[];
@@ -25,6 +27,8 @@ export function ComparisonTree<F>({
   ariaLabel: string;
   openOnActivate?: boolean;
   getColor?: (entry: F) => string | undefined;
+  /** The entry's file on disk: its icon is then the Project view's (a class, a Spring config…). */
+  getPath?: (entry: F) => string;
   onOpen?: () => void;
 }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -60,7 +64,11 @@ export function ComparisonTree<F>({
         className={styles.comparisonTree}
         renderNode={(n) => (
           <span className={styles.fileRow} style={{ flex: 1, padding: 0 }}>
-            <Icon name={n.file ? fileIconName(n.name) : "folder"} size={14} />
+            {n.file && getPath ? (
+              <FileIcon path={getPath(n.file)} size={14} />
+            ) : (
+              <Icon name={n.file ? fileIconName(n.name) : "folder"} size={14} />
+            )}
             <span className={styles.fileName} style={{ color: n.file ? getColor?.(n.file) : undefined }}>
               {n.name}
             </span>
