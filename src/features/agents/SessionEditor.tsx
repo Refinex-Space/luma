@@ -26,9 +26,10 @@ import {
 import { useTx, tx } from "@/platform/i18n";
 import { isImeKey } from "@/platform/ime";
 import { TaskStatusIcon } from "./AgentsView";
-import { Composer } from "./Composer";
+import { Composer, renderTokens } from "./Composer";
+import { commandAt, useCommandHover } from "./CommandHover";
 import { SubmitButton } from "./SubmitButton";
-import { canSend, emptyDraft, retryParts, usageLabel, workTime } from "./composerModel";
+import { canSend, commandTokens, emptyDraft, retryParts, usageLabel, workTime } from "./composerModel";
 import { ConfigPickers } from "./ConfigPickers";
 import { findRanges, formatDuration, formatSentAt } from "./conversation";
 import { ImagePreview, imageSrc } from "./ImagePreview";
@@ -803,6 +804,7 @@ function UserMessage({
 }) {
   const tx = useTx();
   const [editing, setEditing] = useState(false);
+  const hover = useCommandHover(task.commands, true);
   const failed = (title: string) => (e: unknown) => notifications().notify({ level: "error", title, body: String(e) });
   const fail = failed("Couldn't send the message");
   const archived = task.status === "archived";
@@ -831,8 +833,14 @@ function UserMessage({
   const files = entry.attachments.slice(0, entry.attachments.length - images.length);
   return (
     <div className={clsx(styles.message, styles.userMessage)}>
-      <div className={styles.bubble}>
-        {entry.text}
+      <div
+        className={styles.bubble}
+        onPointerMove={(e) => hover.move(e.clientX, e.clientY, commandAt(e.currentTarget, e.clientX, e.clientY))}
+        onPointerLeave={() => hover.move(-1, -1, null)}
+      >
+        {hover.card}
+        {/* The agent's commands as the composer drew them: tags, not plain words. */}
+        {renderTokens(entry.text, commandTokens(entry.text, new Set(task.commands.map((c) => c.name))))}
         <ImageStrip images={images} />
         {files.length > 0 && (
           <div className={styles.attachments}>

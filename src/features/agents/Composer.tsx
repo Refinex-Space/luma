@@ -20,6 +20,7 @@ import {
   MAX_IMAGE_BYTES,
   applyCompletion,
   atEdgeLine,
+  commandTokens,
   isPathQuery,
   resolveTyped,
   completionAt,
@@ -29,11 +30,13 @@ import {
   modeOption,
   nextValue,
   recall,
+  type CommandToken,
   type Completion,
   type FileRef,
 } from "./composerModel";
 import { composerDraft, updateComposer, useAgents } from "./store";
 import { ContextPicker } from "./ContextPicker";
+import { commandAt, useCommandHover } from "./CommandHover";
 import { addContext, contextKey, middleEllipsis, rangeLabel, type ContextItem } from "./contextModel";
 import { ImagePreview, imageSrc } from "./ImagePreview";
 import styles from "./Composer.module.css";
@@ -98,7 +101,10 @@ export function Composer(props: ComposerProps) {
   const [completion, setCompletion] = useState<Completion | null>(null);
   const [files, setFiles] = useState<Item[]>([]);
   const [active, setActive] = useState(0);
-  const recalled = useRef<{ index: number; stash: string }>({ index: -1, stash: "" });
+  const recalled = useRef<{ index: number; stash: string }>({
+    index: -1,
+    stash: "",
+  });
 
   useEffect(() => {
     if (props.autoFocus) ref.current?.focus();
@@ -141,7 +147,12 @@ export function Composer(props: ComposerProps) {
                 .slice(0, MAX_ITEMS)
                 .map((f) => {
                   const rel = `${dirPart}${f.name}`;
-                  return { kind: "file", rel, dir: f.dir, path: resolveTyped(root, rel) };
+                  return {
+                    kind: "file",
+                    rel,
+                    dir: f.dir,
+                    path: resolveTyped(root, rel),
+                  };
                 }),
             );
           })
@@ -176,6 +187,38 @@ export function Composer(props: ComposerProps) {
   }, [completion, files, props.commands]);
   const open = !!completion && items.length > 0;
 
+  // The agent's commands written in the text: drawn as tags, and kept in the draft to be sent
+  // first (wherever they were written; set by any change to the text, recalls and quotes too).
+  const known = useMemo(() => new Set(props.commands.map((c) => c.name)), [props.commands]);
+  const tokens = useMemo(() => commandTokens(text, known), [text, known]);
+  const written = tokens.map((t) => t.name).join(" ");
+  useEffect(() => {
+    if ((composerDraft(id).commands ?? []).join(" ") !== written)
+      updateComposer(id, { commands: written ? written.split(" ") : [] });
+  }, [id, written]);
+  const highlight = useRef<HTMLDivElement>(null);
+  // Hovering a tag shows what the command does; the tags are under the textarea, found by position.
+  const hover = useCommandHover(props.commands);
+  const overlaid = tokens.length > 0;
+  // The tags under the text follow its scrolling and its width (a scrollbar takes some).
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const layer = highlight.current;
+    if (!el || !layer) return;
+    const sync = () => {
+      layer.style.width = `${el.clientWidth}px`;
+      layer.style.transform = `translateY(${-el.scrollTop}px)`;
+    };
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", sync);
+      ro.disconnect();
+    };
+  }, [overlaid]);
+
   const setText = (value: string, caret?: number, restoreSelection = true) => {
     updateComposer(id, { text: value });
     const c = caret ?? value.length;
@@ -201,7 +244,9 @@ export function Composer(props: ComposerProps) {
       const mention = mentionOf(item.rel);
       const next = applyCompletion(text, completion, mention);
       const current = composerDraft(id);
-      updateComposer(id, { files: [...current.files, { path: item.path, rel: item.rel } satisfies FileRef] });
+      updateComposer(id, {
+        files: [...current.files, { path: item.path, rel: item.rel } satisfies FileRef],
+      });
       setText(next.text, next.caret);
     } else {
       const next = applyCompletion(text, completion, `/${item.command.name}`);
@@ -214,7 +259,10 @@ export function Composer(props: ComposerProps) {
     if (list.length) updateComposer(id, { images: [...composerDraft(id).images, ...list] });
   };
   const addItems = (items: ContextItem[]) => {
-    if (items.length) updateComposer(id, { context: addContext(composerDraft(id).context ?? [], items) });
+    if (items.length)
+      updateComposer(id, {
+        context: addContext(composerDraft(id).context ?? [], items),
+      });
   };
   const removeItem = (item: ContextItem) =>
     updateComposer(id, {
@@ -225,7 +273,11 @@ export function Composer(props: ComposerProps) {
     for (const file of picked) {
       if (!file.type.startsWith("image/")) continue;
       if (file.size > MAX_IMAGE_BYTES) {
-        notifications().notify({ level: "warning", title: "Image too large", body: tx`${file.name} is over 5 MB.` });
+        notifications().notify({
+          level: "warning",
+          title: "Image too large",
+          body: tx`${file.name} is over 5 MB.`,
+        });
         continue;
       }
       const reader = new FileReader();
@@ -258,14 +310,20 @@ export function Composer(props: ComposerProps) {
                 if (image) addImages([image]);
               });
             } else {
-              refs.push({ path, rel: path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path });
+              refs.push({
+                path,
+                rel: path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path,
+              });
             }
           }
           if (refs.length) {
             const current = composerDraft(id);
             const mentions = refs.map((r) => mentionOf(r.rel)).join(" ");
             const glue = current.text && !/\s$/.test(current.text) ? " " : "";
-            updateComposer(id, { text: `${current.text}${glue}${mentions} `, files: [...current.files, ...refs] });
+            updateComposer(id, {
+              text: `${current.text}${glue}${mentions} `,
+              files: [...current.files, ...refs],
+            });
           }
         })
         .then((u) => {
@@ -281,6 +339,7 @@ export function Composer(props: ComposerProps) {
   }, [id, root]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    hover.hide();
     if (isImeKey(e.nativeEvent)) return;
     if (open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -416,28 +475,43 @@ export function Composer(props: ComposerProps) {
           <ImagePreview image={preview} onClose={() => setPreview(null)} />
         </div>
       )}
-      <textarea
-        ref={ref}
-        className={styles.textarea}
-        rows={2}
-        spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        value={text}
-        aria-label={tx("Message")}
-        placeholder={tx(props.placeholder)}
-        onChange={(e) => setText(e.target.value, e.target.selectionStart, false)}
-        onSelect={(e) => setCompletion(completionAt(e.currentTarget.value, e.currentTarget.selectionStart))}
-        onBlur={() => setCompletion(null)}
-        onKeyDown={onKeyDown}
-        onPaste={(e) => {
-          const pasted = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
-          if (pasted.length) {
-            e.preventDefault();
-            readImageFiles(pasted);
+      <div className={styles.field}>
+        {overlaid && (
+          <div className={styles.highlightClip} aria-hidden="true">
+            <div ref={highlight} className={clsx(styles.textarea, styles.highlight)}>
+              {renderTokens(text, tokens)}
+            </div>
+          </div>
+        )}
+        <textarea
+          ref={ref}
+          className={clsx(styles.textarea, overlaid && styles.overlaid)}
+          rows={2}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          value={text}
+          aria-label={tx("Message")}
+          placeholder={tx(props.placeholder)}
+          onChange={(e) => setText(e.target.value, e.target.selectionStart, false)}
+          onSelect={(e) => setCompletion(completionAt(e.currentTarget.value, e.currentTarget.selectionStart))}
+          onBlur={() => setCompletion(null)}
+          onPointerMove={(e) =>
+            hover.move(e.clientX, e.clientY, overlaid ? commandAt(highlight.current, e.clientX, e.clientY) : null)
           }
-        }}
-      />
+          onPointerLeave={() => hover.move(-1, -1, null)}
+          onScroll={hover.hide}
+          onKeyDown={onKeyDown}
+          onPaste={(e) => {
+            const pasted = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+            if (pasted.length) {
+              e.preventDefault();
+              readImageFiles(pasted);
+            }
+          }}
+        />
+      </div>
+      {hover.card}
       <div className={styles.bar} onClick={(e) => e.stopPropagation()}>
         {!below && <div className={styles.toolbar}>{props.toolbar}</div>}
         <div className={styles.actions}>
@@ -540,7 +614,14 @@ function ContextChip({ item, chars, onRemove }: { item: ContextItem; chars: numb
                     focus: true,
                     // A selection opens selected again (0-based lines; through the end of its last).
                     ...(item.lines
-                      ? { selection: { line: item.lines.from - 1, col: 0, endLine: item.lines.to, endCol: 0 } }
+                      ? {
+                          selection: {
+                            line: item.lines.from - 1,
+                            col: 0,
+                            endLine: item.lines.to,
+                            endCol: 0,
+                          },
+                        }
                       : {}),
                   })
           }
@@ -578,4 +659,30 @@ function ContextChip({ item, chars, onRemove }: { item: ContextItem; chars: numb
         />
       );
   }
+}
+
+/**
+ * Text with the commands in it drawn as tags (the composer's highlight layer, sent messages),
+ * the rest as is. A trailing newline gets a space so the layer's last line has the textarea's
+ * height.
+ *
+ * @param text the composer's text
+ * @param tokens the commands in it, in order
+ * @param tag the class of a command's tag (the composer's by default)
+ * @returns the layer's content
+ */
+export function renderTokens(text: string, tokens: readonly CommandToken[], tag = styles.command!): ReactNode[] {
+  const out: ReactNode[] = [];
+  let at = 0;
+  for (const t of tokens) {
+    if (t.from > at) out.push(text.slice(at, t.from));
+    out.push(
+      <span key={t.from} className={tag} data-command={t.name}>
+        {text.slice(t.from, t.to)}
+      </span>,
+    );
+    at = t.to;
+  }
+  out.push(text.slice(at) + (text.endsWith("\n") ? " " : ""));
+  return out;
 }

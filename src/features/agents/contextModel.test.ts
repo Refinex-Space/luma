@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentCommand } from "@/bindings";
-import { canSend, emptyDraft, toPrompt } from "./composerModel";
+import { canSend, commandTokens, emptyDraft, hoistCommands, toPrompt } from "./composerModel";
 import {
   addContext,
   commitNote,
@@ -95,5 +95,28 @@ describe("context chips", () => {
     expect(cut.startsWith("CappedBatchin")).toBe(true);
     expect(cut.endsWith(".java:81-86")).toBe(true);
     expect(cut).toContain("…");
+  });
+});
+
+describe("commands in the text", () => {
+  const names = new Set(["commit", "review"]);
+
+  it("finds the agent's commands written anywhere, as words of their own", () => {
+    expect(commandTokens("/commit 测试 /review", names)).toEqual([
+      { from: 0, to: 7, name: "commit" },
+      { from: 11, to: 18, name: "review" },
+    ]);
+    // Not commands: unknown names, inside a word, a path.
+    expect(commandTokens("/nope a/commit /commit/x", names)).toEqual([]);
+  });
+
+  it("sends them first, as an agent only runs a command that starts the message", () => {
+    expect(hoistCommands("/commit 测试", ["commit"])).toBe("/commit 测试");
+    expect(hoistCommands("fix this /review please", ["review"])).toBe("/review fix this please");
+    expect(hoistCommands("测试 /commit", ["commit"])).toBe("/commit 测试");
+    // Only the ones the user picked: other slashes stay where they are.
+    expect(hoistCommands("see /review", [])).toBe("see /review");
+    const prompt = toPrompt({ ...emptyDraft(), text: "测试 /commit", commands: ["commit"] });
+    expect(prompt.text).toBe("/commit 测试");
   });
 });

@@ -70,7 +70,10 @@ describe("agent composer", () => {
   it("completes @files anywhere and /commands as the first word", () => {
     expect(completionAt("fix @src/le", 11)).toEqual({ kind: "file", query: "src/le", from: 4, to: 11 });
     expect(completionAt("/rev", 4)).toEqual({ kind: "command", query: "rev", from: 0, to: 4 });
-    expect(completionAt("run /rev", 8)).toBeNull();
+    // Anywhere as a word of its own; never inside a word or a path.
+    expect(completionAt("run /rev", 8)).toEqual({ kind: "command", query: "rev", from: 4, to: 8 });
+    expect(completionAt("src/rev", 7)).toBeNull();
+    expect(completionAt("see /Users/me", 13)).toBeNull();
     expect(completionAt("a@b", 3)).toBeNull();
     const c = completionAt("see @le and", 7)!;
     expect(applyCompletion("see @le and", c, "@src/lexer.rs")).toEqual({ text: "see @src/lexer.rs and", caret: 18 });

@@ -25,6 +25,8 @@ export interface ComposerDraft {
   images: AgentImage[];
   /** Chips added from the "+" menu (absent in drafts made before it). */
   context?: ContextItem[];
+  /** The agent's commands written in the text (`/name`), however placed: sent first. */
+  commands?: string[];
 }
 
 export const emptyDraft = (): ComposerDraft => ({ text: "", files: [], images: [], context: [] });
@@ -33,16 +35,73 @@ export type Completion =
   | { kind: "file"; query: string; from: number; to: number }
   | { kind: "command"; query: string; from: number; to: number };
 
-/** The `@file` or leading `/command` being typed at `caret`, if any. */
+/**
+ * The `@file` or `/command` being typed at `caret`, if any: a word of its own, at the start or
+ * after a space (a command anywhere: it is sent first, see {@link hoistCommands}).
+ *
+ * @param text the composer's text
+ * @param caret the caret offset in `text`
+ * @returns what to complete and the range it replaces, or `null`
+ */
 export function completionAt(text: string, caret: number): Completion | null {
   const before = text.slice(0, caret);
   const word = /(^|\s)([@/])([^\s@]*)$/.exec(before);
   if (!word) return null;
   const from = caret - word[3]!.length - 1;
-  // Commands only as the message's first word.
-  if (word[2] === "/")
-    return before.slice(0, from).trim() === "" ? { kind: "command", query: word[3]!, from, to: caret } : null;
+  if (word[2] === "/") {
+    // A path being typed (`/Users/…`, `a/b`) is no command.
+    if (word[3]!.includes("/")) return null;
+    return { kind: "command", query: word[3]!, from, to: caret };
+  }
   return { kind: "file", query: word[3]!, from, to: caret };
+}
+
+/** A `/command` written in the text: its range (with the slash) and name. */
+export interface CommandToken {
+  from: number;
+  to: number;
+  name: string;
+}
+
+/**
+ * The commands written in `text`: `/name` words (at the start or after a space) naming one of
+ * `names`.
+ *
+ * @param text the composer's text
+ * @param names the agent's command names (without the slash)
+ * @returns the tokens in order of appearance
+ */
+export function commandTokens(text: string, names: ReadonlySet<string>): CommandToken[] {
+  const out: CommandToken[] = [];
+  for (const m of text.matchAll(/(^|\s)\/([^\s/@]+)(?=\s|$)/g)) {
+    const name = m[2]!;
+    if (!names.has(name)) continue;
+    const from = m.index! + m[1]!.length;
+    out.push({ from, to: from + name.length + 1, name });
+  }
+  return out;
+}
+
+/**
+ * The text with the commands in it moved to its start: an agent runs a command only as the
+ * message's first word, so "fix this /review" is sent as "/review fix this".
+ *
+ * @param text the message text
+ * @param names the commands to move (the ones the user wrote, see {@link ComposerDraft.commands})
+ * @returns the text to send
+ */
+export function hoistCommands(text: string, names: readonly string[]): string {
+  const tokens = commandTokens(text, new Set(names));
+  if (!tokens.length || (tokens.length === 1 && tokens[0]!.from === 0)) return text;
+  let rest = "";
+  let at = 0;
+  for (const t of tokens) {
+    rest += text.slice(at, t.from);
+    at = t.to;
+  }
+  rest = (rest + text.slice(at)).replace(/[ \t]{2,}/g, " ").trim();
+  const front = [...new Set(tokens.map((t) => `/${t.name}`))].join(" ");
+  return rest ? `${front} ${rest}` : front;
 }
 
 /** Replaces the completion with `insert` plus a space; returns the text and the caret after it. */
@@ -122,7 +181,7 @@ export function toPrompt(draft: ComposerDraft): AgentPrompt {
   }
   const notes = contextNotes(context);
   return {
-    text: withSkills(draft.text.trim(), context),
+    text: withSkills(hoistCommands(draft.text.trim(), draft.commands ?? []), context),
     files,
     images: draft.images,
     // Only when there are any: a plain message stays as it was.

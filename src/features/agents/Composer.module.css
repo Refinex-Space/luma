@@ -44,6 +44,38 @@
   -webkit-user-select: text;
   user-select: text;
 }
+/* The commands written in the text, drawn as tags by a layer under the textarea: the layer has
+   the textarea's exact typography and box, and draws the text; the textarea keeps the caret,
+   the selection and the input, its own text transparent. */
+.field {
+  position: relative;
+}
+.highlightClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.highlight {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--fg-strong);
+}
+.overlaid {
+  position: relative;
+  color: transparent;
+  caret-color: var(--fg-strong);
+}
+.command {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  /* Room above and below the word without moving it (the layer must match the textarea);
+     none at the sides, so neighbouring tags keep the whole space between them. */
+  box-shadow:
+    0 -2px 0 0 color-mix(in srgb, var(--accent) 13%, transparent),
+    0 2px 0 0 color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--link, var(--accent));
+}
 .textarea:focus-visible {
   outline: none;
 }
@@ -281,4 +313,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--fg-subtle);
+}
+
+/* A command tag's hover card: the command, what it does, what it takes. */
+.commandCard {
+  max-width: 280px;
+  padding: 8px 10px;
+  pointer-events: none;
+}
+.commandCardName {
+  color: var(--link, var(--accent));
+  font-weight: 600;
+}
+.commandCardText {
+  margin-top: 2px;
+  color: var(--fg-strong);
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.commandCardHint {
+  margin-top: 4px;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  font-style: italic;
 }
