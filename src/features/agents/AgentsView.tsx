@@ -7,16 +7,29 @@ import {
   EmptyState,
   Icon,
   IconButton,
+  Menu,
   Popup,
+  SearchField,
   Spinner,
   T,
   Tree,
+  type MenuItem,
   registerDropTarget,
   showContextMenu,
   startPointerDrag,
 } from "@/ui";
-import { SESSION_KIND, TASK_DRAG, age, branchLabel, groupTasks, sessionKey, type TaskGroup } from "./model";
-import { openHome, useAgents } from "./store";
+import {
+  REGISTRY_PAGE,
+  SESSION_KIND,
+  TASK_DRAG,
+  age,
+  branchLabel,
+  groupTasks,
+  providerIcon,
+  sessionKey,
+  type TaskGroup,
+} from "./model";
+import { openHome, updateDraft, useAgents } from "./store";
 import { taskMenu } from "./taskActions";
 import { SessionEditor } from "./SessionEditor";
 import { HomeEditor } from "./HomeEditor";
@@ -25,23 +38,99 @@ import { basename, useProject } from "@/platform/project";
 import { useTx } from "@/platform/i18n";
 import { executeAction } from "@/platform/actions";
 
-export function AgentsHeaderActions() {
-  return <IconButton icon="plus" action="agents.newTask" size="small" />;
+/** New Task split button (the agent it starts with, and the menu to change it) and task search. */
+function AgentsToolbar({ query, onQuery }: { query: string; onQuery: (query: string) => void }) {
+  const tx = useTx();
+  const providers = useAgents((s) => s.providers);
+  const draftProvider = useAgents((s) => s.draft.provider);
+  const provider =
+    providers.find((p) => p.id === draftProvider && p.installed) ?? providers.find((p) => p.installed) ?? providers[0];
+  const anchor = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searching, setSearching] = useState(query !== "");
+  const choose = (id: string) => updateDraft({ provider: id, config: {} });
+  const agentItem = (p: (typeof providers)[number]): MenuItem => ({
+    id: p.id,
+    label: p.name,
+    verbatim: true,
+    icon: providerIcon(p.id),
+    checked: p.id === provider?.id,
+    run: () => choose(p.id),
+  });
+  const installed = providers.filter((p) => p.installed);
+  const items: MenuItem[] = [
+    ...installed.map(agentItem),
+    ...(installed.length ? [{ kind: "separator" } as MenuItem] : []),
+    { kind: "action", action: "agents.addAgent", icon: "plus" },
+  ];
+  return (
+    <div className={styles.toolbar}>
+      <div ref={anchor} className={styles.split} data-open={menuOpen || undefined}>
+        <button type="button" className={styles.splitMain} onClick={() => openHome()}>
+          <Icon name={provider ? providerIcon(provider.id) : "toolwindow-agents"} size={16} />
+          <T>New Task</T>
+        </button>
+        <button
+          type="button"
+          className={styles.splitMore}
+          aria-label={tx("Choose agent")}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <Icon name="chevron-down" size={14} />
+        </button>
+      </div>
+      <Menu open={menuOpen} onClose={() => setMenuOpen(false)} anchor={anchor} items={items} aria-label={tx("Agent")} />
+      <span className={styles.toolbarGap} />
+      {searching ? (
+        <SearchField
+          autoFocus
+          className={styles.search}
+          value={query}
+          onChange={onQuery}
+          placeholder={tx("Search tasks")}
+          aria-label={tx("Search tasks")}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation();
+            onQuery("");
+            setSearching(false);
+          }}
+        />
+      ) : (
+        <IconButton icon="search" title="Search tasks" size="small" onClick={() => setSearching(true)} />
+      )}
+    </div>
+  );
 }
 
-export function AgentsLocationActions() {
-  const location = useAgents((s) => s.sessionLocation);
-  const tx = useTx();
+function AgentsFooter() {
   return (
-    <div role="group" aria-label={tx("Conversation location")} className={styles.location}>
-      <IconButton
-        icon="open-in-tool-window"
-        action="agents.useToolWindow"
-        pressed={location === "toolWindow"}
-        size="small"
-      />
-      <IconButton icon="editor-only" action="agents.useEditor" pressed={location === "editor"} size="small" />
+    <div className={styles.footer}>
+      <button
+        type="button"
+        className={styles.footerButton}
+        onClick={() => void executeAction("file.settings", REGISTRY_PAGE)}
+      >
+        <Icon name="settings" size={14} />
+        <T>Settings</T>
+      </button>
     </div>
+  );
+}
+
+/** On the New Task page, back to the list of sessions. */
+export function AgentsHeaderActions() {
+  const homeOpen = useAgents((s) => s.homeOpen);
+  if (!homeOpen) return null;
+  return (
+    <IconButton
+      icon="history"
+      title="Agent sessions"
+      size="small"
+      onClick={() => useAgents.setState({ homeOpen: false })}
+    />
   );
 }
 
@@ -95,6 +184,7 @@ export function AgentsView() {
   const inline = docked !== null || homeOpen;
   const historyRef = useRef<HTMLButtonElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(["g:archived"]));
   const [selected, setSelected] = useState<Set<string>>(() => {
     const task = sessionTask(maybeEditorService()?.activeInput?.());
@@ -113,7 +203,12 @@ export function AgentsView() {
       }),
     [],
   );
-  const roots = useMemo<Node[]>(() => groupTasks(tasks.values()).map((group) => ({ kind: "group", group })), [tasks]);
+  const needle = query.trim().toLowerCase();
+  const roots = useMemo<Node[]>(() => {
+    const matches = (t: AgentTask) =>
+      `${t.title} ${providers.find((p) => p.id === t.provider)?.name ?? t.provider}`.toLowerCase().includes(needle);
+    return groupTasks([...tasks.values()].filter(matches)).map((group) => ({ kind: "group", group }));
+  }, [tasks, providers, needle]);
   const expanded = useMemo(() => new Set(roots.map(nodeKey).filter((k) => !collapsed.has(k))), [roots, collapsed]);
   // Dropping a session editor tab anywhere on the tool window docks it.
   const viewRef = useRef<HTMLDivElement>(null);
@@ -220,44 +315,40 @@ export function AgentsView() {
             </span>
           )
         }
-        empty={
-          <div className={styles.empty}>
-            <T>No agent tasks yet</T>
-            <button type="button" className={styles.link} onClick={() => openHome()}>
-              <T>New Task…</T>
-            </button>
-          </div>
-        }
+        empty={<div className={styles.empty}>{needle ? <T>No matching tasks</T> : <T>No agent tasks yet</T>}</div>}
       />
     </div>
   );
 
   return (
     <div ref={viewRef} className={clsx(styles.view, tabOver && styles.dropTarget)}>
+      {!inline && <AgentsToolbar query={query} onQuery={setQuery} />}
       <div className={styles.content}>
         {inline && (
           <div className={styles.docked}>
-            <div className={styles.dockedBar}>
-              <IconButton
-                ref={historyRef}
-                icon="history"
-                title="Agent sessions"
-                size="small"
-                aria-haspopup="dialog"
-                aria-expanded={historyOpen}
-                onClick={() => {
-                  setSelected(new Set(docked ? [docked] : []));
-                  setHistoryOpen((open) => !open);
-                }}
-              />
-              <span
-                className={styles.dockedTitle}
-                title={dockedTitle ?? undefined}
-                onPointerDown={(e) => docked && dragTask(e, docked)}
-              >
-                {homeOpen ? <T>New Agent Task</T> : dockedTitle}
-              </span>
-            </div>
+            {!homeOpen && (
+              <div className={styles.dockedBar}>
+                <IconButton
+                  ref={historyRef}
+                  icon="history"
+                  title="Agent sessions"
+                  size="small"
+                  aria-haspopup="dialog"
+                  aria-expanded={historyOpen}
+                  onClick={() => {
+                    setSelected(new Set(docked ? [docked] : []));
+                    setHistoryOpen((open) => !open);
+                  }}
+                />
+                <span
+                  className={styles.dockedTitle}
+                  title={dockedTitle ?? undefined}
+                  onPointerDown={(e) => docked && dragTask(e, docked)}
+                >
+                  {dockedTitle}
+                </span>
+              </div>
+            )}
             <div className={styles.dockedSession}>
               {homeOpen ? (
                 <HomeEditor docked />
@@ -292,6 +383,7 @@ export function AgentsView() {
           </Popup>
         )}
       </div>
+      {!inline && <AgentsFooter />}
     </div>
   );
 }

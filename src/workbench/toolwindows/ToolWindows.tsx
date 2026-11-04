@@ -450,7 +450,7 @@ function ToolWindowView({ tw, hidden }: { tw: ToolWindowContribution; hidden: bo
   const own = useHeaderMenu(tw.id);
   const useTitleMenu = tw.titleMenu ?? noTitleMenu;
   const titleMenu = useTitleMenu(tw.id);
-  const titleItems = titleMenu?.items ?? own;
+  const titleItems = titleMenu?.items ?? (tw.headerMenuInTitle === false ? [] : own);
   const more: MenuItem[] = [
     ...own,
     ...(own.length ? [{ kind: "separator" } as MenuItem] : []),
@@ -474,7 +474,7 @@ function ToolWindowView({ tw, hidden }: { tw: ToolWindowContribution; hidden: bo
       tabIndex={-1}
     >
       <header
-        className={clsx(styles.header, Tabs && styles.headerTabbed)}
+        className={clsx(styles.header, (Tabs || tw.headerDivider) && styles.headerTabbed)}
         onDoubleClick={(e) => e.target === e.currentTarget && toggleMaximizeToolWindow(tw.id)}
       >
         {Tabs && tw.tabsReplaceTitle ? null : titleItems.length > 0 ? (

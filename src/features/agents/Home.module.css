@@ -44,8 +44,18 @@
   color: var(--fg-secondary);
 }
 .project {
-  margin-right: 6px;
-  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--h-control);
+  padding: 0 6px;
+  color: var(--fg-secondary);
+}
+.projectName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note,
@@ -72,13 +82,12 @@
   order: -1;
   flex-wrap: nowrap;
   min-width: 0;
-  gap: 6px;
+  gap: 2px;
 }
 .docked .project,
 .docked .projectPicker {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 30%;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,17 +95,12 @@
 }
 .docked .branch,
 .docked .basePicker {
-  order: 1;
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0;
-}
-.docked .isolation {
-  order: 2;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 45%;
-  margin-left: auto;
+}
+.docked .isolation {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .branchName {
   min-width: 0;

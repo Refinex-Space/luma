@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import type { AgentTask } from "@/bindings";
 import * as actions from "@/platform/actions";
 import { registerActions } from "@/platform/actions";
 import { EDITOR_TAB_MIME, type EditorInput } from "@/workbench/contributions";
 import { confirmChecked, showError } from "@/workbench/messages";
 import { ContextMenuHost, dragSession, hideContextMenu } from "@/ui";
-import { AgentsHeaderActions, AgentsLocationActions, AgentsView } from "./AgentsView";
+import { AgentsView } from "./AgentsView";
+import { useAgentsHeaderMenu } from "./headerMenu";
 import { SESSION_KIND } from "./model";
 import { archiveTask, unarchiveTask, deleteTask, dockTask, openTask, setSessionLocation, useAgents } from "./store";
 import { taskActions, taskMenu } from "./taskActions";
@@ -117,8 +118,6 @@ afterEach(() => {
 function setup() {
   render(
     <>
-      <AgentsLocationActions />
-      <AgentsHeaderActions />
       <AgentsView />
       <ContextMenuHost />
     </>,
@@ -166,7 +165,6 @@ describe("Agents docked view", () => {
     useAgents.setState({ docked: "one" });
     setup();
     expect(screen.getByTestId("docked-session")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Chat in Editor" })).toBeTruthy();
     expect(openTask).not.toHaveBeenCalled();
     expect(screen.queryByRole("tree", { name: "Agent tasks" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Agent sessions" }));
@@ -213,10 +211,17 @@ describe("Agents docked view", () => {
     useAgents.setState({ docked: "one", sessionLocation: "toolWindow" });
     setup();
     expect(screen.queryByRole("button", { name: "Open in Editor" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Chat in Tool Window" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Chat in Editor" }));
+    const { result } = renderHook(() => useAgentsHeaderMenu());
+    const item = (label: string) => {
+      const found = result.current.find((i) => "label" in i && i.label === label);
+      if (!found || !("run" in found)) throw new Error(`no menu item ${label}`);
+      return found;
+    };
+    expect(item("Chat in Tool Window").checked).toBe(true);
+    expect(item("Chat in Editor").checked).toBe(false);
+    item("Chat in Editor").run?.();
     expect(setSessionLocation).toHaveBeenCalledWith("editor");
-    fireEvent.click(screen.getByRole("button", { name: "Chat in Tool Window" }));
+    item("Chat in Tool Window").run?.();
     expect(setSessionLocation).toHaveBeenCalledWith("toolWindow");
   });
 

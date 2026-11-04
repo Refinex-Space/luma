@@ -154,7 +154,7 @@ function TaskSession({ id, docked }: { id: string; docked: boolean }) {
             <T>Subagents take their instructions from the agent that started them.</T>
           </div>
         ) : (
-          <SessionComposer task={task} entries={entries ?? null} onOpenSubagent={openSubagent} />
+          <SessionComposer task={task} entries={entries ?? null} docked={docked} onOpenSubagent={openSubagent} />
         )}
       </div>
       {changesOpen && (
@@ -1163,10 +1163,12 @@ function PermissionBanner({ task, entries }: { task: AgentTask; entries: AgentEn
 function SessionComposer({
   task,
   entries,
+  docked,
   onOpenSubagent,
 }: {
   task: AgentTask;
   entries: AgentEntry[] | null;
+  docked: boolean;
   onOpenSubagent: (id: string) => void;
 }) {
   const project = useProject((s) => s.project);
@@ -1218,6 +1220,7 @@ function SessionComposer({
         onSubmit={send}
         disabled={task.status === "archived"}
         toolbar={<ConfigPickers config={task.config} onChange={setOption} />}
+        toolbarBelow={docked}
         actions={
           <>
             {busy && (

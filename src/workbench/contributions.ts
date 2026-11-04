@@ -47,6 +47,8 @@ export interface ToolWindowContribution {
    * Run sessions…). The header then gets a bottom divider.
    */
   headerContent?: ComponentType<{ id: string }>;
+  /** Draw the header's bottom divider without content tabs. */
+  headerDivider?: boolean;
   /** The content tabs name the window themselves (IDEA's Commit | Shelf | Stash): no title. */
   tabsReplaceTitle?: boolean;
   /**
@@ -56,6 +58,8 @@ export interface ToolWindowContribution {
    * present the header title also gets a "▾" opening just these items.
    */
   headerMenu?: MenuItem[] | ((id: string) => MenuItem[]);
+  /** Set to false to keep the title plain: `headerMenu` then only opens from "⋮" (default true). */
+  headerMenuInTitle?: boolean;
   /**
    * The title as a view switcher (IDEA's "Project ▾" panes): a React hook
    * returning the current view's label and the items the title opens instead

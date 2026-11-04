@@ -120,7 +120,7 @@ describe("agent picker", () => {
     ...p,
   });
 
-  it("shows registry versions and updates, then Add Agent…", () => {
+  it("lists installed agents with registry versions and updates, then Add Agent…", () => {
     const options = providerOptions(
       [
         provider({ id: "claude", source: { kind: "builtin" } }),
@@ -135,8 +135,6 @@ describe("agent picker", () => {
       ["claude", undefined],
       ["amp-acp", "0.10.0 available"],
       ["cline", "3.0.74"],
-      ["__missing__", undefined],
-      ["gemini", "gemini"],
       [ADD_AGENT, undefined],
     ]);
   });

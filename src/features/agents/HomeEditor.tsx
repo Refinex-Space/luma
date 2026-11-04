@@ -67,7 +67,8 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
     };
   }, [root, project?.workspace]);
 
-  const provider = providers.find((p) => p.id === draft.provider) ?? providers[0];
+  const provider =
+    providers.find((p) => p.id === draft.provider && p.installed) ?? providers.find((p) => p.installed) ?? providers[0];
   // Models and thinking effort come from the agent. Ask as soon as it is selected,
   // so they can be chosen before the first message.
   useEffect(() => {
@@ -129,6 +130,7 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
           onConfig={setOption}
           onSubmit={start}
           disabled={!canStart}
+          toolbarBelow={docked}
           toolbar={
             <>
               <Select
@@ -159,7 +161,7 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
               aria-label={tx("Project")}
               className={styles.projectPicker}
               value={root}
-              options={members.map((path) => ({ value: path, label: basename(path), detail: path }))}
+              options={members.map((path) => ({ value: path, label: basename(path), detail: path, icon: "folder" }))}
               onChange={(path) => {
                 setSelected(path);
                 updateDraft({ base: null });
@@ -167,7 +169,8 @@ export function HomeEditor({ docked = false }: { docked?: boolean; input?: Edito
             />
           ) : (
             <span className={styles.project} title={root}>
-              {members.length ? basename(root) : project?.name}
+              <Icon name="folder" size={14} />
+              <span className={styles.projectName}>{members.length ? basename(root) : project?.name}</span>
             </span>
           )}
           {isGit && (

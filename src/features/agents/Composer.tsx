@@ -61,6 +61,8 @@ export interface ComposerProps {
   autoFocus?: boolean;
   /** Left of the bottom row: agent / model / mode pickers. */
   toolbar?: ReactNode;
+  /** Put `toolbar` in its own row under the frame instead of inside it (narrow tool window). */
+  toolbarBelow?: boolean;
   /** Right of the bottom row: send / stop buttons. */
   actions?: ReactNode;
   className?: string;
@@ -309,10 +311,11 @@ export function Composer(props: ComposerProps) {
     }
   };
 
-  return (
+  const below = !!props.toolbarBelow;
+  const frame = (
     <div
       ref={boxRef}
-      className={clsx(styles.composer, props.className)}
+      className={clsx(styles.composer, !below && props.className)}
       {...OWNS_FILE_DROP}
       onClick={() => ref.current?.focus()}
     >
@@ -403,7 +406,7 @@ export function Composer(props: ComposerProps) {
         }}
       />
       <div className={styles.bar} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.toolbar}>{props.toolbar}</div>
+        {!below && <div className={styles.toolbar}>{props.toolbar}</div>}
         <div className={styles.actions}>
           <IconButton
             icon="file"
@@ -435,6 +438,13 @@ export function Composer(props: ComposerProps) {
           {props.actions}
         </div>
       </div>
+    </div>
+  );
+  if (!below) return frame;
+  return (
+    <div className={clsx(styles.stack, props.className)}>
+      {frame}
+      <div className={clsx(styles.toolbar, styles.belowBar)}>{props.toolbar}</div>
     </div>
   );
 }

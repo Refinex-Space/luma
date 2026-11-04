@@ -19,6 +19,7 @@ import {
 } from "@/workbench/contributions";
 import { AgentsStatus } from "./AgentsStatus";
 import { HOME_KIND, REGISTRY_PAGE, SESSION_KIND, TASK_DRAG, TOOL_WINDOW } from "./model";
+import { useAgentsHeaderMenu } from "./headerMenu";
 import { sendPaths, sendSelection } from "./references";
 import { focusedSession } from "./sessionFocus";
 import { connect, disconnect, openHome, useAgents } from "./store";
@@ -54,8 +55,10 @@ export function activate(): () => void {
       anchor: "right",
       order: 0.5,
       component: lazyComponent(() => import("./AgentsView").then((m) => m.AgentsView)),
-      headerContent: lazyComponent(() => import("./AgentsView").then((m) => m.AgentsLocationActions)),
       headerActions: lazyComponent(() => import("./AgentsView").then((m) => m.AgentsHeaderActions)),
+      headerMenu: useAgentsHeaderMenu,
+      headerMenuInTitle: false,
+      headerDivider: true,
     }),
     registerEditorKind({
       kind: SESSION_KIND,
