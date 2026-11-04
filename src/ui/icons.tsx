@@ -185,9 +185,9 @@ const ICONS = {
   "panel-left": "luma/general/panelLeft",
   "panel-bottom": "luma/general/panelBottom",
   "panel-right": "luma/general/panelRight",
-  "agent-panel-hidden": "luma/general/agentHidden",
-  "agent-panel-docked": "luma/general/agentDocked",
-  "agent-panel-focus": "luma/general/agentFocus",
+  "panel-left-off": "luma/general/panelLeftOff",
+  "panel-bottom-off": "luma/general/panelBottomOff",
+  "panel-right-off": "luma/general/panelRightOff",
   // Coding agents (logos via Paseo)
   "agent-claude": "luma/agents/claude",
   "agent-codex": "luma/agents/codex",

@@ -1,6 +1,5 @@
 /**
- * Title bar layout controls: the side panel toggles, the agent panel's hidden / docked /
- * maximized control, the layout menu and the find-in-files field centred on the window. They
+ * Title bar layout controls: the side panel toggles, the agent panel's toggle, the layout menu and the find-in-files field centred on the window. They
  * replace the tool window stripes as the way to open and close areas.
  */
 import { useLayoutEffect, useRef, useState } from "react";
@@ -13,13 +12,7 @@ import { useProject } from "@/platform/project";
 import { Icon, IconButton, Menu, type MenuItem } from "@/ui";
 import type { ToolWindowAnchor } from "./contributions";
 import { useToolWindows } from "./toolwindows/ToolWindows";
-import {
-  anchorOf,
-  hideToolWindow,
-  showToolWindow,
-  toggleMaximizeToolWindow,
-  useToolWindowLayout,
-} from "./toolwindows/store";
+import { hideToolWindow, showToolWindow, useToolWindowLayout } from "./toolwindows/store";
 import styles from "./TitleBar.module.css";
 
 const SIDE_ACTION: Record<ToolWindowAnchor, string> = {
@@ -28,68 +21,49 @@ const SIDE_ACTION: Record<ToolWindowAnchor, string> = {
   right: "toolwindow.toggleRightSide",
 };
 
-/** Opens or closes a side's tool windows; pressed while the side shows something. */
-export function PanelToggle({ side }: { side: ToolWindowAnchor }) {
+/**
+ * Opens or closes a side's tool windows. The drawing tells the state, so the button keeps no
+ * selected background (that shows on hover alone): open, the panel's own edge is drawn solid;
+ * closed, the far edge is (the left toggle's matches the agent panel's docked drawing).
+ * `tool` sizes it like the title bar's other tool buttons; otherwise it matches the layout group.
+ */
+export function PanelToggle({ side, tool = false }: { side: ToolWindowAnchor; tool?: boolean }) {
   const shown = useToolWindowLayout((s) => !!(s.visible[side] || s.visible[`${side}-split`]));
+  const compact = useProject((s) => s.settings?.appearance?.compactMode === true);
   return (
     <IconButton
-      icon={`panel-${side}`}
+      icon={shown ? `panel-${side}` : `panel-${side}-off`}
       action={SIDE_ACTION[side]}
       pressed={shown}
-      size="small"
-      iconSize={16}
-      className={styles.panelToggle}
+      iconSize={tool && !compact ? 18 : 16}
+      className={clsx(styles.panelToggle, tool ? styles.tool : styles.panelToggleGroup)}
     />
   );
 }
 
-type PanelState = "hidden" | "docked" | "focus";
-
-/** The window asking for a panel control (the agent panel): shown, maximized, or neither. */
-function usePanelWindow() {
+/**
+ * The agent panel (the window asking for a panel control) on and off: one click opens it beside
+ * the editor, the next closes it. Drawn like the side toggles. (Growing it is the window's own
+ * Maximize, in its ⋮ menu and on its shortcut.)
+ */
+export function AgentPanelToggle() {
   const tw = useToolWindows().find((w) => w.panelControl);
-  const state = useToolWindowLayout((s): PanelState => {
-    if (!tw) return "hidden";
+  const shown = useToolWindowLayout((s) => {
+    if (!tw) return false;
     const slot = tw.secondary ? (`${tw.anchor}-split` as const) : tw.anchor;
-    if (s.visible[slot] !== tw.id) return "hidden";
-    return s.maximized === tw.anchor ? "focus" : "docked";
+    return s.visible[slot] === tw.id;
   });
-  return { tw, state };
-}
-
-function setPanelState(id: string, from: PanelState, to: PanelState) {
-  if (to === from) return;
-  if (to === "hidden") return hideToolWindow(id);
-  if (from === "hidden") showToolWindow(id, true);
-  // Maximized or not: the side's maximize toggle, so the other areas come back as they were.
-  const maximized = useToolWindowLayout.getState().maximized === anchorOf(id);
-  if ((to === "focus") !== maximized) toggleMaximizeToolWindow(id);
-}
-
-/** Three drawings of the window share the panel takes: none, a side, most of the window. */
-export function AgentPanelControl() {
-  const { tw, state } = usePanelWindow();
   if (!tw) return null;
-  const title = tx(tw.title);
-  const option = (value: PanelState, icon: string, label: string, action?: string) => (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={state === value}
-      className={styles.segButton}
-      aria-label={label}
-      data-tooltip={label + (action && shortcutLabel(action) ? ` ${shortcutLabel(action)}` : "")}
-      onClick={() => setPanelState(tw.id, state, value)}
-    >
-      <Icon name={icon} size={16} />
-    </button>
-  );
   return (
-    <div className={styles.seg} role="radiogroup" aria-label={tx`${title} panel`}>
-      {option("hidden", "agent-panel-hidden", tx("Editor Only"))}
-      {option("docked", "agent-panel-docked", tx`Editor and ${title}`)}
-      {option("focus", "agent-panel-focus", tx`${title} First`, "toolwindow.maximize")}
-    </div>
+    <IconButton
+      icon={shown ? `panel-${tw.anchor}` : `panel-${tw.anchor}-off`}
+      title={tw.title}
+      shortcut={shortcutLabel(`toolwindow.${tw.id}`)}
+      pressed={shown}
+      iconSize={16}
+      className={clsx(styles.panelToggle, styles.panelToggleGroup)}
+      onClick={() => (shown ? hideToolWindow(tw.id) : showToolWindow(tw.id, true))}
+    />
   );
 }
 

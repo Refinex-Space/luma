@@ -5,7 +5,7 @@ test("renders title bar, area tabs, launcher, tool window and status bar", async
   await expect(title.getByRole("button", { name: PROJECT })).toBeVisible();
   await expect(title.getByRole("button", { name: "Search Everywhere" })).toBeVisible();
   await expect(title.getByRole("button", { name: "Find in Files" })).toBeVisible();
-  await expect(title.getByRole("radiogroup", { name: "Agents panel" })).toBeVisible();
+  await expect(title.getByRole("button", { name: "Agents", exact: true })).toBeVisible();
 
   const left = page.getByRole("tablist", { name: "Left Top" });
   for (const name of ["Project", "Commit"]) {

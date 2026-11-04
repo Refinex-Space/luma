@@ -214,44 +214,20 @@
   padding-left: 8px;
   border-left: 1px solid var(--border);
 }
-.panelToggle[aria-pressed="false"] {
-  color: var(--fg-muted);
+/* Open or closed shows in the drawing: no selected background, only the hover one. */
+.panelToggle.panelToggle[aria-pressed] {
+  background: none;
+  color: var(--fg-secondary);
 }
-.seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-control);
-  box-shadow: inset 0 0 0 1px var(--border);
+.panelToggle.panelToggle[aria-pressed]:not(:disabled):hover {
+  background: var(--bg-toolbar-hover);
+  color: var(--fg-strong);
 }
-.segButton {
-  display: inline-grid;
-  place-items: center;
+.panelToggleGroup {
   width: 26px;
   height: 22px;
-  border: 0;
   border-radius: calc(var(--radius-control) - 2px);
-  background: none;
-  color: var(--fg-muted);
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
 }
-.segButton:hover {
-  color: var(--fg-strong);
-  background: var(--bg-toolbar-hover);
-}
-.segButton[aria-checked="true"] {
-  background: var(--bg-island);
-  color: var(--fg-strong);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
-}
-.segButton:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
 /* Find in Files, centred on the window rather than on the space between the widgets. */
 .findField {
   position: absolute;
