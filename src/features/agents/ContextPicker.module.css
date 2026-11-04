@@ -1,0 +1,129 @@
+/* The composer's "+" menu: IDEA's Add Context popup. Rows follow the app's menus (height,
+   selection, headers); the search field stays on top while pages change under it. */
+.picker {
+  width: 420px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 6px;
+}
+
+.search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  margin: 0 10px 4px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border-popup);
+  color: var(--fg-muted);
+}
+.back {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.back:hover {
+  background: var(--bg-toolbar-hover);
+  color: var(--fg-strong);
+}
+.searchIcon {
+  flex: none;
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--fg-strong);
+  font: inherit;
+}
+.input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.list {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--h-list-row);
+  margin: 0 6px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--radius-selection, 5px);
+  color: var(--fg-strong);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.active {
+  background: var(--bg-tree-selected);
+}
+.icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  color: var(--fg-secondary);
+}
+.name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The path or the hash: as much as fits after the name, cut from the end. */
+.detail {
+  flex: 1 1 0;
+  min-width: 40px;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  color: var(--fg-subtle);
+}
+.more {
+  flex: none;
+  margin-left: auto;
+  color: var(--fg-muted);
+}
+.detail + .more {
+  margin-left: 4px;
+}
+
+.header {
+  height: var(--h-list-row);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+.separator {
+  height: 1px;
+  margin: 4px 14px;
+  background: var(--border-popup);
+}
+.note {
+  display: flex;
+  align-items: center;
+  height: calc(var(--h-list-row) * 1.5);
+  padding: 0 14px;
+  color: var(--fg-subtle);
+}

@@ -9,6 +9,7 @@ import type {
   AgentUsage,
 } from "@/bindings";
 import { tx } from "@/platform/i18n";
+import { contextNotes, withSkills, type ContextItem } from "./contextModel";
 
 export interface FileRef {
   /** Absolute path (in the task's directory). */
@@ -19,11 +20,14 @@ export interface FileRef {
 
 export interface ComposerDraft {
   text: string;
+  /** Files referenced with `@` in the text. */
   files: FileRef[];
   images: AgentImage[];
+  /** Chips added from the "+" menu (absent in drafts made before it). */
+  context?: ContextItem[];
 }
 
-export const emptyDraft = (): ComposerDraft => ({ text: "", files: [], images: [] });
+export const emptyDraft = (): ComposerDraft => ({ text: "", files: [], images: [], context: [] });
 
 export type Completion =
   | { kind: "file"; query: string; from: number; to: number }
@@ -98,19 +102,36 @@ export function mentionOf(rel: string, lines?: { from: number; to: number }): st
   return lines.from === lines.to ? `@${rel}:${lines.from}` : `@${rel}:${lines.from}-${lines.to}`;
 }
 
-/** The prompt to send: files still mentioned in the text (each once), and the images. */
+/**
+ * The prompt to send: the files still mentioned in the text and the file chips (each once),
+ * the images, commits as text notes, and the skills as the commands the text starts with.
+ */
 export function toPrompt(draft: ComposerDraft): AgentPrompt {
   const seen = new Set<string>();
-  const files = draft.files.filter((f) => {
-    if (seen.has(f.path) || !new RegExp(`@${escapeRe(f.rel)}(?![\\w./-])|@${escapeRe(f.rel)}:`).test(draft.text))
-      return false;
-    seen.add(f.path);
-    return true;
-  });
-  return { text: draft.text.trim(), files: files.map((f) => f.path), images: draft.images };
+  const context = draft.context ?? [];
+  const mentioned = draft.files.filter(
+    (f) => !seen.has(f.path) && new RegExp(`@${escapeRe(f.rel)}(?![\\w./-])|@${escapeRe(f.rel)}:`).test(draft.text),
+  );
+  const files: string[] = [];
+  // A selection goes as a note with its code (below); whole files and folders as references.
+  const chips = context.flatMap((c) => (c.kind === "file" && !c.lines ? [c.path] : []));
+  for (const path of [...mentioned.map((f) => f.path), ...chips]) {
+    if (seen.has(path)) continue;
+    seen.add(path);
+    files.push(path);
+  }
+  const notes = contextNotes(context);
+  return {
+    text: withSkills(draft.text.trim(), context),
+    files,
+    images: draft.images,
+    // Only when there are any: a plain message stays as it was.
+    ...(notes.length ? { context: notes } : {}),
+  };
 }
 
-export const canSend = (d: ComposerDraft) => !!d.text.trim() || d.images.length > 0;
+/** Something to send: text, an image, or a chip. */
+export const canSend = (d: ComposerDraft) => !!d.text.trim() || d.images.length > 0 || !!d.context?.length;
 
 /**
  * ↑ / ↓ through sent messages (newest first). `index` −1 is the unsent draft. Returns the

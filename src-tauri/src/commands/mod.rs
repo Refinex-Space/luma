@@ -35,6 +35,7 @@ pub mod plugin;
 pub mod profiler;
 pub mod refactor;
 pub mod run;
+pub mod screen;
 pub mod sdk;
 pub mod search;
 pub mod spell;
@@ -134,6 +135,7 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         bytes::fs_probe,
         bytes::fs_read_range,
         bytes::fs_read_image,
+        screen::screen_capture,
         fs::fs_create_file,
         fs::fs_create_file_bytes,
         fs::fs_create_dir,

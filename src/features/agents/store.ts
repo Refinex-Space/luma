@@ -17,6 +17,7 @@ import { defaultTaskProject } from "./project";
 import { call, commands, isTauri } from "@/platform/ipc";
 import { editorService, notifications, toolWindowService } from "@/workbench/contributions";
 import { bypassDefaults, canSend, emptyDraft, toPrompt, type ComposerDraft, type FileRef } from "./composerModel";
+import { addContext, type ContextItem } from "./contextModel";
 import { withQuote } from "./conversation";
 import {
   HOME_KEY,
@@ -572,10 +573,13 @@ export async function editQueued(task: string, queued: string): Promise<void> {
     path,
     rel: path.startsWith(`${cwd}/`) ? path.slice(cwd.length + 1) : path,
   }));
+  // Its text context (commits) comes back as chips, as sent.
+  const notes = (item.prompt.context ?? []).map((n) => ({ kind: "note", label: n.label, text: n.text }) as const);
   updateComposer(task, {
     text: current.text ? `${item.prompt.text}\n${current.text}` : item.prompt.text,
     files: [...files, ...current.files],
     images: [...item.prompt.images, ...current.images],
+    context: addContext(notes, current.context ?? []),
   });
 }
 
@@ -585,21 +589,17 @@ export const setTaskConfig = (task: string, option: string, value: string) =>
   call(commands.agentSetConfig(task, option, value));
 
 /**
- * Adds `@file` references (with an optional line range) to the composer typed in last and
- * shows it: IDEA-style "send this to the chat".
+ * Adds files, folders or an editor selection as chips to the composer typed in last and shows
+ * it: IDEA-style "send this to the chat".
  */
-export function addReferences(refs: Array<{ path: string; rel: string; mention: string }>) {
+export function addReferences(refs: Array<Extract<ContextItem, { kind: "file" }>>) {
   const s = useAgents.getState();
   const key = s.lastComposer !== HOME && s.tasks.has(s.lastComposer) ? s.lastComposer : HOME;
   const task = key === HOME ? null : s.tasks.get(key)!;
-  const current = composerDraft(key);
   // A worktree task sees the same files under its own directory.
   const root = task?.isolation === "worktree" ? task.cwd : null;
-  const files: FileRef[] = refs.map((r) => ({ path: root ? `${root}/${r.rel}` : r.path, rel: r.rel }));
-  const mentions = refs.map((r) => r.mention).join(" ");
-  const text =
-    current.text && !/\s$/.test(current.text) ? `${current.text} ${mentions} ` : `${current.text}${mentions} `;
-  updateComposer(key, { text, files: [...current.files, ...files] });
+  const items = refs.map((r) => (root ? { ...r, path: `${root}/${r.rel}` } : r));
+  updateComposer(key, { context: addContext(composerDraft(key).context ?? [], items) });
   if (task) openTask(task.id);
   else openHome();
 }

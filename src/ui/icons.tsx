@@ -185,6 +185,8 @@ const ICONS = {
   "panel-left": "luma/general/panelLeft",
   "panel-bottom": "luma/general/panelBottom",
   "panel-right": "luma/general/panelRight",
+  "screen-region": "luma/general/screenRegion",
+  skill: "luma/general/skill",
   "panel-left-off": "luma/general/panelLeftOff",
   "panel-bottom-off": "luma/general/panelBottomOff",
   "panel-right-off": "luma/general/panelRightOff",

@@ -165,13 +165,27 @@ pub struct AgentImage {
     pub name: Option<String>,
 }
 
-/// A message to the agent: text, plus files to look at and images.
+/// A message to the agent: text, plus files to look at, images, and context given as text.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentPrompt {
     pub text: String,
     pub files: Vec<IpcPath>,
     pub images: Vec<AgentImage>,
+    /// Context the user attached that is not a file (a commit…): sent after the message as
+    /// text, and listed with its attachments by `label`.
+    #[serde(default)]
+    pub context: Vec<AgentContextNote>,
+}
+
+/// A piece of context attached to a prompt as text.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentContextNote {
+    /// What the conversation shows for it ("Commit 1a2b3c4").
+    pub label: String,
+    /// What the agent reads.
+    pub text: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

@@ -121,6 +121,11 @@ export const commands = {
 	text: string,
 	files: IpcPath[],
 	images: AgentImage[],
+	/**
+	 *  Context the user attached that is not a file (a commit…): sent after the message as
+	 *  text, and listed with its attachments by `label`.
+	 */
+	context?: AgentContextNote[],
 } | null, IdeError>(__TAURI_INVOKE("agent_rollback", { task, turns })),
 	/**
 	 *  What the agent reports about itself when it starts (no session: no MCP servers, hooks
@@ -161,6 +166,11 @@ export const commands = {
 	fsReadRange: (path: string, offset: number, len: number) => typedError<ByteRange, IdeError>(__TAURI_INVOKE("fs_read_range", { path, offset, len })),
 	/**  An image file as a `data:` URL. */
 	fsReadImage: (path: string) => typedError<string, IdeError>(__TAURI_INVOKE("fs_read_image", { path })),
+	/**
+	 *  Lets the user select a region of the screen and returns it as a `data:` URL, or `None`
+	 *  when they cancelled the selection. macOS and Windows; an error elsewhere.
+	 */
+	screenCapture: () => typedError<string | null, IdeError>(__TAURI_INVOKE("screen_capture")),
 	/**
 	 *  Creates an empty file; inside a project, honours the EditorConfig
 	 *  `charset` (writes the BOM for `utf-8-bom` / UTF-16).
@@ -1181,6 +1191,14 @@ export type AgentConfigVia =
 /**  `session/set_model` (agents that report `models` instead of a model config option). */
 "model";
 
+/**  A piece of context attached to a prompt as text. */
+export type AgentContextNote = {
+	/**  What the conversation shows for it ("Commit 1a2b3c4"). */
+	label: string,
+	/**  What the agent reads. */
+	text: string,
+};
+
 /**  One item of a task's conversation. */
 export type AgentEntry = { type: "user"; text: string; 
 /**  Names of the files and images sent with it. */
@@ -1267,11 +1285,16 @@ export type AgentProbe = {
 	error: string | null,
 };
 
-/**  A message to the agent: text, plus files to look at and images. */
+/**  A message to the agent: text, plus files to look at, images, and context given as text. */
 export type AgentPrompt = {
 	text: string,
 	files: IpcPath[],
 	images: AgentImage[],
+	/**
+	 *  Context the user attached that is not a file (a commit…): sent after the message as
+	 *  text, and listed with its attachments by `label`.
+	 */
+	context?: AgentContextNote[],
 };
 
 export type AgentProvider = {

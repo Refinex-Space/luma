@@ -152,54 +152,86 @@
   color: var(--fg-subtle);
 }
 
-.images {
+/* Chips above the text: what goes with the message ("+" menu, pasted / dropped images). */
+.chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 10px 0;
   cursor: default;
 }
-.image {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-small);
-  box-shadow: inset 0 0 0 1px var(--border);
-  overflow: hidden;
+.chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 24px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg-strong) 6%, transparent);
+  color: var(--fg-strong);
+  transition: background var(--dur-fast) var(--ease);
 }
-.previewImage {
-  display: block;
-  width: 100%;
+.chip:hover {
+  background: color-mix(in srgb, var(--fg-strong) 9%, transparent);
+}
+.chipMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
   height: 100%;
-  padding: 0;
+  padding: 0 2px 0 6px;
   border: 0;
+  border-radius: 6px 0 0 6px;
   background: none;
-  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
-.image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.chipMain:disabled {
+  cursor: default;
 }
-.removeImage {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  display: grid;
+.chipMain:focus-visible,
+.chipRemove:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.chipIcon {
+  flex: none;
+  display: inline-grid;
   place-items: center;
   width: 16px;
   height: 16px;
+}
+.chipThumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.chipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chipRemove {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 3px 0 1px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: var(--bg-popup);
-  color: var(--fg);
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-muted);
   cursor: pointer;
-  opacity: 0;
 }
-.image:hover .removeImage,
-.removeImage:focus-visible {
-  opacity: 1;
+.chipRemove:hover {
+  background: color-mix(in srgb, var(--fg-strong) 10%, transparent);
+  color: var(--fg-strong);
 }
 
 /* `@` / `/` completion; Popup keeps the list within the viewport. */

@@ -127,13 +127,13 @@ export function activate(): () => void {
         id: "agents.sendToAgent",
         title: "Send to Agent",
         description:
-          "Adds the editor selection (or the file) as an @ reference to the agent message typed last; a string[] `arg` sends those paths.",
+          "Adds the editor selection (or the file) as a chip to the agent message typed last; a string[] `arg` sends those paths.",
         category: "Agents",
         icon: "toolwindow-agents",
         when: "projectOpen",
         keywords: ["agent", "chat", "context", "reference", "selection"],
         run: ({ arg }) => {
-          if (Array.isArray(arg)) sendPaths(arg.filter((p): p is string => typeof p === "string"));
+          if (Array.isArray(arg)) void sendPaths(arg.filter((p): p is string => typeof p === "string"));
           else sendSelection();
         },
       },

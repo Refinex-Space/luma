@@ -550,11 +550,31 @@ async fn subagents_get_their_own_conversation() {
 }
 
 #[test]
+fn context_notes_follow_the_text_and_are_listed_with_the_attachments() {
+    let p = AgentPrompt {
+        text: "why?".into(),
+        files: vec![IpcPath(PathBuf::from("/p/src"))],
+        images: vec![AgentImage { mime_type: "image/png".into(), data: "AAA".into(), name: Some("shot.png".into()) }],
+        context: vec![AgentContextNote { label: "Commit 1a2b3c4".into(), text: "Context: commit 1a2b3c4d".into() }],
+    };
+    let out = blocks(&p, &[]);
+    assert_eq!(out[0], json!({"type": "text", "text": "why?"}));
+    assert_eq!(out[1], json!({"type": "text", "text": "Context: commit 1a2b3c4d"}));
+    assert_eq!(out[2]["type"], "resource_link");
+    assert_eq!(out[3]["type"], "image");
+    assert_eq!(attachment_names(&p), ["src", "Commit 1a2b3c4", "shot.png"]);
+    // A note alone is something to send.
+    let note = AgentPrompt { context: p.context.clone(), ..Default::default() };
+    assert!(clean(note).is_some());
+}
+
+#[test]
 fn prompts_become_acp_content_blocks() {
     let p = AgentPrompt {
         text: "look".into(),
         files: vec![IpcPath(PathBuf::from("/p/my file.rs"))],
         images: vec![AgentImage { mime_type: "image/png".into(), data: "AAA".into(), name: None }],
+        context: Vec::new(),
     };
     assert_eq!(
         blocks(&p, &[]),

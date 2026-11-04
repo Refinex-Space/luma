@@ -1161,12 +1161,7 @@ impl Task {
             tracing::debug!("agent task {}: steering failed: {e}", self.id);
             return Err(prompt);
         }
-        let attachments = prompt
-            .files
-            .iter()
-            .map(|f| file_name(&f.0))
-            .chain(prompt.images.iter().map(|i| i.name.clone().unwrap_or_else(|| "image".into())))
-            .collect();
+        let attachments = attachment_names(&prompt);
         self.push_entry(AgentEntry::User {
             text: prompt.text,
             attachments,
@@ -1182,12 +1177,7 @@ impl Task {
     async fn turn(self: &Arc<Self>, prompt: &AgentPrompt) -> Result<String, Failure> {
         self.turn_started.store(false, Ordering::Release);
         self.state.lock().task.resets_ms = None;
-        let attachments = prompt
-            .files
-            .iter()
-            .map(|f| file_name(&f.0))
-            .chain(prompt.images.iter().map(|i| i.name.clone().unwrap_or_else(|| "image".into())))
-            .collect();
+        let attachments = attachment_names(prompt);
         self.push_entry(AgentEntry::User {
             text: prompt.text.clone(),
             attachments,
@@ -1661,15 +1651,19 @@ impl Handler for Client {
 /// The prompt trimmed, or `None` when there is nothing to send.
 fn clean(mut prompt: AgentPrompt) -> Option<AgentPrompt> {
     prompt.text = prompt.text.trim().to_owned();
-    (!prompt.text.is_empty() || !prompt.images.is_empty() || !prompt.files.is_empty()).then_some(prompt)
+    (!prompt.text.is_empty() || !prompt.images.is_empty() || !prompt.files.is_empty() || !prompt.context.is_empty())
+        .then_some(prompt)
 }
 
-/// ACP content blocks: the text, each file (embedded when its text is in `contents`, else
-/// a `resource_link`), then the images.
+/// ACP content blocks: the text, the attached context notes, each file (embedded when its
+/// text is in `contents`, else a `resource_link`), then the images.
 fn blocks(prompt: &AgentPrompt, contents: &[Option<String>]) -> Vec<Value> {
     let mut out = Vec::new();
     if !prompt.text.is_empty() {
         out.push(json!({ "type": "text", "text": prompt.text }));
+    }
+    for note in &prompt.context {
+        out.push(json!({ "type": "text", "text": note.text }));
     }
     for (i, f) in prompt.files.iter().enumerate() {
         let uri = file_uri(&f.0);
@@ -1682,6 +1676,17 @@ fn blocks(prompt: &AgentPrompt, contents: &[Option<String>]) -> Vec<Value> {
         out.push(json!({ "type": "image", "mimeType": i.mime_type, "data": i.data }));
     }
     out
+}
+
+/// What a user message lists as sent with it: its files, context notes and images.
+fn attachment_names(prompt: &AgentPrompt) -> Vec<String> {
+    prompt
+        .files
+        .iter()
+        .map(|f| file_name(&f.0))
+        .chain(prompt.context.iter().map(|n| n.label.clone()))
+        .chain(prompt.images.iter().map(|i| i.name.clone().unwrap_or_else(|| "image".into())))
+        .collect()
 }
 
 /// The text of a referenced file, when it is a small UTF-8 file.
