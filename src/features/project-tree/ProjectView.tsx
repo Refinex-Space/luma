@@ -132,7 +132,7 @@ function iconFor(
     const kind = folderKind(node, roots, root, build, detected);
     if (kind !== "plain") return folderIconName(kind);
     const rel = root ? (node.path === root ? "" : relativePath(root, node.path)) : null;
-    const module = rel === null ? null : moduleFolderIcon(rel, node.root, build.modules);
+    const module = rel === null ? null : moduleFolderIcon(rel, build.modules);
     if (module) return module;
     return node.root ? "module" : "folder";
   }

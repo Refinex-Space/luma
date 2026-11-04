@@ -29,9 +29,17 @@ export function isModuleFolder(rel: string, root: boolean, modules: BuildPresent
   return !root && rel !== "" && modules.has(rel);
 }
 
-export function moduleFolderIcon(rel: string, root: boolean, modules: BuildPresentation["modules"]): string | null {
+/**
+ * The icon of a Maven / Gradle module folder: a folder with the tool's badge, the project root
+ * as well, so the tree's folders share one style (the tool's own logo is for its tool window).
+ *
+ * @param rel the folder, relative to the project root ("" for the root)
+ * @param modules the build model's module folders and their tool
+ * @returns the icon name, or `null` for a folder that is no module
+ */
+export function moduleFolderIcon(rel: string, modules: BuildPresentation["modules"]): string | null {
   const tool = modules.get(rel);
-  return tool ? `${tool}-${root ? "project" : "module"}` : null;
+  return tool ? `${tool}-module` : null;
 }
 
 let users = 0;
