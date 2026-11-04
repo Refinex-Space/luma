@@ -19,6 +19,7 @@ export const EXPORTED_STORAGE = [
   "luma.postfix.",
   "luma.macros.",
   "luma.toolWindowLayouts.",
+  "luma.promptLibrary.",
 ];
 
 export function exportedStorage(
