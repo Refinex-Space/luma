@@ -23,20 +23,32 @@ test("renders title bar, area tabs, launcher, tool window and status bar", async
   await expect(page.getByText("Search Everywhere", { exact: true }).last()).toBeVisible();
 });
 
-test("the launcher opens a bottom window; the title bar toggle closes the area", async ({ workbench: page }) => {
+test("the launcher switches the bottom area; a second click or the title bar toggle closes it", async ({
+  workbench: page,
+}) => {
   const launcher = page.getByRole("toolbar", { name: "Bottom tool windows" });
   const problems = page.getByRole("region", { name: "Problems" });
+  const terminal = page.getByRole("region", { name: "Terminal" });
+  const problemsButton = launcher.getByRole("button", { name: "Problems", exact: true });
   await expect(problems).toBeHidden();
-  await launcher.getByRole("button", { name: "Problems", exact: true }).click();
+  await problemsButton.click();
   await expect(problems).toBeVisible();
-  // The area's own tabs take over while it is open.
-  await expect(page.getByRole("tablist", { name: "Bottom Left" }).getByRole("tab", { name: "Problems" })).toBeVisible();
-  await expect(launcher).toHaveAttribute("data-hidden", "");
+  await expect(problemsButton).toHaveAttribute("aria-pressed", "true");
+  // The area shows the window alone: its siblings stay in the launcher, not as tabs.
+  const strip = page.getByRole("tablist", { name: "Bottom Left" }).filter({ visible: true });
+  await expect(strip.getByRole("tab", { name: "Terminal" })).toHaveCount(0);
+  await launcher.getByRole("button", { name: "Terminal", exact: true }).click();
+  await expect(terminal).toBeVisible();
+  await expect(problems).toBeHidden();
+  await launcher.getByRole("button", { name: "Terminal", exact: true }).click();
+  await expect(terminal).toBeHidden();
+  await problemsButton.click();
+  await expect(problems).toBeVisible();
   await page
     .locator("header")
     .first()
     .getByRole("button", { name: /^Bottom Panel/ })
     .click();
   await expect(problems).toBeHidden();
-  await expect(launcher).not.toHaveAttribute("data-hidden");
+  await expect(problemsButton).toHaveAttribute("aria-pressed", "false");
 });

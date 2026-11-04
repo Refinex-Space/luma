@@ -219,7 +219,39 @@ describe("notifications", () => {
 });
 
 describe("tool window area tabs", () => {
-  it("lists an area's windows as tabs; another tab shows its window", () => {
+  it("lists a side area's windows as tabs; another tab shows its window", () => {
+    const disposers = [
+      registerToolWindow({
+        id: "project",
+        title: "Project",
+        icon: "folder",
+        anchor: "left",
+        requiresProject: false,
+        component: () => <div>tree</div>,
+      }),
+      registerToolWindow({
+        id: "commit",
+        title: "Commit",
+        icon: "commit",
+        anchor: "left",
+        requiresProject: false,
+        component: () => <div>changes</div>,
+      }),
+    ];
+    loadToolWindowLayout("/tabs");
+    showToolWindow("project");
+    render(<ToolWindowLayout editor={<div>editor</div>} />);
+    const strip = screen.getByRole("tablist", { name: "Left Top" });
+    expect(strip).toHaveAttribute("data-area-slot", "left");
+    const commit = screen.getByRole("tab", { name: "Commit" });
+    expect(commit).toHaveAttribute("aria-selected", "false");
+    fireEvent.click(commit);
+    expect(isToolWindowVisible("commit")).toBe(true);
+    expect(isToolWindowVisible("project")).toBe(false);
+    disposers.forEach((d) => d());
+  });
+
+  it("shows a bottom window alone: the status bar launcher switches the bottom area", () => {
     const disposers = [
       registerToolWindow({
         id: "terminal",
@@ -238,16 +270,12 @@ describe("tool window area tabs", () => {
         component: () => <div>issues</div>,
       }),
     ];
-    loadToolWindowLayout("/tabs");
+    loadToolWindowLayout("/solo");
     showToolWindow("terminal");
     render(<ToolWindowLayout editor={<div>editor</div>} />);
     const strip = screen.getByRole("tablist", { name: "Bottom Left" });
     expect(strip).toHaveAttribute("data-area-slot", "bottom");
-    const problems = screen.getByRole("tab", { name: "Problems" });
-    expect(problems).toHaveAttribute("aria-selected", "false");
-    fireEvent.click(problems);
-    expect(isToolWindowVisible("problems")).toBe(true);
-    expect(isToolWindowVisible("terminal")).toBe(false);
+    expect(screen.queryByRole("tab", { name: "Problems" })).toBeNull();
     disposers.forEach((d) => d());
   });
 
@@ -277,7 +305,7 @@ describe("tool window area tabs", () => {
 });
 
 describe("status bar launcher", () => {
-  it("lists the bottom windows with their badges, opens one, and folds while the bottom area is open", () => {
+  it("lists the bottom windows with their badges, and switches the bottom area", () => {
     const disposers = [
       registerToolWindow({
         id: "terminal",
@@ -309,12 +337,18 @@ describe("status bar launcher", () => {
     hideAllToolWindows();
     render(<ToolWindowLauncher />);
     const bar = screen.getByRole("toolbar", { name: "Bottom tool windows" });
-    expect(bar).not.toHaveAttribute("data-hidden");
     const buttons = within(bar).getAllByRole("button");
     expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Problems 3", "Terminal"]);
+    // An icon opens its window, stays pressed while it shows, and closes it on a second click.
     fireEvent.click(buttons[1]!);
     expect(isToolWindowVisible("terminal")).toBe(true);
-    expect(bar).toHaveAttribute("data-hidden");
+    expect(buttons[1]).toHaveAttribute("aria-pressed", "true");
+    expect(buttons[0]).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(buttons[0]!);
+    expect(isToolWindowVisible("problems")).toBe(true);
+    expect(isToolWindowVisible("terminal")).toBe(false);
+    fireEvent.click(buttons[0]!);
+    expect(isToolWindowVisible("problems")).toBe(false);
     disposers.forEach((d) => d());
   });
 });

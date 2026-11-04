@@ -19,6 +19,7 @@ import {
   removeFromStripe,
   resetToolWindowPlacements,
   showToolWindow,
+  slotAnchor,
   slotOf,
   toggleMaximizeToolWindow,
   useToolWindowLayout,
@@ -200,7 +201,8 @@ function startTabDrag(e: PointerEvent<HTMLElement>, id: string) {
 /**
  * The strip: `active` is the shown window, whose own header (`activeContent`: its title button
  * and content tabs) replaces its plain tab. When the tabs don't fit, the other tabs drop their
- * names (the icon and the tooltip stay).
+ * names (the icon and the tooltip stay). The bottom areas show the open window alone: the
+ * status bar launcher is their switcher.
  */
 export function AreaTabs({
   slot,
@@ -216,7 +218,13 @@ export function AreaTabs({
   const buttons = useToolWindowLayout((s) => s.stripeButtons);
   const maximized = useToolWindowLayout((s) => s.maximized);
   const focused = useToolWindowLayout((s) => s.focused);
-  const tabs = useMemo(() => areaTabs(windows, slot, active.id, buttons), [windows, slot, active.id, buttons]);
+  // The bottom areas switch from the status bar launcher: their strip shows the open window
+  // alone, rather than repeating the launcher's icons as tabs.
+  const solo = slotAnchor(slot) === "bottom";
+  const tabs = useMemo(
+    () => (solo ? [active] : areaTabs(windows, slot, active.id, buttons)),
+    [solo, windows, slot, active, buttons],
+  );
   const drop = useTabDrag((s) => (s.drop?.slot === slot ? s.drop : null));
   const dragged = useTabDrag((s) => s.id);
   const ref = useRef<HTMLDivElement>(null);

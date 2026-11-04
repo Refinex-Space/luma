@@ -377,48 +377,29 @@
   --tw-header-bg: var(--bg-elev);
 }
 
-/* Status bar launcher: the bottom areas' windows under the editor column, folded away while the
-   bottom area is open (its tab strip takes over). */
+/* Status bar launcher: the bottom area's switcher. Hover comes from the status bar's own
+   buttons (BarButton); the window open in the bottom area stays pressed. */
 .launcher {
   display: flex;
   align-items: center;
   gap: 2px;
-  max-width: 480px;
-  overflow: hidden;
-  /* Badges overhang the buttons a little. */
-  padding: 2px 4px 2px 0;
-  transition:
-    max-width var(--dur-slow) var(--ease),
-    opacity var(--dur) var(--ease);
 }
-.launcher[data-hidden] {
-  max-width: 0;
-  opacity: 0;
-  padding-right: 0;
-}
-.launcherButton {
+.launcher .launcherButton {
   position: relative;
   flex: none;
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
   gap: 3px;
   min-width: 24px;
-  height: 20px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: var(--radius-small);
-  background: none;
+  margin: 0;
+  padding: 0 5px;
   color: var(--fg-muted);
-  cursor: default;
 }
-.launcherButton:hover {
-  background: var(--bg-hover);
-  color: var(--fg);
+.launcher .launcherButton:not(:disabled):hover {
+  color: var(--fg-strong);
 }
-.launcherButton:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--accent));
-  outline-offset: -2px;
+.launcher .launcherButton[aria-pressed="true"] {
+  background: var(--bg-toolbar-pressed, color-mix(in srgb, var(--fg-strong) 12%, transparent));
+  color: var(--fg-strong);
 }
 .launcherCount {
   font-size: 11px;
@@ -442,9 +423,4 @@
 }
 .launcherPaused {
   background: var(--warning);
-}
-@media (prefers-reduced-motion: reduce) {
-  .launcher {
-    transition: none;
-  }
 }

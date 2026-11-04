@@ -115,18 +115,3 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The tool window launcher folds away while the bottom area is open: so does its slot. */
-.item[data-status-item="toolwindow.launcher"] {
-  transition:
-    padding var(--dur-slow) var(--ease),
-    margin var(--dur-slow) var(--ease);
-}
-.item[data-status-item="toolwindow.launcher"]:has([data-hidden]) {
-  padding: 0;
-  margin-right: -4px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .item[data-status-item="toolwindow.launcher"] {
-    transition: none;
-  }
-}
