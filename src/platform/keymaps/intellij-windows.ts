@@ -400,4 +400,8 @@ export const intellijWindows: Record<string, string[]> = {
   "find.openInWindow": ["Alt+F7"],
   "find.field.newLine": ["Ctrl+Shift+Enter"],
   "find.field.recentSearches": ["Alt+Down"],
+  // Markdown formatting (Markdown files only; listed late so they win over the code navigation keys there).
+  "markdown.bold": ["Ctrl+B"],
+  "markdown.italic": ["Ctrl+I"],
+  "markdown.strikethrough": ["Ctrl+Shift+X"],
 };

@@ -103,6 +103,12 @@ const OWN_MODES = [
     load: () => import("./erb").then((m) => m.erb()),
   }),
   LanguageDescription.of({ name: "JSP", load: () => import("./jsp").then((m) => m.jsp()) }),
+  // GFM, fenced code in its language, math and front matter (the live preview reads these nodes).
+  LanguageDescription.of({
+    name: "Markdown",
+    extensions: ["md", "markdown", "mkd"],
+    load: () => import("./markdownLang").then((m) => m.markdownSupport()),
+  }),
 ];
 
 const BATCH_KEYWORDS = new Set([

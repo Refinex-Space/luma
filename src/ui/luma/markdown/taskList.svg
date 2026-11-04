@@ -1,0 +1,4 @@
+<!-- Luma: Markdown editing icon in the expui style. -->
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="#6C707E" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.6 4.8L4.4 5.6L5.9 4" stroke="#6C707E" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="#6C707E" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 4.75H13.5M9.5 11.25H13.5" stroke="#6C707E" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

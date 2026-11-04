@@ -1,38 +1,41 @@
 import { IconButton } from "@/ui";
 import { tx } from "@/platform/i18n";
-import { modeOf, useMarkdownModes } from "./modes";
+import { toggleOutline, useOutline } from "./DocumentNav";
+import { modeOf, useMarkdownModes, type MarkdownMode } from "./modes";
 import styles from "./Markdown.module.css";
+
+const LAYOUTS: ReadonlyArray<{ mode: MarkdownMode; action: string; icon: string; title: string }> = [
+  { mode: "live", action: "markdown.livePreview", icon: "md-live-preview", title: "Live Preview" },
+  { mode: "editor", action: "markdown.editorOnly", icon: "editor-only", title: "Source Only" },
+  { mode: "split", action: "markdown.editorAndPreview", icon: "editor-preview", title: "Source and Preview" },
+  { mode: "preview", action: "markdown.previewOnly", icon: "preview-only", title: "Preview Only" },
+];
 
 export function MarkdownLayoutActions({ path }: { path: string; tabId: string }) {
   const mode = useMarkdownModes((s) => modeOf(s, path));
+  const outline = useOutline((s) => s.open);
   return (
     <div className={styles.layoutActions} role="toolbar" aria-label={tx("Markdown editor layout")}>
+      {LAYOUTS.map((l) => (
+        <IconButton
+          key={l.mode}
+          icon={l.icon}
+          iconSize={16}
+          size="small"
+          title={l.title}
+          action={l.action}
+          actionArg={path}
+          pressed={mode === l.mode}
+        />
+      ))}
+      <span className={styles.layoutSeparator} aria-hidden />
       <IconButton
-        icon="editor-only"
+        icon="md-outline"
         iconSize={16}
         size="small"
-        title="Editor Only"
-        action="markdown.editorOnly"
-        actionArg={path}
-        pressed={mode === "editor"}
-      />
-      <IconButton
-        icon="editor-preview"
-        iconSize={16}
-        size="small"
-        title="Editor and Preview"
-        action="markdown.editorAndPreview"
-        actionArg={path}
-        pressed={mode === "split"}
-      />
-      <IconButton
-        icon="preview-only"
-        iconSize={16}
-        size="small"
-        title="Preview Only"
-        action="markdown.previewOnly"
-        actionArg={path}
-        pressed={mode === "preview"}
+        title={outline ? "Hide Outline" : "Show Outline"}
+        pressed={outline}
+        onClick={() => toggleOutline()}
       />
     </div>
   );

@@ -12,7 +12,8 @@ export const MERMAID_SELECTOR = "[data-mermaid]";
 const OUTPUT_CLASS = "mermaid-output";
 const RENDERED_ATTR = "data-mermaid-state";
 
-type Result = { svg: string } | { error: string };
+export type MermaidResult = { svg: string } | { error: string };
+type Result = MermaidResult;
 
 let loading: Promise<Mermaid> | null = null;
 let configured = "";
@@ -152,6 +153,22 @@ function show(block: HTMLElement, result: Result | null, stale?: Node) {
   }
   block.append(out);
   if (block.getAttribute(RENDERED_ATTR) === "ok") attachPanZoom(out);
+}
+
+/** The diagram for `source` (fence body, no trailing newlines) under the current theme, if rendered already. */
+export function cachedMermaid(source: string): MermaidResult | undefined {
+  return cache.get(`${themeKey()}\n${source}`);
+}
+
+/** Renders `source` under the current theme: queued behind other renders and cached like `renderMermaidIn`. */
+export async function renderMermaid(source: string): Promise<MermaidResult> {
+  const key = themeKey();
+  const k = `${key}\n${source}`;
+  const cached = cache.get(k);
+  if (cached) return cached;
+  const r = (await enqueue(source, key, () => true))!;
+  remember(k, r);
+  return r;
 }
 
 export const hasMermaid = (root: ParentNode) => root.querySelector(MERMAID_SELECTOR) !== null;

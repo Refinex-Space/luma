@@ -83,6 +83,7 @@ const UNTRANSLATED = new Set<string>([
   "netcoredbg (.NET)",
   // Product names
   "Cargo",
+  "mermaid",
   "CMake",
   "Prettier",
   "IntelliJ IDEA",

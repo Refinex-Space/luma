@@ -1,0 +1,61 @@
+.popup {
+  width: 272px;
+  max-height: min(380px, 60vh);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+}
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 5px;
+  overscroll-behavior: contain;
+}
+.section {
+  padding: 8px 8px 3px;
+  font-size: var(--fs-small);
+  color: var(--fg-muted);
+}
+.section:first-child {
+  padding-top: 3px;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-row, 5px);
+  color: var(--fg);
+  cursor: pointer;
+}
+.active {
+  background: var(--bg-list-selected, var(--bg-selected));
+}
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-editor, var(--bg-elev));
+  color: var(--fg-secondary);
+  flex: none;
+}
+.active .icon {
+  color: var(--fg-strong);
+}
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hint {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--fg-faint, var(--fg-muted));
+}

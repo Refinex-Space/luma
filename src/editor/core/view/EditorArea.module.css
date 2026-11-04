@@ -52,9 +52,11 @@
   flex-direction: column;
   outline: none;
 }
-/* Tabs' trailing slot may shrink to 0; keep the action buttons whole. */
+/* Tabs' trailing slot may shrink to 0; keep the action buttons whole, at the row's right end
+   however few tabs are open (IDEA). */
 .tabs > :has(> .tabActions) {
   flex: none;
+  margin-left: auto;
 }
 .tabActions {
   flex: none;

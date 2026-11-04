@@ -937,6 +937,8 @@ export function projectViewRoots(map: ReadonlyMap<string, ProjectViewRootContrib
 
 export type ContextMenuId =
   | "editor"
+  /** The editor menu's top, after the clipboard commands (a document type's own editing menus). */
+  | "editorTop"
   | "projectView"
   | "editorTab"
   | "editorGutter"

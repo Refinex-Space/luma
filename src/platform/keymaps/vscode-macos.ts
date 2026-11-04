@@ -388,4 +388,8 @@ export const vscodeMacos: Record<string, string[]> = {
   "find.openInWindow": ["Alt+F7"],
   "find.field.newLine": ["Meta+Shift+Enter"],
   "find.field.recentSearches": ["Alt+Down"],
+  // Markdown formatting (Markdown files only; listed late so they win over the code navigation keys there).
+  "markdown.bold": ["Meta+B"],
+  "markdown.italic": ["Meta+I"],
+  "markdown.strikethrough": ["Meta+Shift+X"],
 };

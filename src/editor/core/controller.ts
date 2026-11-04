@@ -667,6 +667,10 @@ export class EditorController implements SlotHost {
         run: () => void pasteEditorClipboard(view),
       },
       { kind: "separator" },
+      ...menuGroupItems("editorTop", {
+        paths: [slot.model.path],
+        line: view.state.doc.lineAt(view.state.selection.main.head).number - 1,
+      }),
       {
         label: "Copy / Paste Special",
         submenu: [

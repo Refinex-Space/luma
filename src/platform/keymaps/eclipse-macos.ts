@@ -154,4 +154,8 @@ export const eclipseMacos: Record<string, string[]> = {
   // Eclipse removes ExternalSystem.ProjectRefreshAction (its Shift+Meta+O is Organize Imports).
   "maven.reload": [],
   "gradle.reload": [],
+  // Eclipse's own Mod+B (build), Mod+I (indent) and Shift+Mod+X (upper case) stay theirs in Markdown too.
+  "markdown.bold": [],
+  "markdown.italic": [],
+  "markdown.strikethrough": [],
 };

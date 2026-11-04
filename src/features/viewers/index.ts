@@ -27,6 +27,7 @@ import {
 import { ImageViewer, toggleChessboard, useImageViewers } from "./ImageViewer";
 import { HexViewer } from "./HexViewer";
 import { registerMarkdownLiveSource } from "./markdown/live";
+import { registerLivePreview } from "./markdown/livePreview";
 import { setMarkdownMode, type MarkdownMode } from "./markdown/modes";
 import { MarkdownLayoutActions } from "./markdown/MarkdownLayoutActions";
 
@@ -71,8 +72,9 @@ function markdownActions(): Action[] {
     },
   });
   return [
-    mode("markdown.editorOnly", "Editor Only", "editor", "editor-only"),
-    mode("markdown.editorAndPreview", "Editor and Preview", "split", "editor-preview"),
+    mode("markdown.livePreview", "Live Preview", "live", "md-live-preview"),
+    mode("markdown.editorOnly", "Source Only", "editor", "editor-only"),
+    mode("markdown.editorAndPreview", "Source and Preview", "split", "editor-preview"),
     mode("markdown.previewOnly", "Preview Only", "preview", "preview-only"),
   ];
 }
@@ -107,6 +109,7 @@ export function activate(): () => void {
       tabActions: MarkdownLayoutActions,
     }),
     registerMarkdownLiveSource(),
+    registerLivePreview(),
     registerActions([...imageActions(), ...markdownActions()]),
   ];
   return () => disposers.reverse().forEach((d) => d());

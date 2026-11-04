@@ -1,17 +1,21 @@
-/** Markdown editor layout per file: Editor only / Editor and Preview / Preview only (IDEA's split editor). */
+/**
+ * Markdown editor layout per file: Live Preview (the editor renders the Markdown it edits),
+ * Source (plain editor), Source and Preview side by side (IDEA's split editor), or Preview only.
+ */
 import { create } from "zustand";
 
-export type MarkdownMode = "editor" | "split" | "preview";
+export type MarkdownMode = "live" | "editor" | "split" | "preview";
 
-const DEFAULT_KEY = "luma.markdown.defaultMode";
-const MODES: readonly MarkdownMode[] = ["editor", "split", "preview"];
+// v2: Live Preview arrived as the default; earlier choices predate it.
+const DEFAULT_KEY = "luma.markdown.defaultMode.v2";
+export const MARKDOWN_MODES: readonly MarkdownMode[] = ["live", "editor", "split", "preview"];
 
 function storedDefault(): MarkdownMode {
   try {
     const v = localStorage.getItem(DEFAULT_KEY);
-    return MODES.includes(v as MarkdownMode) ? (v as MarkdownMode) : "split";
+    return MARKDOWN_MODES.includes(v as MarkdownMode) ? (v as MarkdownMode) : "live";
   } catch {
-    return "split";
+    return "live";
   }
 }
 

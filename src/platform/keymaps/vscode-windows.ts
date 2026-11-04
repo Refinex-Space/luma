@@ -65,4 +65,8 @@ export const vscodeWindows: Record<string, string[]> = {
   "gradle.reload": [],
   "agents.showToolWindow": [],
   "agents.sendToAgent": [],
+  // Markdown formatting (Markdown files only; listed late so they win over the code navigation keys there).
+  "markdown.bold": ["Ctrl+B"],
+  "markdown.italic": ["Ctrl+I"],
+  "markdown.strikethrough": ["Ctrl+Shift+X"],
 };
