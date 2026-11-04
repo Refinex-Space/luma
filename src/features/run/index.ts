@@ -19,6 +19,7 @@ import {
   registerServiceProvider,
   registerTitleItem,
   registerToolWindow,
+  type ToolWindowBadge,
 } from "@/workbench/contributions";
 import { chooserJustClosed, ConfigChooserOverlay } from "./ConfigChooser";
 import {
@@ -253,6 +254,12 @@ function scheduleReload() {
   reloadTimer = setTimeout(() => void loadConfigs(), 300);
 }
 
+/** Run's launcher badge: a process still running. */
+function useRunBadge(): ToolWindowBadge | null {
+  const running = useRun((s) => s.sessions.some((r) => r.status === "running" || r.status === "starting"));
+  return running ? { tone: "running" } : null;
+}
+
 export function activate(): () => void {
   const disposers: Array<() => void> = [
     registerToolWindow({
@@ -264,6 +271,7 @@ export function activate(): () => void {
       order: 5,
       component: lazyComponent(() => import("./RunView").then((m) => m.RunView)),
       headerContent: lazyComponent(() => import("./RunView").then((m) => m.RunTabs)),
+      useBadge: useRunBadge,
     }),
     registerTitleItem({ id: "run.widget", title: "Run Widget", align: "right", priority: 0, component: RunWidget }),
     registerRunAnythingProvider(runConfigsRunAnything),

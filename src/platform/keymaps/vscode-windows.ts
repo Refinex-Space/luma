@@ -61,6 +61,8 @@ export const vscodeWindows: Record<string, string[]> = {
   "markdown.previewOnly": ["Ctrl+Shift+V"],
   // Agents (VS Code's chat: Ctrl+Shift+I)
   "agents.newTask": ["Ctrl+Shift+I"],
+  "maven.reload": [],
+  "gradle.reload": [],
   "agents.showToolWindow": [],
   "agents.sendToAgent": [],
 };

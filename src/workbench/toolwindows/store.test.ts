@@ -27,6 +27,8 @@ import {
   setToolWindowSize,
   showToolWindow,
   toggleToolWindow,
+  toggleSide,
+  isSideVisible,
   toolWindowServiceImpl,
   useToolWindowLayout,
 } from "./store";
@@ -354,5 +356,39 @@ describe("stripe buttons", () => {
     expect(buttons()).toEqual({ find: false, terminal: false });
     resetToolWindowPlacements();
     expect(buttons()).toEqual({});
+  });
+});
+
+describe("side panel toggle", () => {
+  it("hides a side and opens again the window it showed last", () => {
+    showToolWindow("problems");
+    toggleSide("bottom");
+    expect(isSideVisible("bottom")).toBe(false);
+    toggleSide("bottom");
+    expect(isToolWindowVisible("problems")).toBe(true);
+    expect(isToolWindowVisible("terminal")).toBe(false);
+  });
+
+  it("falls back to the first window docked on the side, in tab order", () => {
+    expect(isSideVisible("bottom")).toBe(false);
+    toggleSide("bottom");
+    // Same order: by title, as the tabs list them.
+    expect(isToolWindowVisible("problems")).toBe(true);
+  });
+
+  it("forgets a remembered window that left the side", () => {
+    showToolWindow("problems");
+    toggleSide("bottom");
+    moveToolWindow("problems", "left-split");
+    toggleSide("bottom");
+    expect(isToolWindowVisible("terminal")).toBe(true);
+  });
+
+  it("remembers across reloads", () => {
+    showToolWindow("problems");
+    hideToolWindow("problems");
+    loadToolWindowLayout("/work/a");
+    toggleSide("bottom");
+    expect(isToolWindowVisible("problems")).toBe(true);
   });
 });

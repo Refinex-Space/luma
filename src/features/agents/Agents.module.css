@@ -103,21 +103,70 @@
   color: var(--fg-muted);
 }
 
-.statusItem {
+/* Title bar inbox: agent faces and the most urgent count; ▾ lists the tasks. */
+.inbox {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  height: 28px;
+  border-radius: 14px;
+  color: var(--fg-secondary);
+  transition: background var(--dur) var(--ease);
+}
+.inbox:hover {
+  background: var(--bg-toolbar-hover);
+}
+.inboxWaiting {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--fg-strong);
+}
+.inboxWaiting:hover {
+  background: color-mix(in srgb, var(--warning) 24%, transparent);
+}
+.inboxMain,
+.inboxMore {
+  display: inline-flex;
+  align-items: center;
   height: 100%;
-  padding: 0 6px;
   border: 0;
-  border-radius: var(--radius-small);
   background: none;
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
-.statusItem:hover {
-  background: var(--bg-hover);
+.inboxMain {
+  gap: 7px;
+  padding: 0 4px 0 5px;
+  border-radius: 14px 0 0 14px;
+}
+.inboxMore {
+  padding: 0 8px 0 2px;
+  border-radius: 0 14px 14px 0;
+  color: var(--fg-muted);
+}
+.inboxMain:focus-visible,
+.inboxMore:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.inboxFaces {
+  display: inline-flex;
+}
+.inboxFace {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  margin-right: -6px;
+  border-radius: 50%;
+  background: var(--bg-island);
+  box-shadow: 0 0 0 1.5px var(--bg-titlebar, var(--bg-app));
+}
+.inboxFace:last-child {
+  margin-right: 0;
+}
+/* The agent waiting for you. */
+.inboxFaceWaiting {
+  box-shadow: 0 0 0 1.5px var(--warning);
 }
 .statusPart {
   display: inline-flex;

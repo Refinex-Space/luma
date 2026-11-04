@@ -347,7 +347,10 @@ export const intellijWindows: Record<string, string[]> = {
   "http.runAll": [],
   "db.execute": ["Ctrl+Enter"],
   "db.showToolWindow": [],
-  "agents.newTask": ["Ctrl+Alt+Shift+I"],
+  // Ctrl+Alt+Shift+I is IDEA's Run Inspection by Name; Ctrl+Shift+O is Load Maven/Gradle Changes.
+  "agents.newTask": ["Ctrl+Alt+Shift+A"],
+  "maven.reload": ["Ctrl+Shift+O"],
+  "gradle.reload": ["Ctrl+Shift+O"],
   "agents.showToolWindow": [],
   "agents.sendToAgent": [],
   // Database tool window (when the tree has focus; `db.openConsole` anywhere).

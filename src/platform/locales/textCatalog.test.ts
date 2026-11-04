@@ -107,6 +107,7 @@ const UNTRANSLATED = new Set<string>([
   "node",
   "python3",
   // Products, tools and formats
+  "AI",
   "Amazon Aurora MySQL",
   "Amazon Redshift",
   "basedpyright",

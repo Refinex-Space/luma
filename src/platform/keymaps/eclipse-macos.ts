@@ -151,4 +151,7 @@ export const eclipseMacos: Record<string, string[]> = {
   "toolwindow.resizeDown": [],
   "editor.decreaseFontSize": ["Meta+-"],
   "editor.increaseFontSize": ["Meta+="],
+  // Eclipse removes ExternalSystem.ProjectRefreshAction (its Shift+Meta+O is Organize Imports).
+  "maven.reload": [],
+  "gradle.reload": [],
 };

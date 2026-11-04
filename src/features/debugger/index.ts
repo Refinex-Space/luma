@@ -15,6 +15,7 @@ import {
   registerRunConfigType,
   registerToolWindow,
   useDebugRunSessions,
+  type ToolWindowBadge,
 } from "@/workbench/contributions";
 import { registerDebugActions } from "./actions";
 import { loadBreakpoints } from "./breakpoints/store";
@@ -37,6 +38,15 @@ import {
 } from "./state";
 import { DebuggerOverlays } from "./ui/Overlays";
 import { REMOTE_TYPES } from "./remote";
+
+/** Debug's launcher badge: paused at a breakpoint wins over running. */
+function useDebugBadge(): ToolWindowBadge | null {
+  const tone = useDebug((s) => {
+    const live = Object.values(s.sessions).filter(isLive);
+    return live.some((d) => d.status === "paused") ? "paused" : live.length ? "running" : null;
+  });
+  return tone && { tone };
+}
 
 export function activate(): () => void {
   useDebugRunSessions.setState({
@@ -61,6 +71,7 @@ export function activate(): () => void {
       order: 20,
       component: lazyComponent(() => import("./ui/DebugToolWindow").then((m) => m.DebugToolWindow)),
       headerContent: lazyComponent(() => import("./ui/DebugToolWindow").then((m) => m.DebugTabs)),
+      useBadge: useDebugBadge,
     }),
     registerOverlay({ id: "debugger", component: DebuggerOverlays }),
     registerMenuGroup({

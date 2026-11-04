@@ -1,4 +1,5 @@
 .bar {
+  position: relative;
   height: var(--h-titlebar);
   flex: none;
   display: flex;
@@ -202,4 +203,109 @@
 .captionClose:active {
   background: var(--caption-close-pressed);
   color: var(--fg-caption-close-hover);
+}
+
+/* Layout controls: side panels, the agent panel, the layout menu. */
+.layoutGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 2px 0 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.panelToggle[aria-pressed="false"] {
+  color: var(--fg-muted);
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.segButton {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.segButton:hover {
+  color: var(--fg-strong);
+  background: var(--bg-toolbar-hover);
+}
+.segButton[aria-checked="true"] {
+  background: var(--bg-island);
+  color: var(--fg-strong);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.segButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Find in Files, centred on the window rather than on the space between the widgets. */
+.findField {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg-island);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: text;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    left var(--dur-slow) var(--ease),
+    width var(--dur-slow) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .findField {
+    transition: border-color var(--dur-fast) var(--ease);
+  }
+}
+.findField:hover {
+  border-color: var(--border-strong);
+}
+.findField:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.findFieldIcon {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  cursor: pointer;
+}
+.findText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.findKey {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-sunken, var(--bg-hover));
+  color: var(--fg-muted);
+  font: 500 var(--fs-small) / 1.4 var(--font-ui);
 }

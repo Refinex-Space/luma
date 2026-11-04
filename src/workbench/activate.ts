@@ -21,6 +21,7 @@ import { loadPlatformInfo } from "@/platform/platformInfo";
 import { registerShellActions } from "./shellActions";
 import { MainToolbarDialogHost } from "./MainToolbarDialog";
 import { StatusInfo, TaskStatus } from "./StatusBar";
+import { LAUNCHER_ID, ToolWindowLauncher } from "./toolwindows/Launcher";
 import { installTaskEvents } from "./tasks";
 import { installToolWindowActions } from "./toolwindows/actions";
 import {
@@ -64,6 +65,14 @@ export function activateWorkbench(): () => void {
     registerOverlay({ id: "workbench.customizeToolbar", component: MainToolbarDialogHost }),
     registerStatusItem({ id: "workbench.tasks", align: "right", priority: 0, component: TaskStatus, lightEdit: true }),
     registerStatusItem({ id: "workbench.info", align: "left", priority: 5, component: StatusInfo, lightEdit: true }),
+    // Outermost on the left: it lines up with the editor column itself.
+    registerStatusItem({
+      id: LAUNCHER_ID,
+      align: "left",
+      priority: 1000,
+      component: ToolWindowLauncher,
+      title: "Bottom tool windows",
+    }),
     registerToolWindow({
       id: NOTIFICATIONS_TOOL_WINDOW,
       title: "Notifications",

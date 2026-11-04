@@ -34,7 +34,7 @@ const branch = (name: string, extra: Partial<Branch> = {}): Branch => ({
 });
 const remote = (name: string, commit?: string) => branch(name, { remote: true, commit });
 
-const origin: GHRemote = { owner: "l0ng-ai", name: "luma", remote: "origin", url: "" };
+const origin: GHRemote = { owner: "Refinex-Space", name: "luma", remote: "origin", url: "" };
 const fork: GHRemote = { owner: "me", name: "luma", remote: "fork", url: "" };
 
 const branches = [
@@ -109,7 +109,7 @@ describe("merge direction", () => {
     );
     expect(headRefName(origin, origin, "f")).toBe("f");
     expect(headRefName(origin, fork, "f")).toBe("me:f");
-    expect(searchHead(origin, "f")).toBe("l0ng-ai:f");
+    expect(searchHead(origin, "f")).toBe("Refinex-Space:f");
   });
 });
 

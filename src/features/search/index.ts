@@ -137,8 +137,7 @@ export function activate(): void | (() => void) {
       title: "Structure",
       icon: "toolwindow-structure",
       anchor: "left",
-      // Left Bottom (split), as in IDEA: shows below Project.
-      secondary: true,
+      // Left Top beside Project and Commit; left-bottom holds the build and data trees.
       order: 20,
       component: lazyComponent(() => import("./structure/StructureView").then((m) => m.StructureView)),
     }),

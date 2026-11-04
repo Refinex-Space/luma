@@ -94,7 +94,8 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
               id: "maven",
               title: "Maven",
               icon: "toolwindow-maven",
-              anchor: "right",
+              anchor: "left",
+              secondary: true,
               order: 10,
               component: MavenView,
             })
@@ -102,7 +103,8 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
               id: "gradle",
               title: "Gradle",
               icon: "toolwindow-gradle",
-              anchor: "right",
+              anchor: "left",
+              secondary: true,
               order: 11,
               component: GradleView,
             });

@@ -205,7 +205,7 @@ describe("agent unread activity", () => {
 });
 
 describe("agent unread indicators", () => {
-  it("shows a dot on the task and a clickable status count even when all tasks are idle", () => {
+  it("shows a dot on the task and a clickable inbox count even when all tasks are idle", () => {
     emit({ type: "task", task: task("one", "ready") });
     render(
       <>

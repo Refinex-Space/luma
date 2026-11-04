@@ -3,6 +3,7 @@
  * type hierarchies, and language server status. Editor-side LSP features live
  * in `editor/lsp`; the two talk only through actions.
  */
+import { useMemo } from "react";
 import { registerActions } from "@/platform/actions";
 import { useProject } from "@/platform/project";
 import {
@@ -10,8 +11,9 @@ import {
   registerOverlay,
   registerStatusItem,
   registerToolWindow,
+  type ToolWindowBadge,
 } from "@/workbench/contributions";
-import { clearProblems, installProblemsEvents, useProblems } from "./problemsStore";
+import { clearProblems, installProblemsEvents, projectCounts, useProblems } from "./problemsStore";
 import { installProblemDecorations } from "./decorations";
 import { ProblemsHeaderActions, ProblemsTabs, ProblemsView, useProblemsHeaderMenu } from "./ProblemsView";
 import { UsagesTabs, UsagesView, useUsagesHeaderMenu } from "./UsagesView";
@@ -25,6 +27,14 @@ import { ServerStatus } from "./ServerStatus";
 import { installWorkspaceEditUndo } from "./workspaceUndo";
 
 const EDITOR_WHEN = "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)";
+
+/** Problems' launcher badge: the project's errors and warnings, red while any is an error. */
+function useProblemsBadge(): ToolWindowBadge | null {
+  const map = useProblems((s) => s.map);
+  const { error, warning } = useMemo(() => projectCounts(map), [map]);
+  const count = error + warning;
+  return count ? { count, tone: error ? "error" : undefined } : null;
+}
 
 export function activate(): () => void {
   let root = useProject.getState().project?.root ?? null;
@@ -63,6 +73,7 @@ export function activate(): () => void {
       headerContent: ProblemsTabs,
       headerActions: ProblemsHeaderActions,
       headerMenu: useProblemsHeaderMenu,
+      useBadge: useProblemsBadge,
     }),
     registerToolWindow({
       id: "usages",
@@ -79,7 +90,8 @@ export function activate(): () => void {
       id: "hierarchy",
       title: "Hierarchy",
       icon: "toolwindow-hierarchy",
-      anchor: "right",
+      anchor: "left",
+      secondary: true,
       stripe: "onUse",
       order: 40,
       component: HierarchyView,

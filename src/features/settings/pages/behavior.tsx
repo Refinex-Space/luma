@@ -295,22 +295,13 @@ const AA_OPTIONS: SelectOption<Antialiasing>[] = [
   { value: "none", label: "No antialiasing" },
 ];
 
+/** Tool windows have no stripes: their areas' tabs and the title bar's panel toggles replace them. */
 function ToolWindowsGrid() {
   return (
-    <Grid
-      left={
-        <>
-          <BoundToggle k="appearance.showToolWindowBars" label="Show tool window bars" />
-          <BoundToggle k="appearance.showToolWindowNames" label="Show tool window names" />
-        </>
-      }
-      right={
-        <BoundToggle
-          k="appearance.widescreenToolWindows"
-          label="Widescreen tool window layout"
-          hint="Side tool windows take the full height; the bottom ones fit between them"
-        />
-      }
+    <BoundToggle
+      k="appearance.widescreenToolWindows"
+      label="Widescreen tool window layout"
+      hint="Side tool windows take the full height; the bottom ones fit between them"
     />
   );
 }
@@ -590,8 +581,8 @@ export const BEHAVIOR_PAGES: PageSpec[] = [
         options: [
           {
             kind: "custom",
-            label: "Show tool window bars",
-            keywords: ["Show tool window names", "Widescreen tool window layout", "stripes"],
+            label: "Widescreen tool window layout",
+            keywords: ["tool window", "panel", "layout"],
             component: ToolWindowsGrid,
           },
         ],

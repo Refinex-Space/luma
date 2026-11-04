@@ -13,7 +13,7 @@ import {
   registerEditorKind,
   registerMenuGroup,
   registerSettingsPage,
-  registerStatusItem,
+  registerTitleItem,
   registerToolWindow,
   toolWindowService,
 } from "@/workbench/contributions";
@@ -58,7 +58,7 @@ export function activate(): () => void {
       headerActions: lazyComponent(() => import("./AgentsView").then((m) => m.AgentsHeaderActions)),
       headerMenu: useAgentsHeaderMenu,
       headerMenuInTitle: false,
-      headerDivider: true,
+      panelControl: true,
     }),
     registerEditorKind({
       kind: SESSION_KIND,
@@ -83,7 +83,8 @@ export function activate(): () => void {
       accepts: (type) => type === TASK_DRAG,
       drop: ({ payload }) => void executeAction("agents.openTaskInEditor", payload),
     }),
-    registerStatusItem({ id: "agents.status", align: "right", priority: 3, title: "Agents", component: AgentsStatus }),
+    // The agents' inbox sits in the title bar, beside the run widget (Customize Main Toolbar can move or hide it).
+    registerTitleItem({ id: "agents.inbox", align: "right", priority: -2, title: "Agents", component: AgentsStatus }),
     registerMenuGroup({
       id: "agents.send",
       menus: ["editor", "projectView"],

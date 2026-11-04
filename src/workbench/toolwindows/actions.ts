@@ -24,6 +24,7 @@ import {
   jumpToLastToolWindow,
   lastUsedToolWindow,
   resizeActiveToolWindow,
+  toggleSide,
   useToolWindowLayout,
   toggleMaximizeToolWindow,
 } from "./store";
@@ -178,6 +179,16 @@ export function installToolWindowActions(): () => void {
 
   const disposeStatic = registerActions([
     { id: "toolwindow.hideAll", title: "Hide All Tool Windows", category: "Window", run: hideAllToolWindows },
+    ...(["left", "bottom", "right"] as const).map((side): Action => ({
+      id: `toolwindow.toggle${side[0]!.toUpperCase()}${side.slice(1)}Side`,
+      title: { left: "Left Panel", bottom: "Bottom Panel", right: "Right Panel" }[side],
+      description: "Hides the side's tool windows, or opens again the ones it showed last.",
+      category: "Window",
+      icon: `panel-${side}`,
+      keywords: ["tool window", "panel", "sidebar", side],
+      when: "projectOpen",
+      run: () => toggleSide(side),
+    })),
     {
       id: "toolwindow.jumpToLast",
       title: "Jump to Last Tool Window",

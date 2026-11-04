@@ -182,6 +182,12 @@ const ICONS = {
   "toolwindow-changes": "toolwindows/changes",
   "toolwindow-database": "luma/toolwindows/database",
   "toolwindow-agents": "luma/toolwindows/agents",
+  "panel-left": "luma/general/panelLeft",
+  "panel-bottom": "luma/general/panelBottom",
+  "panel-right": "luma/general/panelRight",
+  "agent-panel-hidden": "luma/general/agentHidden",
+  "agent-panel-docked": "luma/general/agentDocked",
+  "agent-panel-focus": "luma/general/agentFocus",
   // Coding agents (logos via Paseo)
   "agent-claude": "luma/agents/claude",
   "agent-codex": "luma/agents/codex",

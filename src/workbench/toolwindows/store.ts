@@ -92,6 +92,8 @@ export interface ToolWindowLayoutState {
   stripeButtons: Readonly<Record<string, boolean>>;
   /** Layout before Distraction Free Mode; restored on exit and persisted in place of `visible` meanwhile. */
   distractionFreeStash: SlotRecord | null;
+  /** Last window shown in each area: what a side's panel toggle opens again (persisted). */
+  remembered: SlotRecord;
 }
 
 const initial = (): ToolWindowLayoutState => ({
@@ -108,6 +110,7 @@ const initial = (): ToolWindowLayoutState => ({
   placements: {},
   stripeButtons: {},
   distractionFreeStash: null,
+  remembered: { ...DEFAULT_VISIBLE },
 });
 
 export const useToolWindowLayout = create<ToolWindowLayoutState>(initial);
@@ -219,13 +222,14 @@ function persist() {
     placements,
     stripeButtons,
     distractionFreeStash,
+    remembered,
   } = useToolWindowLayout.getState();
   // Distraction Free Mode is not saved: the layout to restore is.
   const visible = distractionFreeStash ?? current;
   try {
     localStorage.setItem(
       storageKey(scope),
-      JSON.stringify({ v: LAYOUT_VERSION, visible, sizes, splits, placements, stripeButtons }),
+      JSON.stringify({ v: LAYOUT_VERSION, visible, sizes, splits, placements, stripeButtons, remembered }),
     );
   } catch {
     /* storage unavailable */
@@ -340,6 +344,7 @@ export function loadToolWindowLayout(scope: string) {
     placements,
     stripeButtons: sanitizeStripeButtons(saved?.stripeButtons),
     mounted: new Set(Object.values(visible).filter((v): v is string => !!v)),
+    remembered: { ...sanitizeVisible(saved?.remembered ?? saved?.visible) },
   });
   publishVisibility();
 }
@@ -402,6 +407,7 @@ export function showToolWindow(id: string, focus = false) {
   const mounted = s.mounted.has(id) ? s.mounted : new Set(s.mounted).add(id);
   update({
     visible: { ...s.visible, [slot]: id },
+    remembered: { ...s.remembered, [slot]: id },
     // Opening a window puts its button on the stripe (IDEA).
     stripeButtons: s.stripeButtons[id] ? s.stripeButtons : { ...s.stripeButtons, [id]: true },
     mounted,
@@ -437,6 +443,39 @@ export function removeFromStripe(id: string) {
   hideToolWindow(id);
   const s = useToolWindowLayout.getState();
   update({ stripeButtons: { ...s.stripeButtons, [id]: false } });
+}
+
+/** Whether any window shows on `anchor`'s side (primary or split area). */
+export function isSideVisible(anchor: ToolWindowAnchor): boolean {
+  const v = useToolWindowLayout.getState().visible;
+  return !!(v[anchor] || v[`${anchor}-split`]);
+}
+
+/**
+ * A side's panel toggle (title bar, View menu): hides what the side shows, or opens again the
+ * windows it showed last, falling back to the first window docked there.
+ */
+export function toggleSide(anchor: ToolWindowAnchor) {
+  const s = useToolWindowLayout.getState();
+  if (isSideVisible(anchor)) {
+    for (const slot of [anchor, `${anchor}-split`] as const) if (s.visible[slot]) hideToolWindow(s.visible[slot]!);
+    return;
+  }
+  const windows = [...useContributions.getState().toolWindows.values()].map((w) => placed(w, s.placements));
+  const docked = (slot: ToolWindowSlot) =>
+    windows.filter((w) => slotOf(w) === slot && hasStripeButton(w, s.stripeButtons)).sort(byOrder);
+  const pick = (slot: ToolWindowSlot) => {
+    const id = s.remembered[slot];
+    return id && docked(slot).some((w) => w.id === id) ? id : null;
+  };
+  const primary = pick(anchor) ?? (pick(`${anchor}-split`) ? null : (docked(anchor)[0]?.id ?? null));
+  const split = pick(`${anchor}-split`);
+  const ids = [primary, split].filter((id): id is string => !!id);
+  if (!ids.length) {
+    const first = docked(`${anchor}-split`)[0]?.id;
+    if (first) ids.push(first);
+  }
+  ids.forEach((id, i) => showToolWindow(id, i === 0));
 }
 
 export function toggleToolWindow(id: string) {

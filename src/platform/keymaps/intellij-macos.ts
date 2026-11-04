@@ -349,7 +349,10 @@ export const intellijMacos: Record<string, string[]> = {
   "http.runAll": [],
   "db.execute": ["Meta+Enter"],
   "db.showToolWindow": [],
-  "agents.newTask": ["Meta+Shift+I"],
+  // ⇧⌘I is IDEA's Load Maven/Gradle Changes (ExternalSystem.ProjectRefreshAction, "Mac OS X 10.5+").
+  "agents.newTask": ["Ctrl+Meta+I"],
+  "maven.reload": ["Meta+Shift+I"],
+  "gradle.reload": ["Meta+Shift+I"],
   "agents.showToolWindow": [],
   "agents.sendToAgent": [],
   // Database tool window (when the tree has focus; `db.openConsole` anywhere).

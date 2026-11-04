@@ -27,6 +27,7 @@ import { keymapItems, themeItems, VIEW_MODE_ITEMS } from "./quickSwitch";
 import { currentThemeId, useThemeOverride } from "./theme";
 import styles from "./TitleBar.module.css";
 import { useNativeTitlebar } from "./nativeTitlebar";
+import { AgentPanelControl, FindInFilesField, LayoutMenuButton, PanelToggle } from "./TitleLayout";
 
 export function orderTitleItems(items: Iterable<TitleItemContribution>) {
   const all = [...items];
@@ -281,6 +282,7 @@ export function TitleBar({
   const { map, shown, menu } = useToolbar();
   const [menuExpanded, setMenuExpanded] = useState(false);
   const [bar, setBar] = useState<HTMLElement | null>(null);
+  const hasProject = useProject((s) => !!s.project);
   useNativeTitlebar(bar);
   const className = clsx(styles.bar, overlay && styles.overlay, frameless && styles.frameless);
   // Distraction Free Mode: the window frame only. Where the title bar carries the
@@ -299,6 +301,8 @@ export function TitleBar({
     );
   const entry = (id: string) => <ToolbarEntry key={id} id={id} items={map} />;
   const toolbar = !minimal && !lightEdit;
+  // Tool window areas exist only with a project: their toggles and Find in Files too.
+  const layout = toolbar && hasProject;
   return (
     <header
       ref={setBar}
@@ -316,11 +320,22 @@ export function TitleBar({
           {typeof title === "string" ? <T>{title}</T> : title}
         </span>
       )}
+      {layout && !menuExpanded && <PanelToggle side="left" />}
       {toolbar && !menuExpanded && shown.left.map(entry)}
+      <span data-title-left-end="" aria-hidden="true" />
       <div className={styles.drag} data-tauri-drag-region />
+      {layout && <FindInFilesField bar={bar} />}
       {!minimal && (
         <>
+          <span data-title-right-start="" aria-hidden="true" />
           {toolbar && shown.right.map(entry)}
+          {layout && (
+            <div className={styles.layoutGroup} role="group" aria-label="Layout">
+              <PanelToggle side="bottom" />
+              <AgentPanelControl />
+              <LayoutMenuButton />
+            </div>
+          )}
           <div className={styles.tools}>
             <GearButton customize={menu} />
           </div>

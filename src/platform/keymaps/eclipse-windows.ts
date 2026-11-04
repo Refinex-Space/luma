@@ -153,4 +153,7 @@ export const eclipseWindows: Record<string, string[]> = {
   "toolwindow.resizeDown": [],
   "editor.decreaseFontSize": ["Ctrl+-"],
   "editor.increaseFontSize": ["Ctrl+="],
+  // Eclipse removes ExternalSystem.ProjectRefreshAction (its Shift+Ctrl+O is Organize Imports).
+  "maven.reload": [],
+  "gradle.reload": [],
 };

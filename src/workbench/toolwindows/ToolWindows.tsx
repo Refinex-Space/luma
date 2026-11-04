@@ -10,38 +10,32 @@ import {
   type RefObject,
 } from "react";
 import clsx from "clsx";
-import { create } from "zustand";
-import { call, commands } from "@/platform/ipc";
 import { shortcutLabel } from "@/platform/keymap";
 import { useProject } from "@/platform/project";
-import { dragRequiresAlt, Icon, IconButton, Menu, showContextMenu, tooltipAttrs, type MenuItem, T } from "@/ui";
+import { Icon, IconButton, Menu, type MenuItem, T } from "@/ui";
 import { FOCUSABLE } from "@/ui/popupState";
 import { TabStripRegistry } from "@/ui/Tabs";
 import { useContributions, type ToolWindowAnchor, type ToolWindowContribution } from "../contributions";
-import { useDistractionFree } from "../distractionFree";
 import {
   hideToolWindow,
   MAX_SPLIT,
   MIN_SPLIT,
-  moveToolWindow,
   placed,
-  resetToolWindowPlacements,
-  hasStripeButton,
-  removeFromStripe,
   setToolWindowSize,
   setToolWindowSplit,
-  showToolWindow,
   SLOTS,
   slotOf,
   toggleMaximizeToolWindow,
-  toggleToolWindow,
   useToolWindowLayout,
   type SlotRecord,
   type ToolWindowSlot,
 } from "./store";
+import { AreaTabs, AreaToolsButton, moveToMenu } from "./AreaTabs";
 import { contentTabRegistry } from "./content";
 import styles from "./ToolWindows.module.css";
 import { tx } from "@/platform/i18n";
+
+export { moveToMenu };
 
 function byOrder(a: ToolWindowContribution, b: ToolWindowContribution) {
   return (a.order ?? 100) - (b.order ?? 100) || a.title.localeCompare(b.title);
@@ -76,333 +70,6 @@ export function useEffectiveVisible(windows: ToolWindowContribution[]): SlotReco
 }
 
 // ---------------------------------------------------------------------------
-// Stripes
-
-/** IDEA's Move To anchors (New UI: no top). */
-const MOVE_TARGETS: Array<[ToolWindowSlot, string]> = [
-  ["left", "Left Top"],
-  ["left-split", "Left Bottom"],
-  ["bottom", "Bottom Left"],
-  ["bottom-split", "Bottom Right"],
-  ["right-split", "Right Bottom"],
-  ["right", "Right Top"],
-];
-
-/** "Move to" submenu (IDEA: tool window options › Move To). */
-export function moveToMenu(tw: ToolWindowContribution): MenuItem {
-  const current = slotOf(tw);
-  return {
-    label: "Move To",
-    submenu: [
-      ...MOVE_TARGETS.map(([slot, label]): MenuItem => ({
-        id: slot,
-        label,
-        checked: slot === current ? true : undefined,
-        disabled: slot === current,
-        run: () => moveToolWindow(tw.id, slot),
-      })),
-      { kind: "separator" },
-      { label: "Restore Default Layout", run: resetToolWindowPlacements },
-    ],
-  };
-}
-
-/** Stripe button context menu, as in IDEA: Hide (removes the button), Move to, Show Tool Window Names. */
-function stripeButtonMenu(tw: ToolWindowContribution, showNames: boolean): MenuItem[] {
-  return [
-    { label: "Hide", run: () => removeFromStripe(tw.id) },
-    { kind: "separator" },
-    moveToMenu(tw),
-    { kind: "separator" },
-    {
-      label: "Show Tool Window Names",
-      checked: showNames,
-      run: () => void setShowToolWindowNames(!showNames),
-    },
-  ];
-}
-
-async function setShowToolWindowNames(on: boolean) {
-  const settings = await call(commands.settingsSet("global", "appearance.showToolWindowNames", JSON.stringify(on)));
-  useProject.setState({ settings });
-}
-
-type StripeSide = "left" | "right";
-
-/** 18 selects the 20px icon; compact mode uses the 16px drawing. */
-function useChromeIcon(): number {
-  return useProject((s) => (s.settings?.appearance?.compactMode === true ? 16 : 18));
-}
-
-// Stripe button drag. Pointer events rather than HTML5 drag and drop: with the window's native
-// file drop enabled, the webview never sees dragover / drop for drags that start inside it.
-
-type StripeDrop = { slot: ToolWindowSlot; before: string | null };
-
-const useStripeDrag = create<{ id: string | null; drop: StripeDrop | null }>(() => ({ id: null, drop: null }));
-
-/** Movement before a press on a stripe button becomes a drag, px. */
-const DRAG_THRESHOLD = 4;
-/** Set when a drag ends on its own button, so the click that follows doesn't toggle the window. */
-let dragEnded = false;
-
-/**
- * Stripe groups (IDEA New UI): each stripe's upper group holds its side,
- * primary windows then split ones (a separator marks the boundary while dragging); the lower group of the
- * left stripe holds Bottom Left, that of the right stripe Bottom Right.
- */
-function lowerSlot(side: StripeSide): ToolWindowSlot {
-  return side === "left" ? "bottom" : "bottom-split";
-}
-
-const middle = (r: DOMRect) => r.top + r.height / 2;
-
-/** Drop position under the pointer: an area and the button to insert before (null: at the end). */
-function stripeDropAt(x: number, y: number): StripeDrop | null {
-  const nav = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-stripe-side]");
-  const side = nav?.dataset.stripeSide;
-  if (!nav || (side !== "left" && side !== "right")) return null;
-  const spacer = nav.querySelector<HTMLElement>("[data-stripe-spacer]")?.getBoundingClientRect();
-  const separator = nav.querySelector<HTMLElement>("[data-stripe-separator]")?.getBoundingClientRect();
-  const slot: ToolWindowSlot =
-    spacer && y > middle(spacer) ? lowerSlot(side) : separator && y > middle(separator) ? `${side}-split` : side;
-  let before: string | null = null;
-  for (const b of nav.querySelectorAll<HTMLElement>(`[data-stripe-slot="${slot}"] [data-stripe-button]`)) {
-    if (y < middle(b.getBoundingClientRect())) {
-      before = b.dataset.stripeButton!;
-      break;
-    }
-  }
-  return { slot, before };
-}
-
-function startStripeDrag(e: PointerEvent<HTMLButtonElement>, id: string) {
-  if (e.button !== 0 || (dragRequiresAlt() && !e.altKey)) return;
-  const button = e.currentTarget;
-  const start = { x: e.clientX, y: e.clientY };
-  let ghost: HTMLElement | null = null;
-  const place = (x: number, y: number) => {
-    if (ghost) ghost.style.transform = `translate(${x - start.x}px, ${y - start.y}px)`;
-  };
-  const onMove = (ev: globalThis.PointerEvent) => {
-    if (!ghost) {
-      if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD) return;
-      const r = button.getBoundingClientRect();
-      ghost = button.cloneNode(true) as HTMLElement;
-      ghost.removeAttribute("data-stripe-button");
-      ghost.className = clsx(button.className, styles.stripeGhost);
-      Object.assign(ghost.style, {
-        left: `${r.left}px`,
-        top: `${r.top}px`,
-        width: `${r.width}px`,
-        height: `${r.height}px`,
-      });
-      document.body.appendChild(ghost);
-      useStripeDrag.setState({ id, drop: null });
-    }
-    place(ev.clientX, ev.clientY);
-    const drop = stripeDropAt(ev.clientX, ev.clientY);
-    const cur = useStripeDrag.getState().drop;
-    if (drop?.slot !== cur?.slot || drop?.before !== cur?.before) useStripeDrag.setState({ drop });
-  };
-  const finish = (commit: boolean) => {
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onCancel);
-    window.removeEventListener("keydown", onKey, true);
-    if (!ghost) return;
-    ghost.remove();
-    const { drop } = useStripeDrag.getState();
-    useStripeDrag.setState({ id: null, drop: null });
-    dragEnded = true;
-    setTimeout(() => (dragEnded = false));
-    if (commit && drop && drop.before !== id) moveToolWindow(id, drop.slot, drop.before);
-  };
-  const onUp = () => finish(true);
-  const onCancel = () => finish(false);
-  const onKey = (ev: globalThis.KeyboardEvent) => {
-    if (ev.key !== "Escape" || !ghost) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    finish(false);
-  };
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onCancel);
-  window.addEventListener("keydown", onKey, true);
-}
-
-function StripeButton({
-  tw,
-  active,
-  focused,
-  side,
-  showName,
-}: {
-  tw: ToolWindowContribution;
-  active: boolean;
-  focused: boolean;
-  side: "left" | "right";
-  showName: boolean;
-}) {
-  const shortcut = shortcutLabel(`toolwindow.${tw.id}`);
-  const dragged = useStripeDrag((s) => s.id === tw.id);
-  const icon = useChromeIcon();
-  return (
-    <button
-      type="button"
-      className={clsx(
-        styles.stripeButton,
-        showName && styles.stripeNamed,
-        active && styles.stripeActive,
-        active && focused && styles.stripeFocused,
-        side === "right" && styles.stripeRight,
-        dragged && styles.stripeDragged,
-      )}
-      aria-label={tx(tw.title)}
-      aria-pressed={active}
-      aria-keyshortcuts={shortcut}
-      data-stripe-button={tw.id}
-      onPointerDown={(e) => startStripeDrag(e, tw.id)}
-      onClick={() => {
-        if (!dragEnded) toggleToolWindow(tw.id);
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        showContextMenu(e, stripeButtonMenu(tw, showName));
-      }}
-      {...tooltipAttrs(tw.title, shortcut)}
-    >
-      <span className={styles.stripeIcon}>
-        <Icon name={tw.icon} size={icon} />
-      </span>
-      {showName && (
-        <span className={clsx(styles.stripeLabel, !/\s/.test(tw.title) && styles.stripeLabelWord)} aria-hidden="true">
-          <T>{tw.title}</T>
-        </span>
-      )}
-    </button>
-  );
-}
-
-/** Stripe "…": tool windows without a stripe button; opening one adds its button (IDEA). */
-function StripeMore({ windows }: { windows: ToolWindowContribution[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement>(null);
-  const icon = useChromeIcon();
-  const items = useMemo<MenuItem[]>(
-    () =>
-      [...windows]
-        .sort((a, b) => a.title.localeCompare(b.title))
-        .map((w) => ({
-          id: w.id,
-          label: w.title,
-          icon: w.icon,
-          shortcut: shortcutLabel(`toolwindow.${w.id}`),
-          run: () => showToolWindow(w.id, true),
-        })),
-    [windows],
-  );
-  return (
-    <>
-      <button
-        ref={ref}
-        type="button"
-        className={clsx(styles.stripeButton, styles.stripeMore)}
-        aria-label={tx("More Tool Windows")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        {...tooltipAttrs("More Tool Windows")}
-      >
-        <Icon name="more-horizontal" size={icon} />
-      </button>
-      <Menu
-        open={open}
-        onClose={() => setOpen(false)}
-        anchor={ref}
-        items={items}
-        placement="right-start"
-        aria-label="Tool windows"
-      />
-    </>
-  );
-}
-
-function onStripeKeyDown(e: KeyboardEvent<HTMLElement>) {
-  if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
-  const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
-  const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
-  const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : i + (e.key === "ArrowDown" ? 1 : -1);
-  buttons[Math.max(0, Math.min(buttons.length - 1, next))]?.focus();
-  e.preventDefault();
-}
-
-export function ToolWindowStripe({
-  side,
-  windows,
-  visible,
-  showNames = false,
-}: {
-  side: StripeSide;
-  windows: ToolWindowContribution[];
-  visible: SlotRecord;
-  /** Tool window names under the icons (IDEA "Show Tool Window Names"). */
-  showNames?: boolean;
-}) {
-  const isActive = (w: ToolWindowContribution) => visible[slotOf(w)] === w.id;
-  const stripeButtons = useToolWindowLayout((s) => s.stripeButtons);
-  const onStripe = windows.filter((w) => hasStripeButton(w, stripeButtons) || isActive(w));
-  const inSlot = (slot: ToolWindowSlot) => onStripe.filter((w) => slotOf(w) === slot);
-  const primary = inSlot(side);
-  const split = inSlot(`${side}-split`);
-  const lower = inSlot(lowerSlot(side));
-  const moreWindows = windows.filter((w) => !onStripe.includes(w));
-  const focused = useToolWindowLayout((s) => s.focused);
-  const drop = useStripeDrag((s) => s.drop);
-  // The separator between primary and split windows only shows while a button is dragged, as a drop target.
-  const dragging = useStripeDrag((s) => !!s.id);
-
-  const indicator = (slot: ToolWindowSlot, before: string | null) =>
-    drop && drop.slot === slot && drop.before === before ? (
-      <div className={styles.stripeDrop} aria-hidden="true" />
-    ) : null;
-  const renderGroup = (slot: ToolWindowSlot, list: ToolWindowContribution[]) => (
-    <div className={styles.stripeGroup} data-stripe-slot={slot}>
-      {list.map((w) => (
-        <div key={w.id} className={styles.stripeSlot}>
-          {indicator(slot, w.id)}
-          <StripeButton tw={w} active={isActive(w)} focused={focused === w.id} side={side} showName={showNames} />
-        </div>
-      ))}
-      <div className={styles.stripeSlot}>{indicator(slot, null)}</div>
-    </div>
-  );
-
-  return (
-    <nav
-      aria-label={side === "left" ? "Tool windows" : "Right tool windows"}
-      role="toolbar"
-      aria-orientation="vertical"
-      data-stripe-side={side}
-      className={clsx(
-        styles.stripe,
-        showNames && styles.stripeWithNames,
-        side === "right" ? styles.stripeSideRight : styles.stripeSideLeft,
-      )}
-      onKeyDown={onStripeKeyDown}
-    >
-      {renderGroup(side, primary)}
-      {dragging && <div className={styles.stripeSeparator} data-stripe-separator="" role="separator" />}
-      {(split.length > 0 || dragging) && renderGroup(`${side}-split`, split)}
-      {side === "left" && <StripeMore windows={moreWindows} />}
-      <div className={styles.stripeSpacer} data-stripe-spacer="" />
-      {renderGroup(lowerSlot(side), lower)}
-    </nav>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Panels
 
 const NO_ITEMS: MenuItem[] = [];
@@ -416,7 +83,16 @@ function staticHeaderMenu(items: MenuItem[] | undefined): (id: string) => MenuIt
 
 const noTitleMenu = (): { label: string; items: MenuItem[] } | null => null;
 
-function ToolWindowView({ tw, hidden }: { tw: ToolWindowContribution; hidden: boolean }) {
+function ToolWindowView({
+  tw,
+  hidden,
+  windows,
+}: {
+  tw: ToolWindowContribution;
+  hidden: boolean;
+  /** Every placed window: the header lists this area's as tabs. */
+  windows: ToolWindowContribution[];
+}) {
   const ref = useRef<HTMLElement>(null);
   const focusRequest = useToolWindowLayout((s) => s.focusRequest);
   const maximized = useToolWindowLayout((s) => s.maximized === tw.anchor);
@@ -474,47 +150,57 @@ function ToolWindowView({ tw, hidden }: { tw: ToolWindowContribution; hidden: bo
       tabIndex={-1}
     >
       <header
-        className={clsx(styles.header, (Tabs || tw.headerDivider) && styles.headerTabbed)}
+        className={clsx(styles.header, styles.headerTabbed)}
         onDoubleClick={(e) => e.target === e.currentTarget && toggleMaximizeToolWindow(tw.id)}
       >
-        {Tabs && tw.tabsReplaceTitle ? null : titleItems.length > 0 ? (
-          <>
-            <button
-              ref={titleRef}
-              type="button"
-              className={styles.titleButton}
-              aria-haspopup="menu"
-              aria-expanded={titleOpen}
-              onClick={() => setTitleOpen((v) => !v)}
-            >
-              <span className={styles.title}>
-                <T>{titleMenu?.label ?? tw.title}</T>
-              </span>
-              <Icon name="chevron-down" size={12} className={styles.titleChevron} />
-            </button>
-            <Menu
-              open={titleOpen}
-              onClose={() => setTitleOpen(false)}
-              anchor={titleRef}
-              items={titleItems}
-              aria-label={titleMenu ? tx`${tw.title} views` : tx`${tw.title} view options`}
-            />
-          </>
-        ) : (
-          <span className={clsx(styles.title, styles.titlePlain)}>
-            <T>{tw.title}</T>
-          </span>
-        )}
-        {Tabs && (
-          <div className={clsx(styles.headerContent, tw.tabsReplaceTitle && styles.headerContentOnly)}>
-            <TabStripRegistry.Provider value={contentTabRegistry(tw.id)}>
-              <Tabs id={tw.id} />
-            </TabStripRegistry.Provider>
-          </div>
-        )}
-        <div className={styles.headerSpacer} />
+        <AreaTabs
+          slot={slotOf(tw)}
+          windows={windows}
+          active={tw}
+          activeContent={
+            <>
+              {Tabs && tw.tabsReplaceTitle ? null : titleItems.length > 0 ? (
+                <>
+                  <button
+                    ref={titleRef}
+                    type="button"
+                    className={styles.titleButton}
+                    data-tab-own=""
+                    aria-haspopup="menu"
+                    aria-expanded={titleOpen}
+                    onClick={() => setTitleOpen((v) => !v)}
+                  >
+                    <span className={styles.title}>
+                      <T>{titleMenu?.label ?? tw.title}</T>
+                    </span>
+                    <Icon name="chevron-down" size={12} className={styles.titleChevron} />
+                  </button>
+                  <Menu
+                    open={titleOpen}
+                    onClose={() => setTitleOpen(false)}
+                    anchor={titleRef}
+                    items={titleItems}
+                    aria-label={titleMenu ? tx`${tw.title} views` : tx`${tw.title} view options`}
+                  />
+                </>
+              ) : (
+                <span className={clsx(styles.title, styles.titlePlain)}>
+                  <T>{tw.title}</T>
+                </span>
+              )}
+              {Tabs && (
+                <span className={styles.headerContent} data-tab-own="">
+                  <TabStripRegistry.Provider value={contentTabRegistry(tw.id)}>
+                    <Tabs id={tw.id} />
+                  </TabStripRegistry.Provider>
+                </span>
+              )}
+            </>
+          }
+        />
         <div className={styles.headerActions}>
           {Actions && <Actions id={tw.id} />}
+          <AreaToolsButton slot={slotOf(tw)} windows={windows} active={tw} />
           <IconButton
             ref={moreRef}
             icon="more"
@@ -667,7 +353,7 @@ function SidePanel({
         hidden={!visibleId}
       >
         {list.map((w) => (
-          <ToolWindowView key={w.id} tw={w} hidden={w.id !== visibleId} />
+          <ToolWindowView key={w.id} tw={w} hidden={w.id !== visibleId} windows={windows} />
         ))}
       </div>
     );
@@ -792,44 +478,24 @@ function GapHandle({
 }
 
 /** Settings › Appearance › Tool Windows (raw settings: the workbench does not depend on the settings feature). */
-function useToolWindowAppearance() {
-  const a = useProject((s) => s.settings?.appearance);
-  const distractionFree = useDistractionFree((s) => s.active);
-  return {
-    bars: a?.showToolWindowBars !== false && !distractionFree,
-    names: a?.showToolWindowNames === true,
-    widescreen: a?.widescreenToolWindows === true,
-  };
+function useWidescreen() {
+  return useProject((s) => s.settings?.appearance?.widescreenToolWindows === true);
 }
 
 /**
- * The Islands frame below the title bar: stripes on the window background,
- * side tool windows and the editor as rounded islands in one row, bottom
- * tool windows as a full-width island underneath (or, with "Widescreen tool
- * window layout", between the side windows). Resize handles sit in the gaps
- * between islands. A CSS grid does the layout, so a window resize costs no script.
+ * The Islands frame below the title bar: side tool windows and the editor as rounded islands in
+ * one row, bottom tool windows as a full-width island underneath (or, with "Widescreen tool
+ * window layout", between the side windows). No stripes: each area's windows are the tabs of its
+ * header, and closed areas open from the title bar, the status bar or their shortcuts. Resize
+ * handles sit in the gaps between islands. A CSS grid does the layout, so a window resize costs
+ * no script.
  */
 export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
   const windows = useToolWindows();
   const visible = useEffectiveVisible(windows);
-  const appearance = useToolWindowAppearance();
-  const { bars, widescreen, names } = appearance;
-  const stripe = (side: StripeSide) => (
-    <ToolWindowStripe side={side} windows={windows} visible={visible} showNames={names} />
-  );
+  const widescreen = useWidescreen();
   const sizes = useToolWindowLayout((s) => s.sizes);
   const maximized = useToolWindowLayout((s) => s.maximized);
-  const stripeButtons = useToolWindowLayout((s) => s.stripeButtons);
-  // The right stripe holds the right side's windows and Bottom Right.
-  const hasRight = windows.some((w) => {
-    const slot = slotOf(w);
-    return (
-      (w.anchor === "right" || slot === "bottom-split") && (hasStripeButton(w, stripeButtons) || visible[slot] === w.id)
-    );
-  });
-  // While a stripe button is dragged, an empty right stripe shows as a drop target.
-  const dragging = useStripeDrag((s) => !!s.id);
-  const rightStripe = bars && (hasRight || dragging);
   const gridRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const sync = () => {
@@ -847,12 +513,11 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
     />
   );
   return (
-    <div className={clsx(styles.frame, !rightStripe && styles.frameNoRight, !bars && styles.frameNoLeft)}>
-      {bars && stripe("left")}
+    <div className={styles.frame}>
       <div ref={gridRef} className={clsx(styles.grid, widescreen && styles.widescreen)}>
         <SidePanel anchor="left" windows={windows} visible={visible} />
         {gap("left")}
-        <div ref={editorRef} className={clsx(styles.island, styles.editorIsland)}>
+        <div ref={editorRef} className={clsx(styles.island, styles.editorIsland)} data-editor-island="">
           {editor}
         </div>
         {gap("right")}
@@ -860,7 +525,6 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
         {gap("bottom")}
         <SidePanel anchor="bottom" windows={windows} visible={visible} />
       </div>
-      {rightStripe && stripe("right")}
     </div>
   );
 }

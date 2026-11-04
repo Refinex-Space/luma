@@ -196,7 +196,7 @@ describe("distraction free mode", () => {
 });
 
 describe("distraction free shell", () => {
-  it("hides stripes, status bar and main toolbar contents, keeping the drag region", async () => {
+  it("hides tool window areas, status bar and main toolbar contents, keeping the drag region", async () => {
     const { Workbench } = await import("./Workbench");
     disposers.push(
       registerStatusItem({ id: "t.status", align: "left", priority: 0, component: () => <span>status-x</span> }),
@@ -209,12 +209,12 @@ describe("distraction free shell", () => {
     const { unmount } = render(<Workbench />);
     expect(await screen.findByText("df-demo")).toBeInTheDocument();
     expect(screen.getByText("status-x")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Left Top" })).toBeInTheDocument();
 
     act(() => setDistractionFree(true));
     expect(screen.queryByText("df-demo")).toBeNull();
     expect(screen.queryByText("status-x")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Project" })).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Left Top" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Search Everywhere" })).toBeNull();
     const bar = document.querySelector("header[data-titlebar='bare']");
     expect(bar).toHaveAttribute("data-tauri-drag-region");

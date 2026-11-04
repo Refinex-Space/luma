@@ -24,6 +24,9 @@ describe("IDEA keymap parity", () => {
     ["refactor.inline", ["Meta+Alt+N"], ["Ctrl+Alt+N"]],
     ["debug.resume", ["Meta+Alt+R", "F9"], ["F9"]],
     ["code.quickDefinition", ["Alt+Space", "Meta+Y"], ["Ctrl+Shift+I"]],
+    // ExternalSystem.ProjectRefreshAction (Load Maven / Gradle Changes).
+    ["maven.reload", ["Meta+Shift+I"], ["Ctrl+Shift+O"]],
+    ["gradle.reload", ["Meta+Shift+I"], ["Ctrl+Shift+O"]],
     ["editor.copyPath", ["Meta+Shift+C"], ["Ctrl+Shift+C"]],
     ["project.open", ["F4", "Meta+Down"], ["F4"]],
     ["project.delete", ["Delete", "Backspace", "Meta+Backspace"], ["Delete"]],

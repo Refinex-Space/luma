@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { emitLocalIdeEvent } from "@/platform/ipc";
 import { registerStatusItem, registerToolWindow, type StatusItemContribution } from "./contributions";
 import { orderStatusItems, StatusBar, TaskStatus } from "./StatusBar";
@@ -15,17 +15,10 @@ import {
   useNotifications,
 } from "./notificationStore";
 import { installTaskEvents, useTasks } from "./tasks";
-import { ToolWindowLayout, ToolWindowStripe } from "./toolwindows/ToolWindows";
-import { isToolWindowVisible, loadToolWindowLayout, showToolWindow, type SlotRecord } from "./toolwindows/store";
-
-const NO_SLOTS: SlotRecord = {
-  left: null,
-  "left-split": null,
-  bottom: null,
-  "bottom-split": null,
-  right: null,
-  "right-split": null,
-};
+import { ToolWindowLayout } from "./toolwindows/ToolWindows";
+import { areaTabs, areaToolsMenu } from "./toolwindows/AreaTabs";
+import { hideAllToolWindows, isToolWindowVisible, loadToolWindowLayout, showToolWindow } from "./toolwindows/store";
+import { ToolWindowLauncher } from "./toolwindows/Launcher";
 
 const item = (id: string, align: "left" | "right", priority: number): StatusItemContribution => ({
   id,
@@ -225,31 +218,44 @@ describe("notifications", () => {
   });
 });
 
-describe("tool window stripe", () => {
-  it("renders left + bottom windows on the left stripe and toggles on click", () => {
-    const C = () => null;
+describe("tool window area tabs", () => {
+  it("lists an area's windows as tabs; another tab shows its window", () => {
     const disposers = [
-      registerToolWindow({ id: "project", title: "Project", icon: "folder", anchor: "left", component: C }),
-      registerToolWindow({ id: "terminal", title: "Terminal", icon: "terminal", anchor: "bottom", component: C }),
+      registerToolWindow({
+        id: "terminal",
+        title: "Terminal",
+        icon: "terminal",
+        anchor: "bottom",
+        requiresProject: false,
+        component: () => <div>shell</div>,
+      }),
+      registerToolWindow({
+        id: "problems",
+        title: "Problems",
+        icon: "warning",
+        anchor: "bottom",
+        requiresProject: false,
+        component: () => <div>issues</div>,
+      }),
     ];
-    loadToolWindowLayout("/stripe");
-    const windows = [
-      { id: "project", title: "Project", icon: "folder", anchor: "left" as const, component: C },
-      { id: "terminal", title: "Terminal", icon: "terminal", anchor: "bottom" as const, component: C },
-    ];
-    render(<ToolWindowStripe side="left" windows={windows} visible={{ ...NO_SLOTS, left: "project" }} />);
-    const project = screen.getByRole("button", { name: "Project" });
-    expect(project).toHaveAttribute("aria-pressed", "true");
-    expect(project).toHaveAttribute("aria-keyshortcuts", "⌘1");
-    fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
-    expect(isToolWindowVisible("terminal")).toBe(true);
+    loadToolWindowLayout("/tabs");
+    showToolWindow("terminal");
+    render(<ToolWindowLayout editor={<div>editor</div>} />);
+    const strip = screen.getByRole("tablist", { name: "Bottom Left" });
+    expect(strip).toHaveAttribute("data-area-slot", "bottom");
+    const problems = screen.getByRole("tab", { name: "Problems" });
+    expect(problems).toHaveAttribute("aria-selected", "false");
+    fireEvent.click(problems);
+    expect(isToolWindowVisible("problems")).toBe(true);
+    expect(isToolWindowVisible("terminal")).toBe(false);
     disposers.forEach((d) => d());
   });
 
-  it("groups buttons by area as IDEA's New UI stripes do", () => {
+  it("keeps windows used on demand out of the tabs and offers them, and others, in the Tools menu", () => {
     const C = () => null;
     const windows = [
       { id: "project", title: "Project", icon: "folder", anchor: "left" as const, component: C },
+      { id: "pr", title: "Pull Requests", icon: "pr", anchor: "left" as const, stripe: "onUse" as const, component: C },
       {
         id: "structure",
         title: "Structure",
@@ -259,27 +265,57 @@ describe("tool window stripe", () => {
         component: C,
       },
       { id: "terminal", title: "Terminal", icon: "terminal", anchor: "bottom" as const, component: C },
-      { id: "db", title: "Database", icon: "db", anchor: "right" as const, component: C },
-      { id: "services", title: "Services", icon: "s", anchor: "bottom" as const, secondary: true, component: C },
     ];
-    const ids = (slot: string) =>
-      [...document.querySelectorAll(`[data-stripe-slot="${slot}"] [data-stripe-button]`)].map((b) =>
-        b.getAttribute("data-stripe-button"),
-      );
-    const { unmount } = render(
-      <>
-        <ToolWindowStripe side="left" windows={windows} visible={NO_SLOTS} />
-        <ToolWindowStripe side="right" windows={windows} visible={NO_SLOTS} />
-      </>,
-    );
-    expect(ids("left")).toEqual(["project"]);
-    expect(ids("left-split")).toEqual(["structure"]);
-    expect(ids("bottom")).toEqual(["terminal"]);
-    expect(ids("right")).toEqual(["db"]);
-    expect(ids("bottom-split")).toEqual(["services"]);
-    // The separator only shows while a button is dragged.
-    expect(document.querySelectorAll("[data-stripe-separator]")).toHaveLength(0);
-    unmount();
+    const tabs = areaTabs(windows, "left", "project", {});
+    expect(tabs.map((w) => w.id)).toEqual(["project"]);
+    const menu = areaToolsMenu(windows, "left", tabs);
+    const labels = menu.map((m) => ("label" in m ? m.label : "—"));
+    expect(labels).toEqual(["Left Top", "Pull Requests", "—", "Move Here", "Structure", "Terminal"]);
+    // Opened once, an on-demand window keeps its tab.
+    expect(areaTabs(windows, "left", "project", { pr: true }).map((w) => w.id)).toEqual(["project", "pr"]);
+  });
+});
+
+describe("status bar launcher", () => {
+  it("lists the bottom windows with their badges, opens one, and folds while the bottom area is open", () => {
+    const disposers = [
+      registerToolWindow({
+        id: "terminal",
+        title: "Terminal",
+        icon: "terminal",
+        anchor: "bottom",
+        requiresProject: false,
+        component: () => <div>shell</div>,
+      }),
+      registerToolWindow({
+        id: "problems",
+        title: "Problems",
+        icon: "warning",
+        anchor: "bottom",
+        requiresProject: false,
+        component: () => <div>issues</div>,
+        useBadge: () => ({ count: 3, tone: "error" }),
+      }),
+      registerToolWindow({
+        id: "project",
+        title: "Project",
+        icon: "folder",
+        anchor: "left",
+        requiresProject: false,
+        component: () => null,
+      }),
+    ];
+    loadToolWindowLayout("/launcher");
+    hideAllToolWindows();
+    render(<ToolWindowLauncher />);
+    const bar = screen.getByRole("toolbar", { name: "Bottom tool windows" });
+    expect(bar).not.toHaveAttribute("data-hidden");
+    const buttons = within(bar).getAllByRole("button");
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Problems 3", "Terminal"]);
+    fireEvent.click(buttons[1]!);
+    expect(isToolWindowVisible("terminal")).toBe(true);
+    expect(bar).toHaveAttribute("data-hidden");
+    disposers.forEach((d) => d());
   });
 });
 

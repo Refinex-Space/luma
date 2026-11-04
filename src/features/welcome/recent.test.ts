@@ -35,7 +35,7 @@ describe("filterRecent", () => {
   });
 
   it("matches camel-hump / word starts and is case-insensitive", () => {
-    expect(filterRecent(projects, "EIde").map((m) => m.project.name)).toEqual(["luma-ide"]);
+    expect(filterRecent(projects, "LIde").map((m) => m.project.name)).toEqual(["luma-ide"]);
     expect(filterRecent(projects, "TOK").map((m) => m.project.name)).toEqual(["tokio"]);
     expect(filterRecent(projects, "zzz")).toEqual([]);
   });

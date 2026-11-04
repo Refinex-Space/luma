@@ -21,6 +21,8 @@
 .layoutActions {
   display: flex;
   align-items: center;
+  /* Neighbouring hover and pressed backgrounds stay apart. */
+  gap: 2px;
 }
 .layoutActions > button {
   width: var(--h-floating-toolbar-button);
