@@ -1,5 +1,5 @@
 /**
- * Converts an IntelliJ theme into an Lama theme plugin package.
+ * Converts an IntelliJ theme into an Luma theme plugin package.
  *
  *   pnpm theme:import-intellij <file.theme.json> [file.icls] --out <dir> [--id <id>] [--author <name>]
  *

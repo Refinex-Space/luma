@@ -207,7 +207,7 @@ export class TerminalSession {
       follow: true,
     };
     this.host = document.createElement("div");
-    this.host.className = "lama-terminal-host";
+    this.host.className = "luma-terminal-host";
     this.host.dataset.terminalSession = opts.key;
     this.host.style.width = "100%";
     this.host.style.height = "100%";

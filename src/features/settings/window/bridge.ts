@@ -15,9 +15,9 @@ import { allActions, executeAction, getAction, registerAction, useActions, type 
 import { isTauri } from "@/platform/ipc";
 
 const SETTINGS_PREFIX = "settings-";
-const REQUEST_ACTIONS = "lama://settings/request-actions";
-const ACTIONS = "lama://settings/actions";
-const EXEC = "lama://settings/exec";
+const REQUEST_ACTIONS = "luma://settings/request-actions";
+const ACTIONS = "luma://settings/actions";
+const EXEC = "luma://settings/exec";
 
 export type ActionInfo = Pick<
   Action,

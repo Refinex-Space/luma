@@ -1,7 +1,7 @@
 /**
  * Multi-window: one project per window. New windows are created by the
  * backend (`window_open_project` / `window_new`) and told what to open via a
- * pending launch, taken here on startup and on `lama://launch`.
+ * pending launch, taken here on startup and on `luma://launch`.
  *
  * Loose files opened without a project (dropped on the Welcome screen, File ›
  * Open File…, a file path on the command line) open in LightEdit: a window with
@@ -26,7 +26,7 @@ import { chooseProjectWindow } from "@/workbench/projectWindow";
 import { cycleWindowTab, useWindowGroup } from "@/platform/windowGroups";
 import { showWorkspaceDialog } from "./WorkspaceDialog";
 
-export const LAUNCH_EVENT = "lama://launch";
+export const LAUNCH_EVENT = "luma://launch";
 
 function errorText(e: unknown) {
   return e instanceof Error ? e.message : String(e);

@@ -49,7 +49,7 @@ jobs:
               return;
             }
             const { data } = await github.rest.repos.createRelease({
-              owner, repo, tag_name: tag, name: `Lama ${tag}`,
+              owner, repo, tag_name: tag, name: `Luma ${tag}`,
               draft: true, prerelease: tag.includes("-"), generate_release_notes: true,
             });
             core.setOutput("id", data.id);
@@ -168,15 +168,15 @@ jobs:
         run: |
           # musl-tools only ships `musl-gcc`; cc-rs would look for `<arch>-linux-musl-gcc`.
           if [ "$RUNNER_OS" = Linux ]; then export CC_${TARGET//-/_}=musl-gcc; fi
-          cargo build --release --locked -p ide-host --bin lama-server --target "$TARGET"
+          cargo build --release --locked -p ide-host --bin luma-server --target "$TARGET"
         env:
           TARGET: ${{ matrix.target }}
       - name: Upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET: lama-server-${{ matrix.os }}-${{ matrix.arch }}.gz
+          ASSET: luma-server-${{ matrix.os }}-${{ matrix.arch }}.gz
         run: |
-          gzip -9 -c target/${{ matrix.target }}/release/lama-server > "$ASSET"
+          gzip -9 -c target/${{ matrix.target }}/release/luma-server > "$ASSET"
           if command -v sha256sum >/dev/null; then sha256sum "$ASSET"; else shasum -a 256 "$ASSET"; fi > "$ASSET.sha256"
           gh release upload "$TAG" "$ASSET" "$ASSET.sha256" --clobber
 

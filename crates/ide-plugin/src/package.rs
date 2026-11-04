@@ -53,7 +53,7 @@ pub(crate) fn unpack_zip(zip: &Path, dest: &Path) -> IdeResult<PathBuf> {
     }
     package_root(dest).ok_or_else(|| {
         IdeError::invalid(format!(
-            "{} is not an Lama plugin: no {MANIFEST_FILE} at its root or in its only folder",
+            "{} is not an Luma plugin: no {MANIFEST_FILE} at its root or in its only folder",
             zip.display()
         ))
     })

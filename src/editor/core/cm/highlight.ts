@@ -21,7 +21,7 @@ function token(
   };
 }
 
-export const lamaHighlightStyle = HighlightStyle.define([
+export const lumaHighlightStyle = HighlightStyle.define([
   // Markdown tags whole links / quotes; listed first so marks, URL and title inside keep their own colours.
   token(t.link, "link", { effect: "underline" }),
   token(t.quote, "string"),

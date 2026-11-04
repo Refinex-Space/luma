@@ -6,7 +6,7 @@ import { useProject } from "@/platform/project";
 
 export type HistoryKind = "condition" | "evaluate" | "console";
 
-const PREFIX = "lama.debugger.history.";
+const PREFIX = "luma.debugger.history.";
 const MAX = 50;
 
 function key(kind: HistoryKind): string | null {

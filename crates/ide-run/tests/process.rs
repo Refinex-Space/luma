@@ -125,8 +125,8 @@ fn output_streams_and_exit_code() {
 fn shell_command_string_and_env_and_cwd() {
     let h = harness();
     std::fs::create_dir(h.root.path().join("sub")).unwrap();
-    let mut config = cfg("t:shell", "echo \"$LAMA_VAR\" && pwd | tr -d '\\n'", &[]);
-    config.env.insert("LAMA_VAR".into(), "hello".into());
+    let mut config = cfg("t:shell", "echo \"$LUMA_VAR\" && pwd | tr -d '\\n'", &[]);
+    config.env.insert("LUMA_VAR".into(), "hello".into());
     config.cwd = Some(PathBuf::from("sub").into());
     let (id, chunks) = start(&h, &config);
     assert_eq!(wait_exit(&h, id, Duration::from_secs(10)), Some(0));
@@ -135,7 +135,7 @@ fn shell_command_string_and_env_and_cwd() {
     assert_eq!(lines.next(), Some("hello"));
     let cwd = Path::new(lines.next().unwrap()).canonicalize().unwrap();
     assert_eq!(cwd, h.root.path().join("sub").canonicalize().unwrap());
-    assert!(text(&chunks, system).starts_with("echo \"$LAMA_VAR\""));
+    assert!(text(&chunks, system).starts_with("echo \"$LUMA_VAR\""));
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn missing_command_and_cwd_are_errors() {
     let err =
         h.pm.start(
             h.root.path(),
-            &cfg("t:nope", "lama-no-such-binary-xyz", &[]),
+            &cfg("t:nope", "luma-no-such-binary-xyz", &[]),
             &StartOptions::default(),
             h.sink.clone(),
             Box::new(|_| {}),
@@ -374,15 +374,15 @@ fn pipe_runs_cannot_be_resized() {
 fn stop_command_runs_first_with_the_run_environment() {
     let h = harness();
     let mut config = cfg("t:stop-cmd", "/bin/sh", &["-c", "echo ready; sleep 30"]);
-    config.env.insert("LAMA_MARKER".into(), "stopped".into());
-    config.extras.stop_command = Some("touch \"$LAMA_MARKER\"".into());
+    config.env.insert("LUMA_MARKER".into(), "stopped".into());
+    config.extras.stop_command = Some("touch \"$LUMA_MARKER\"".into());
     let (id, chunks) = start(&h, &config);
     wait_for(&chunks, "ready");
     h.pm.stop_with_grace(id, Duration::from_millis(200)).unwrap();
     // `sleep` ignores nothing: the signals that follow the stop command end it.
     assert_eq!(wait_exit(&h, id, Duration::from_secs(10)), Some(130));
     assert!(h.root.path().join("stopped").exists(), "stop command did not run");
-    assert!(text(&chunks, system).contains("touch \"$LAMA_MARKER\""));
+    assert!(text(&chunks, system).contains("touch \"$LUMA_MARKER\""));
 }
 
 /// A `java` command line past the platform limit starts through a pathing jar
@@ -415,7 +415,7 @@ fn long_java_classpath_is_shortened() {
     let file = first
         .split(' ')
         .map(|a| a.trim_matches('\'').trim_start_matches('@'))
-        .find(|a| a.contains("lama-classpath"))
+        .find(|a| a.contains("luma-classpath"))
         .unwrap_or_else(|| panic!("no pathing jar / argfile in {first}"));
     assert!(!Path::new(file).exists(), "{file} not deleted");
 }
@@ -512,7 +512,7 @@ fn cmake_configure_discovers_builds_and_runs_a_multifile_target() {
     let configure = initial.iter().find(|c| c.id.ends_with(":configure")).unwrap();
     let (id, output) = start(&h, configure);
     assert_eq!(wait_exit(&h, id, Duration::from_secs(60)), Some(0), "{}", text(&output, stderr));
-    assert!(h.root.path().join("build/.cmake/api/v1/query/client-lama/codemodel-v2").exists());
+    assert!(h.root.path().join("build/.cmake/api/v1/query/client-luma/codemodel-v2").exists());
     let root = h.root.path().canonicalize().unwrap();
     let configs = ide_run::detect(&root);
     let target = configs.iter().find(|c| c.kind == "native").expect("File API executable");

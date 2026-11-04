@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { ensureSyntaxTree, type LanguageSupport } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
 import { findLanguageDescription, loadSupport, loadedSupport } from "@/editor/core/cm/languages";
-import { lamaHighlightStyle } from "@/editor/core/cm/highlight";
+import { lumaHighlightStyle } from "@/editor/core/cm/highlight";
 
 const sql = findLanguageDescription("SQL", "console.sql");
 
@@ -27,7 +27,7 @@ export function SqlHighlight({ text }: { text: string }) {
     if (!tree) return [<span key={0}>{text}</span>];
     const result: React.ReactNode[] = [];
     let offset = 0;
-    highlightTree(tree, lamaHighlightStyle, (from, to, classes) => {
+    highlightTree(tree, lumaHighlightStyle, (from, to, classes) => {
       // Every piece is an element: the overlay is a flex row, which drops bare whitespace-only text.
       if (from > offset) result.push(<span key={`t${offset}`}>{text.slice(offset, from)}</span>);
       result.push(
@@ -42,7 +42,7 @@ export function SqlHighlight({ text }: { text: string }) {
   }, [support, text]);
   return (
     <>
-      <style>{lamaHighlightStyle.module?.getRules()}</style>
+      <style>{lumaHighlightStyle.module?.getRules()}</style>
       {pieces}
     </>
   );

@@ -34,8 +34,8 @@ const branch = (name: string, extra: Partial<Branch> = {}): Branch => ({
 });
 const remote = (name: string, commit?: string) => branch(name, { remote: true, commit });
 
-const origin: GHRemote = { owner: "l0ng-ai", name: "lama", remote: "origin", url: "" };
-const fork: GHRemote = { owner: "me", name: "lama", remote: "fork", url: "" };
+const origin: GHRemote = { owner: "l0ng-ai", name: "luma", remote: "origin", url: "" };
+const fork: GHRemote = { owner: "me", name: "luma", remote: "fork", url: "" };
 
 const branches = [
   branch("feature", { current: true, upstream: "fork/feature", commit: "a1" }),
@@ -93,11 +93,11 @@ describe("merge direction", () => {
       headRepo: origin,
       headBranch: { kind: "local", name: "feature" },
     };
-    expect(baseText(same)).toBe("lama:main");
-    expect(headText(same)).toBe("lama:feature");
+    expect(baseText(same)).toBe("luma:main");
+    expect(headText(same)).toBe("luma:feature");
     const forked: Direction = { ...same, headRepo: fork, headBranch: { kind: "remote", remote: "fork", name: "x" } };
     expect(baseText(forked)).toBe("Refinex-Space/luma:main");
-    expect(headText(forked)).toBe("me/lama:fork/x");
+    expect(headText(forked)).toBe("me/luma:fork/x");
     expect(baseText({ ...same, baseBranch: null })).toBeNull();
     expect(headText({ ...same, headRepo: null })).toBeNull();
   });

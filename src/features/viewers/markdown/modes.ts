@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 export type MarkdownMode = "editor" | "split" | "preview";
 
-const DEFAULT_KEY = "lama.markdown.defaultMode";
+const DEFAULT_KEY = "luma.markdown.defaultMode";
 const MODES: readonly MarkdownMode[] = ["editor", "split", "preview"];
 
 function storedDefault(): MarkdownMode {

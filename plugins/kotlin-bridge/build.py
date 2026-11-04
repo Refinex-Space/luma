@@ -27,6 +27,6 @@ with tempfile.TemporaryDirectory() as output:
             if name == 'META-INF/MANIFEST.MF':
                 data = data.rstrip(b'\r\n') + b'\n\n'
             jar.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), data)
-    staged = root/'lama-kotlin-bridge.jar.pending'
+    staged = root/'luma-kotlin-bridge.jar.pending'
     staged.write_bytes(archive.read_bytes())
-    staged.replace(root/'lama-kotlin-bridge.jar')
+    staged.replace(root/'luma-kotlin-bridge.jar')

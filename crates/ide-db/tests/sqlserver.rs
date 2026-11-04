@@ -1,4 +1,4 @@
-//! Live SQL Server checks, skipped unless LAMA_TEST_SQLSERVER=host:port:user:password
+//! Live SQL Server checks, skipped unless LUMA_TEST_SQLSERVER=host:port:user:password
 //! names a throwaway server.
 
 use ide_core::CancellationToken;
@@ -7,7 +7,7 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn sqlserver_values_paging_transactions_and_cancellation() {
-    let Ok(server) = std::env::var("LAMA_TEST_SQLSERVER") else { return };
+    let Ok(server) = std::env::var("LUMA_TEST_SQLSERVER") else { return };
     let mut parts = server.splitn(4, ':');
     let source = DataSource {
         driver: DbDriver::SqlServer,

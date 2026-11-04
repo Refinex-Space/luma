@@ -1,5 +1,5 @@
 /**
- * Hooks for the performance harness (`perf/`), exposed as `window.__lamaPerf`.
+ * Hooks for the performance harness (`perf/`), exposed as `window.__lumaPerf`.
  * Loaded only in dev and in `vite build --mode perf`; release builds never
  * include it. Measurement itself lives in the harness so it stays out of the app.
  */
@@ -52,7 +52,7 @@ export function installPerfProbe(): () => void {
       return { path: e.ctx.path, length: doc.length, lines: doc.lines, head: selection.main.head };
     },
   };
-  const w = window as unknown as { __lamaPerf?: PerfProbe };
-  w.__lamaPerf = probe;
-  return () => void delete w.__lamaPerf;
+  const w = window as unknown as { __lumaPerf?: PerfProbe };
+  w.__lumaPerf = probe;
+  return () => void delete w.__lumaPerf;
 }

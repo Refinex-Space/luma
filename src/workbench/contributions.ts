@@ -501,7 +501,7 @@ export interface OpenEditorTab {
 }
 
 /** MIME of a dragged editor tab: the payload is `{ paneId, tabId }` as JSON. */
-export const EDITOR_TAB_MIME = "application/x-lama-editor-tab";
+export const EDITOR_TAB_MIME = "application/x-luma-editor-tab";
 
 export interface EditorService {
   openFile(path: string, options?: OpenOptions): Promise<void>;

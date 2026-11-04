@@ -105,7 +105,7 @@ describe("bookmark list persistence", () => {
 
   it("reads bookmarks saved before lists into the default list", () => {
     localStorage.setItem(
-      "lama.bookmarks.v1:/proj",
+      "luma.bookmarks.v1:/proj",
       JSON.stringify([{ path: "/proj/a", line: 2, text: "", created: 1 }]),
     );
     loadBookmarks("/proj");
@@ -131,12 +131,12 @@ describe("bookmark list persistence", () => {
     expect(s.paths).toMatchObject([{ path: "/q/f", list: id }]);
     expect(s.items).toMatchObject([{ path: "/q/a", list: id }]);
     // Line bookmarks stay readable by older versions (same key, plain array).
-    expect(JSON.parse(localStorage.getItem("lama.bookmarks.v1:/q")!)).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem("luma.bookmarks.v1:/q")!)).toHaveLength(1);
   });
 
   it("ignores corrupt list storage", () => {
     localStorage.setItem(
-      "lama.bookmarkLists.v1:/c",
+      "luma.bookmarkLists.v1:/c",
       JSON.stringify({ lists: [{ id: 3 }], defaultList: "x", paths: [1] }),
     );
     loadBookmarks("/c");

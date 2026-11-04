@@ -13,7 +13,7 @@ interface ReviewModeSettings {
   threads: EditorThreadsOption;
 }
 
-const key = (root: string) => `lama.github.reviewMode.v1:${root}`;
+const key = (root: string) => `luma.github.reviewMode.v1:${root}`;
 const projectRoot = () => useProject.getState().project?.root ?? null;
 
 function loadEnabled(root: string | null): boolean {

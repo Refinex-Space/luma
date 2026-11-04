@@ -46,7 +46,7 @@ export interface TabItem {
 
 /**
  * Drag & drop of tabs. Strips sharing a `type` (a custom MIME type such as
- * `application/x-lama-editor-tab`) accept each other's tabs; `onDrop`
+ * `application/x-luma-editor-tab`) accept each other's tabs; `onDrop`
  * receives the dragged tab's payload and the insertion index in this strip.
  */
 export interface TabsDnd {

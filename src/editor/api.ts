@@ -273,7 +273,7 @@ export class LaneMarker extends GutterMarker {
   }
   override toDOM(): Node {
     const el = document.createElement("div");
-    el.className = this.kind === "deleted" ? "cm-lama-laneDeleted" : "cm-lama-laneBar";
+    el.className = this.kind === "deleted" ? "cm-luma-laneDeleted" : "cm-luma-laneBar";
     el.style.setProperty("--lane-color", this.color);
     if (this.title) el.title = this.title;
     return el;
@@ -290,10 +290,10 @@ export class LaneMarker extends GutterMarker {
  *   editorCorner(view).appendChild(el);
  */
 export function editorCorner(view: EditorView): HTMLElement {
-  const found = view.dom.querySelector<HTMLElement>(":scope > .cm-lama-corner");
+  const found = view.dom.querySelector<HTMLElement>(":scope > .cm-luma-corner");
   if (found) return found;
   const el = document.createElement("div");
-  el.className = "cm-lama-corner";
+  el.className = "cm-luma-corner";
   Object.assign(el.style, {
     position: "absolute",
     top: "4px",
@@ -315,9 +315,9 @@ export function editorCorner(view: EditorView): HTMLElement {
  *
  *   EditorState.languageData.of(() => [{ [CONTRIBUTED_HOVER]: sqlHover }])
  */
-export const CONTRIBUTED_FORMAT = "lamaFormat";
-export const CONTRIBUTED_DEFINITION = "lamaDefinition";
-export const CONTRIBUTED_HOVER = "lamaHover";
+export const CONTRIBUTED_FORMAT = "lumaFormat";
+export const CONTRIBUTED_DEFINITION = "lumaDefinition";
+export const CONTRIBUTED_HOVER = "lumaHover";
 
 /** Reformat Code: replacements for `range` (the selection) or the whole document. */
 export type ContributedFormatter = (

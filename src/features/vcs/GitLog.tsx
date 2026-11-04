@@ -124,7 +124,7 @@ export function GitTabs() {
       onSelect={selectGitTab}
       onClose={closeLogTab}
       aria-label="Git"
-      panelIdPrefix="lama-git"
+      panelIdPrefix="luma-git"
       items={tabItems(tabs)}
     />
   );
@@ -144,8 +144,8 @@ export function GitToolWindow() {
     <div
       className={styles.root}
       role="tabpanel"
-      id={`lama-git-panel-${shown}`}
-      aria-labelledby={`lama-git-tab-${shown}`}
+      id={`luma-git-panel-${shown}`}
+      aria-labelledby={`luma-git-tab-${shown}`}
     >
       {shown === "changes" ? (
         <LocalChangesView />

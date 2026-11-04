@@ -66,7 +66,7 @@ export function syncPluginActions(): () => void {
 
 // --- theme ------------------------------------------------------------------
 
-export const PLUGIN_THEME_STYLE_ID = "lama-plugin-theme";
+export const PLUGIN_THEME_STYLE_ID = "luma-plugin-theme";
 
 /** Stylesheet for a plugin theme. Its selector outranks every built-in theme block. */
 export function pluginThemeCss(theme: ActiveTheme["theme"]): string {
@@ -107,7 +107,7 @@ export function applyPluginTheme(theme: ActiveTheme | null, root: HTMLElement = 
 }
 
 /** localStorage key read by public/boot.js: the selected theme's stylesheet, applied before the app loads. */
-export const PLUGIN_THEME_CACHE_KEY = "lama.pluginTheme";
+export const PLUGIN_THEME_CACHE_KEY = "luma.pluginTheme";
 
 export interface CachedPluginTheme {
   /** `data-plugin-theme`: `<pluginId>/<themeId>`. */

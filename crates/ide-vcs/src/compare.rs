@@ -53,7 +53,7 @@ fn comparison_children(path: &Path) -> Vec<PathBuf> {
         .into_iter()
         .flatten()
         .flatten()
-        .filter(|entry| entry.file_name() != ".git" && entry.file_name() != ".lama")
+        .filter(|entry| entry.file_name() != ".git" && entry.file_name() != ".luma")
         .map(|entry| entry.path())
         .collect()
 }
@@ -425,7 +425,7 @@ mod tests {
         let root = normalized(temp.path());
         init(&root.join("services/server"), "main");
         init(&root.join("client"), "main");
-        write(&root, ".lama/state.json", "{}");
+        write(&root, ".luma/state.json", "{}");
         write(&root, ".git/config", "ignored metadata");
         let repos = Repos::discover(&root, &|_| false).unwrap();
         assert!(repos.compare_scope(std::slice::from_ref(&root)).skipped_paths.is_empty());

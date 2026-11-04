@@ -107,7 +107,7 @@ async function renderOne(source: string, key: string): Promise<Result> {
   const mermaid = await loadMermaid();
   await fontsLoaded(getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim(), 16);
   configure(mermaid, key);
-  const id = `lama-mermaid-${++seq}`;
+  const id = `luma-mermaid-${++seq}`;
   try {
     const { svg } = await mermaid.render(id, source);
     return { svg };

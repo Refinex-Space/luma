@@ -1,6 +1,6 @@
 /**
  * Remote development: a window whose project lives on an SSH host. The backend
- * (`lama-server`) runs there and this window routes its commands to it
+ * (`luma-server`) runs there and this window routes its commands to it
  * (platform/remote.ts).
  */
 import { registerActions } from "@/platform/actions";

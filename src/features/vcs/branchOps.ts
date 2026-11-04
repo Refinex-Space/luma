@@ -12,7 +12,7 @@ import { runOp, runRemote, saveAll } from "./ops";
 import { conflictedFiles, currentRepo, refreshNow, repoName, useVcs } from "./store";
 import { tx } from "@/platform/i18n";
 
-const recentKey = () => `lama.vcs.recentBranches:${useVcs.getState().root ?? ""}`;
+const recentKey = () => `luma.vcs.recentBranches:${useVcs.getState().root ?? ""}`;
 
 export function recentBranches(): string[] {
   try {
@@ -431,7 +431,7 @@ export async function deleteInRepos(name: string, roots: readonly string[]) {
 
 // --- favorites ---------------------------------------------------------------
 
-const favoritesKey = () => `lama.vcs.favoriteBranches:${useVcs.getState().root ?? ""}`;
+const favoritesKey = () => `luma.vcs.favoriteBranches:${useVcs.getState().root ?? ""}`;
 
 /** The user's favorite branches for the open repository; `null` = defaults (main / master). */
 export const useFavoriteBranches = create<{ key: string; names: string[] | null }>(() => ({ key: "", names: null }));

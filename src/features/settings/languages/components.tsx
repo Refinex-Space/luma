@@ -9,7 +9,7 @@ import styles from "./Sdk.module.css";
 
 /**
  * Settings that only make sense per project (Project Structure): with a project
- * open they are written to `.lama/settings.toml`. Toolchain pages instead
+ * open they are written to `.luma/settings.toml`. Toolchain pages instead
  * follow the page's Global / This project switch (`defaultScope: "project"`).
  */
 export function useProjectSetting<T>(key: string): [T, (v: T) => void] {

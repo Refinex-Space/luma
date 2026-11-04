@@ -49,7 +49,7 @@ function resetRoot() {
   const root = document.documentElement;
   for (const key of Object.keys(root.dataset)) delete root.dataset[key];
   document.getElementById(PLUGIN_THEME_STYLE_ID)?.remove();
-  document.getElementById("lama-boot-colors")?.remove();
+  document.getElementById("luma-boot-colors")?.remove();
 }
 
 let backend: PluginsBackend;
@@ -86,7 +86,7 @@ describe("plugin theme at start-up", () => {
     expect(root.dataset.pluginThemeKind).toBe("dark");
     expect(root.dataset.theme).toBe("dark");
     expect(document.getElementById(PLUGIN_THEME_STYLE_ID)?.textContent).toContain("--bg-frame: hsl(220, 13%, 15%);");
-    expect(document.getElementById("lama-boot-colors")?.textContent).toBe(
+    expect(document.getElementById("luma-boot-colors")?.textContent).toBe(
       ":root { --boot-frame: #21252b; --boot-fg: #828997; --boot-accent: #5c8aff; }",
     );
   });
@@ -134,7 +134,7 @@ describe("plugin theme at start-up", () => {
     expect(document.documentElement.dataset.pluginTheme).toBeUndefined();
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.getElementById(PLUGIN_THEME_STYLE_ID)).toBeNull();
-    expect(document.getElementById("lama-boot-colors")).toBeNull();
+    expect(document.getElementById("luma-boot-colors")).toBeNull();
   });
 
   it("reports the resolved frame colour once per selected theme", () => {

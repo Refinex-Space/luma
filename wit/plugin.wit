@@ -1,11 +1,11 @@
-/// Lama plugin API, version 0.1.
+/// Luma plugin API, version 0.1.
 ///
 /// A plugin is a WebAssembly component targeting the `plugin` world. It runs
 /// sandboxed: no filesystem, network, environment or clock access beyond what
 /// WASI preview 2 grants by default (wall/monotonic clocks and random only).
 /// Everything else goes through the `host` interface and is gated by the
 /// permissions declared in `plugin.toml`.
-package lama:plugin@0.1.0;
+package luma:plugin@0.1.0;
 
 interface types {
     enum log-level {

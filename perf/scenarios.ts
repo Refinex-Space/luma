@@ -343,7 +343,7 @@ const leaks: Scenario = {
       for (let i = 0; i < 10; i++)
         await h.openFile(`${ROOT}/src/leak/File${n}_${i}.ts`, tsSource(1_500, `leak-${n}-${i}`));
       await h.page.evaluate(() =>
-        (window as never as { __lamaPerf: { runAction(id: string): Promise<boolean> } }).__lamaPerf.runAction(
+        (window as never as { __lumaPerf: { runAction(id: string): Promise<boolean> } }).__lumaPerf.runAction(
           "editor.closeAllTabs",
         ),
       );

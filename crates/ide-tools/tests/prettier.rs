@@ -26,8 +26,8 @@ fn format(
 #[test]
 #[ignore = "requires Node.js/npm and network; installs real Prettier into a temporary managed directory"]
 fn real_prettier_config_ignore_languages_ranges_and_errors() {
-    if std::env::var_os("LAMA_TEST_OFFLINE").is_some() {
-        eprintln!("SKIP real Prettier: LAMA_TEST_OFFLINE is set; npm network access is disabled");
+    if std::env::var_os("LUMA_TEST_OFFLINE").is_some() {
+        eprintln!("SKIP real Prettier: LUMA_TEST_OFFLINE is set; npm network access is disabled");
         return;
     }
     let temp = tempfile::tempdir().unwrap();
@@ -39,7 +39,7 @@ fn real_prettier_config_ignore_languages_ranges_and_errors() {
     }
     tools
         .install("prettier", &[], &Default::default(), &|_| {})
-        .expect("Prettier managed install failed; offline environments may set LAMA_TEST_OFFLINE=1 (reported as SKIP)");
+        .expect("Prettier managed install failed; offline environments may set LUMA_TEST_OFFLINE=1 (reported as SKIP)");
     let project = temp.path().join("project with spaces");
     std::fs::create_dir_all(project.join("docs/nested")).unwrap();
     let md = project.join("docs/nested/readme.md");

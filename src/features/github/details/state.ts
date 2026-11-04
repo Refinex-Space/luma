@@ -47,7 +47,7 @@ useGhRepository.subscribe((s, prev) => {
 
 // ---------------------------------------------------------------------------
 
-const GROUPING_KEY = "lama.github.changesGrouping.v1";
+const GROUPING_KEY = "luma.github.changesGrouping.v1";
 
 function loadGrouping(): boolean {
   try {

@@ -13,7 +13,7 @@ export interface VimSettings {
   handlers: Record<string, Handler>;
 }
 
-export const VIM_SETTINGS_KEY = "lama.vim.v1";
+export const VIM_SETTINGS_KEY = "luma.vim.v1";
 
 export const DEFAULT_VIM_SETTINGS: VimSettings = { enabled: false, handlers: {} };
 

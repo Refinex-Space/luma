@@ -114,7 +114,7 @@ export async function toolEnv(
   ]);
   return {
     tool: (n) => tools.get(n),
-    compileDir: compileDir ?? "/tmp/lama-run",
+    compileDir: compileDir ?? "/tmp/luma-run",
     windows: isWindows,
     python: py,
     ...markers,

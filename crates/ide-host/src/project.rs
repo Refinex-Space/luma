@@ -103,7 +103,7 @@ impl Host {
         {
             let history = history.clone();
             let retention = history_retention(&settings.effective());
-            std::thread::Builder::new().name("lama-history-prune".into()).spawn(move || {
+            std::thread::Builder::new().name("luma-history-prune".into()).spawn(move || {
                 if let Err(e) = history.apply_retention(retention) {
                     tracing::warn!("local history: {e}");
                 }
@@ -404,7 +404,7 @@ impl Host {
         {
             let (root, repos, settings, sink) = (root.clone(), repos.clone(), settings.clone(), sink.clone());
             std::thread::Builder::new()
-                .name("lama-vcs-roots".into())
+                .name("luma-vcs-roots".into())
                 .spawn(move || scan_repositories(&root, &repos, &settings, &sink))?;
         }
         mark("git");
@@ -487,7 +487,7 @@ impl Host {
                 // Outside the app data dir: its path has spaces on macOS, which trips up build scripts.
                 worktrees_dir: dirs::home_dir()
                     .unwrap_or_else(|| self.data_dir.clone())
-                    .join(".lama")
+                    .join(".luma")
                     .join("worktrees")
                     .join(project_key),
                 models_file: self.data_dir.join("agents").join("models.json"),

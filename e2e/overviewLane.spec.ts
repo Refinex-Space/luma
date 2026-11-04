@@ -11,7 +11,7 @@ test("the scrollbar thumb drags even where overview marks cover it (#752)", asyn
   // A match on every line covers the overview lane, as a new file's change mark does.
   await page.keyboard.press("Meta+f");
   await page.getByRole("textbox", { name: "Find" }).fill("mark");
-  await expect(editor.locator(".cm-lama-overviewMark").first()).toBeVisible();
+  await expect(editor.locator(".cm-luma-overviewMark").first()).toBeVisible();
   const scroller = editor.locator(".cm-scroller");
   await scroller.evaluate((s) => (s.scrollTop = 0));
   const box = (await scroller.boundingBox())!;
@@ -26,5 +26,5 @@ test("the scrollbar thumb drags even where overview marks cover it (#752)", asyn
   expect(await scroller.evaluate((s) => s.scrollTop)).toBeGreaterThan(0);
   // Away from the thumb the marks take the pointer again.
   await page.mouse.move(x, box.y + box.height - 20);
-  await expect(editor.locator(".cm-lama-overview")).not.toHaveClass(/cm-lama-overview-onThumb/);
+  await expect(editor.locator(".cm-luma-overview")).not.toHaveClass(/cm-luma-overview-onThumb/);
 });

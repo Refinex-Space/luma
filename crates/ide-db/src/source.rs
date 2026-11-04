@@ -1,4 +1,4 @@
-//! Data sources: per-project connection settings in `.lama/data-sources.toml`.
+//! Data sources: per-project connection settings in `.luma/data-sources.toml`.
 //! Passwords never go there: saved ones live in [`crate::secrets`], the others
 //! only in memory for the session.
 
@@ -433,7 +433,7 @@ mod tests {
             ..Default::default()
         };
         save(tmp.path(), std::slice::from_ref(&s)).unwrap();
-        let text = std::fs::read_to_string(tmp.path().join(".lama/data-sources.toml")).unwrap();
+        let text = std::fs::read_to_string(tmp.path().join(".luma/data-sources.toml")).unwrap();
         assert!(!text.contains("password ="), "{text}");
         assert_eq!(load(tmp.path()).unwrap(), vec![s]);
         assert!(save(tmp.path(), &[DataSource::default()]).is_err());
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn reads_configs_written_before_the_new_settings() {
         let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().join(".lama");
+        let dir = tmp.path().join(".luma");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join(FILE),

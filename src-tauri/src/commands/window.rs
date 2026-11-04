@@ -256,7 +256,7 @@ pub fn app_log_location() -> IdeResult<LogLocation> {
 #[serde(rename_all = "camelCase")]
 pub struct BuildInfo {
     pub version: String,
-    /// Build id from CI (`LAMA_BUILD` at compile time), else `dev`.
+    /// Build id from CI (`LUMA_BUILD` at compile time), else `dev`.
     pub build: String,
     pub profile: String,
     pub os: String,
@@ -271,7 +271,7 @@ pub struct BuildInfo {
 pub fn app_build_info(app: AppHandle) -> BuildInfo {
     BuildInfo {
         version: env!("CARGO_PKG_VERSION").into(),
-        build: option_env!("LAMA_BUILD").unwrap_or("dev").into(),
+        build: option_env!("LUMA_BUILD").unwrap_or("dev").into(),
         profile: if cfg!(debug_assertions) { "debug" } else { "release" }.into(),
         os: std::env::consts::OS.into(),
         arch: std::env::consts::ARCH.into(),
@@ -298,11 +298,11 @@ pub struct UpdateCheck {
 }
 
 fn update_endpoint_env() -> Option<String> {
-    std::env::var("LAMA_UPDATE_ENDPOINT").ok().filter(|s| !s.trim().is_empty())
+    std::env::var("LUMA_UPDATE_ENDPOINT").ok().filter(|s| !s.trim().is_empty())
 }
 
 /// Whether an update endpoint is configured: `plugins.updater.endpoints` in
-/// tauri.conf.json, or the `LAMA_UPDATE_ENDPOINT` environment variable. Empty by
+/// tauri.conf.json, or the `LUMA_UPDATE_ENDPOINT` environment variable. Empty by
 /// default, and "Check for Updates…" is hidden then.
 pub fn updates_configured<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
     let in_config = app
@@ -325,7 +325,7 @@ fn updater(app: &AppHandle) -> IdeResult<Option<tauri_plugin_updater::Updater>> 
     let proxy = ide_core::proxy_settings::proxy();
     let mut builder = app.updater_builder().configure_client(move |b| ide_http::client::with_proxy(b, &proxy));
     if let Some(url) = env {
-        let url = url.parse().map_err(|e| IdeError::invalid(format!("LAMA_UPDATE_ENDPOINT: {e}")))?;
+        let url = url.parse().map_err(|e| IdeError::invalid(format!("LUMA_UPDATE_ENDPOINT: {e}")))?;
         builder = builder.endpoints(vec![url]).map_err(|e| IdeError::invalid(e.to_string()))?;
     }
     builder.build().map(Some).map_err(|e| IdeError::unavailable(e.to_string()))

@@ -281,7 +281,7 @@ pub fn prepare(root: &Path, cache: &Path, config: &mut RunConfig) -> IdeResult<(
     }
     let shutdown = free_port()?;
     let secret = format!(
-        "LAMA_{}_{}",
+        "LUMA_{}_{}",
         std::process::id(),
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(invalid)?.as_nanos()
     );

@@ -15,8 +15,8 @@ import time
 import zipfile
 
 home = pathlib.Path(sys.argv[1]).resolve()
-bundle = pathlib.Path(__file__).resolve().parents[1] / 'lama-java-usages.jar'
-work = pathlib.Path(tempfile.mkdtemp(prefix='lama-configuration-'))
+bundle = pathlib.Path(__file__).resolve().parents[1] / 'luma-java-usages.jar'
+work = pathlib.Path(tempfile.mkdtemp(prefix='luma-configuration-'))
 project = work / 'project'
 source_dir = project / 'src'
 source_dir.mkdir(parents=True)
@@ -72,7 +72,7 @@ class Consumers {
 class Fake { String getProperty(String name) { return name; } }
 '''
 file = write('demo/Settings.java', source)
-if os.environ.get('LAMA_CONFIGURATION_STRESS') == '1':
+if os.environ.get('LUMA_CONFIGURATION_STRESS') == '1':
     for i in range(3000):
         write(f'noise/Plain{i}.java', f'package noise; class Plain{i} {{ int number; }}')
     for i in range(100):
@@ -104,7 +104,7 @@ sourcejar = work / 'library-sources.jar'
 with zipfile.ZipFile(sourcejar, 'w') as z:
     z.write(libsource, 'vendor/LibrarySettings.java')
 (project / '.project').write_text('<projectDescription><name>configuration</name><buildSpec><buildCommand><name>org.eclipse.jdt.core.javabuilder</name></buildCommand></buildSpec><natures><nature>org.eclipse.jdt.core.javanature</nature></natures></projectDescription>')
-spring_jar = os.environ.get('LAMA_SPRING_BOOT_JAR')
+spring_jar = os.environ.get('LUMA_SPRING_BOOT_JAR')
 extra_classpath = f'<classpathentry kind="lib" path="{pathlib.Path(spring_jar).resolve()}"/>' if spring_jar else ''
 (project / '.classpath').write_text(f'<classpath><classpathentry kind="src" path="src"/><classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/><classpathentry kind="lib" path="{library}" sourcepath="{sourcejar}"/>{extra_classpath}<classpathentry kind="output" path="bin"/></classpath>')
 config = work / 'config'
@@ -150,7 +150,7 @@ def request(method, params):
             return msg.get('result')
     raise TimeoutError(method)
 def query(key, uri=None, line=0, col=0):
-    return request('workspace/executeCommand', {'command': 'lama.java.configuration', 'arguments': [uri or (project / 'application.yml').as_uri(), key, line, col, key is None, False]})
+    return request('workspace/executeCommand', {'command': 'luma.java.configuration', 'arguments': [uri or (project / 'application.yml').as_uri(), key, line, col, key is None, False]})
 def names(result):
     return {p['name'] for p in result['keys']}
 try:
@@ -158,7 +158,7 @@ try:
     send({'jsonrpc': '2.0', 'method': 'initialized', 'params': {}})
     send({'jsonrpc': '2.0', 'method': 'textDocument/didOpen', 'params': {'textDocument': {'uri': file.as_uri(), 'languageId': 'java', 'version': 1, 'text': source}}})
     request('java/buildWorkspace', True)
-    assert 'lama.java.configuration' in init['capabilities']['executeCommandProvider']['commands'], init
+    assert 'luma.java.configuration' in init['capabilities']['executeCommandProvider']['commands'], init
     results = {}
     for key in ['app', 'vendor', 'app.time-out', 'app.enabled', 'app.nested.url', 'app.clients[0].url', 'app.routes.east.url', 'app.tags[0]', 'app.labels.region', 'app.labels[region.name]', 'constructor.remote-name', 'record.name', 'bean.url', 'app.backup', 'app.required', 'vendor.port', 'extra.url']:
         start = time.perf_counter()
@@ -185,7 +185,7 @@ try:
     assert query('newer.url')['locations']
     assert not query('extra.url')['locations']
     # Property references include member usages and consumers, without declarations.
-    references = request('workspace/executeCommand', {'command': 'lama.java.configuration',
+    references = request('workspace/executeCommand', {'command': 'luma.java.configuration',
         'arguments': [(project / 'application.yml').as_uri(), 'app.time-out', 0, 0, True, False]})
     assert references['locations'], references
     assert any(loc['range']['start']['line'] == next(i for i, line in enumerate(source.splitlines()) if 'getProperty(KEY)' in line) for loc in references['locations']), references
@@ -238,7 +238,7 @@ try:
     send({'jsonrpc': '2.0', 'method': 'textDocument/didClose', 'params': {'textDocument': {'uri': file.as_uri()}}})
     restored = query('app.nested.url')
     assert restored['locations'], restored
-    evidence = {'stress': os.environ.get('LAMA_CONFIGURATION_STRESS') == '1', 'editRebuildMs': edit_ms, 'cases': results, 'warmMedianMs': sorted(warm)[len(warm)//2] * 1000, 'warmMaxMs': max(warm) * 1000, 'generations': [generation, after_save, after_close]}
+    evidence = {'stress': os.environ.get('LUMA_CONFIGURATION_STRESS') == '1', 'editRebuildMs': edit_ms, 'cases': results, 'warmMedianMs': sorted(warm)[len(warm)//2] * 1000, 'warmMaxMs': max(warm) * 1000, 'generations': [generation, after_save, after_close]}
     (work / 'evidence.json').write_text(json.dumps(evidence, indent=2))
     print(json.dumps(evidence, indent=2))
 finally:

@@ -48,7 +48,7 @@ export const DEFAULT_DIFF_OPTIONS: DiffViewOptions = {
   alignChanges: false,
 };
 
-const KEY = "lama.vcs.diffOptions";
+const KEY = "luma.vcs.diffOptions";
 
 const oneOf = <T extends string>(v: unknown, values: readonly { value: T }[], fallback: T): T =>
   values.some((o) => o.value === v) ? (v as T) : fallback;

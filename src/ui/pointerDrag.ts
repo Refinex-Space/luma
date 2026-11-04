@@ -7,14 +7,14 @@
  */
 import styles from "./pointerDrag.module.css";
 
-/** What is dragged: `type` is matched by targets (e.g. `application/x-lama-editor-tab`). */
+/** What is dragged: `type` is matched by targets (e.g. `application/x-luma-editor-tab`). */
 export interface DragData {
   type: string;
   payload: string;
 }
 
 /** Project files dragged from the Project view: `payload` is the paths joined by `\n`. */
-export const FILES_DRAG = "application/x-lama-files";
+export const FILES_DRAG = "application/x-luma-files";
 
 export interface DropTarget {
   accepts(type: string): boolean;

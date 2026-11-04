@@ -67,7 +67,7 @@ it("shows Cursor approvals separately from its execution mode and sends the choi
     <ConfigPickers
       config={[
         option("mode", "mode", ["Agent", "Plan", "Ask"]),
-        option("lama.cursor.approval", "approval", ["ask", "bypass"]),
+        option("luma.cursor.approval", "approval", ["ask", "bypass"]),
       ]}
       onChange={onChange}
     />,
@@ -75,7 +75,7 @@ it("shows Cursor approvals separately from its execution mode and sends the choi
   expect(screen.getByText("Agent")).toBeVisible();
   fireEvent.click(screen.getByLabelText("Approvals"));
   fireEvent.click(screen.getByRole("option", { name: "Bypass approvals" }));
-  expect(onChange).toHaveBeenCalledWith("lama.cursor.approval", "bypass");
+  expect(onChange).toHaveBeenCalledWith("luma.cursor.approval", "bypass");
 });
 
 it("sends the complete nested model id through ConfigPickers", () => {

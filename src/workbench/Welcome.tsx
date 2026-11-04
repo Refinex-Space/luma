@@ -17,7 +17,7 @@ function WelcomeFallback() {
     <div className={styles.fallback}>
       <div className={styles.brand}>
         <span className={styles.name}>
-          <T>Lama</T>
+          <T>Luma</T>
         </span>
         {version && <span className={styles.version}>{version}</span>}
       </div>
@@ -54,7 +54,7 @@ export function Welcome() {
   const Provided = useWorkbenchSlots((s) => s.welcome);
   return (
     <div className={styles.root}>
-      <TitleBar minimal title="Welcome to Lama" />
+      <TitleBar minimal title="Welcome to Luma" />
       <main className={styles.main}>
         {Provided ? (
           <ErrorBoundary name="welcome view" fallback={<WelcomeFallback />}>

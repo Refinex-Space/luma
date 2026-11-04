@@ -514,7 +514,7 @@ function PushDialog({ target: pushTarget, onClose }: { target: PushTarget; onClo
   );
 }
 
-const SILENT_FORCE_PUSH_KEY = "lama.vcs.silentForcePushTargets";
+const SILENT_FORCE_PUSH_KEY = "luma.vcs.silentForcePushTargets";
 
 function silentForcePushTargets(): string[] {
   try {

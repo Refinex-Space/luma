@@ -20,8 +20,8 @@ afterEach(() => _resetI18nForTests());
 
 describe("formatMessage", () => {
   it("substitutes parameters and leaves unknown ones", () => {
-    expect(formatMessage("Open {name}", { name: "lama" })).toBe("Open lama");
-    expect(formatMessage("Open {name} in {where}", { name: "lama" })).toBe("Open lama in {where}");
+    expect(formatMessage("Open {name}", { name: "luma" })).toBe("Open luma");
+    expect(formatMessage("Open {name} in {where}", { name: "luma" })).toBe("Open luma in {where}");
     expect(formatMessage("plain text")).toBe("plain text");
   });
 
@@ -86,8 +86,8 @@ describe("t / locales", () => {
   });
 
   it("applies params and plurals in the active locale", async () => {
-    expect(t("app.unsaved.body", { count: 1, project: "lama" })).toBe(
-      "1 file has unsaved changes in lama. Save before closing?",
+    expect(t("app.unsaved.body", { count: 1, project: "luma" })).toBe(
+      "1 file has unsaved changes in luma. Save before closing?",
     );
     await setLocale("zh-CN");
     expect(t("app.keymap.count", { count: 1 })).toBe("1 个快捷键");

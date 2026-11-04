@@ -6,5 +6,5 @@ fn main() {
     if let Some(code) = ide_ssh::askpass::run_helper() {
         std::process::exit(code);
     }
-    lama_lib::run()
+    luma_lib::run()
 }

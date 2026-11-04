@@ -371,7 +371,7 @@ export const expandRecursively = (view: EditorView) =>
 
 function chevron(open: boolean): HTMLElement {
   const span = document.createElement("span");
-  span.className = open ? "cm-lama-foldOpen" : "cm-lama-foldClosed";
+  span.className = open ? "cm-luma-foldOpen" : "cm-luma-foldClosed";
   span.title = open ? "Collapse" : "Expand";
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");

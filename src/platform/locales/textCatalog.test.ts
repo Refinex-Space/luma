@@ -146,7 +146,7 @@ const UNTRANSLATED = new Set<string>([
   "Neon",
   "Node.js",
   "npm",
-  "Lama",
+  "Luma",
   "Spring Boot",
   "PostgreSQL",
   "Pyrefly",

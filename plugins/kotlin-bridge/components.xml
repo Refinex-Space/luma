@@ -1,5 +1,5 @@
 <component-set><components><component>
   <role>org.apache.maven.AbstractMavenLifecycleParticipant</role>
-  <role-hint>lama-kotlin-output</role-hint>
-  <implementation>ai.lama.kotlin.IsolatedOutput</implementation>
+  <role-hint>luma-kotlin-output</role-hint>
+  <implementation>ai.luma.kotlin.IsolatedOutput</implementation>
 </component></components></component-set>

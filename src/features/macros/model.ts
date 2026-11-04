@@ -27,7 +27,7 @@ interface MacroState {
   saved: Macro[];
 }
 
-export const STORAGE_KEY = "lama.macros.v1";
+export const STORAGE_KEY = "luma.macros.v1";
 
 function isStep(v: unknown): v is MacroStep {
   if (!v || typeof v !== "object") return false;

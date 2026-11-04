@@ -28,8 +28,8 @@ interface SeState {
   filters: SeFilters;
 }
 
-const PREVIEW_KEY = "lama.search.everywherePreview.v1";
-const FILTERS_KEY = "lama.search.everywhereFilters.v1";
+const PREVIEW_KEY = "luma.search.everywherePreview.v1";
+const FILTERS_KEY = "luma.search.everywhereFilters.v1";
 
 export const useSearchEverywhere = create<SeState>(() => ({
   open: false,
@@ -115,7 +115,7 @@ export function hideSearchEverywhere() {
   useSearchEverywhere.setState({ open: false });
 }
 
-const RECENT_ACTIONS_KEY = "lama.search.recentActions.v1";
+const RECENT_ACTIONS_KEY = "luma.search.recentActions.v1";
 const MAX_RECENT_ACTIONS = 12;
 
 export function recentActions(): string[] {
@@ -127,7 +127,7 @@ export function pushRecentAction(id: string) {
   saveJson(RECENT_ACTIONS_KEY, [id, ...recentActions().filter((x) => x !== id)].slice(0, MAX_RECENT_ACTIONS));
 }
 
-const HISTORY_KEY = "lama.search.everywhereHistory.v1";
+const HISTORY_KEY = "luma.search.everywhereHistory.v1";
 const MAX_HISTORY = 50;
 
 interface HistoryEntry {

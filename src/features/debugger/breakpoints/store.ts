@@ -27,7 +27,7 @@ interface BreakpointState {
 
 export const useBreakpoints = create<BreakpointState>(() => ({ root: null, byFile: {}, status: {}, muted: false }));
 
-const STORAGE_PREFIX = "lama.debugger.breakpoints:";
+const STORAGE_PREFIX = "luma.debugger.breakpoints:";
 
 interface Persisted {
   muted?: boolean;

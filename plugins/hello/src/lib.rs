@@ -1,11 +1,11 @@
-//! Sample Lama plugin. Build with `../build.sh hello` (see plugins/README.md).
+//! Sample Luma plugin. Build with `../build.sh hello` (see plugins/README.md).
 
 wit_bindgen::generate!({
     world: "plugin",
     path: "../../wit",
 });
 
-use lama::plugin::host::{self, LogLevel, NotificationLevel};
+use luma::plugin::host::{self, LogLevel, NotificationLevel};
 
 struct Hello;
 

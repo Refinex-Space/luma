@@ -12,8 +12,8 @@ import threading
 import time
 
 home, lombok = map(lambda p: pathlib.Path(p).resolve(), sys.argv[1:3])
-bundle = pathlib.Path(__file__).resolve().parents[1] / 'lama-java-usages.jar'
-work = pathlib.Path(tempfile.mkdtemp(prefix='lama-usages-'))
+bundle = pathlib.Path(__file__).resolve().parents[1] / 'luma-java-usages.jar'
+work = pathlib.Path(tempfile.mkdtemp(prefix='luma-usages-'))
 config = work / 'config'
 config.mkdir()
 system, machine = platform.system(), platform.machine().lower()
@@ -116,7 +116,7 @@ try:
         line, text = next((i, t) for i,t in enumerate(source.splitlines()) if 'private ' in t and f' {field};' in t)
         col = text.index(field)
         before = request('textDocument/references', {'textDocument':{'uri':file.as_uri()},'position':{'line':line,'character':col},'context':{'includeDeclaration':False}})
-        after = request('workspace/executeCommand', {'command':'lama.java.usages','arguments':[file.as_uri(),line,col,False]})
+        after = request('workspace/executeCommand', {'command':'luma.java.usages','arguments':[file.as_uri(),line,col,False]})
         evidence['cases'][field] = {'before':before,'after':after}
         assert all(any(row['location'] == loc for row in after) for loc in before), 'lost standard references'
         kinds = [r['kind'] for r in after]
@@ -125,7 +125,7 @@ try:
         assert kinds.count('field') == expected[2], (field, kinds)
     # Respect the existing global preference: the command must not switch it on.
     send({'jsonrpc':'2.0','method':'workspace/didChangeConfiguration','params':{'settings':{'java':{'references':{'includeAccessors':False}}}}})
-    disabled = request('workspace/executeCommand', {'command':'lama.java.usages','arguments':[file.as_uri(),3,19,False]})
+    disabled = request('workspace/executeCommand', {'command':'luma.java.usages','arguments':[file.as_uri(),3,19,False]})
     assert len(disabled) == 2 and all(r['kind'] == 'field' for r in disabled), disabled
     evidence['accessorsDisabled'] = disabled
     (work/'evidence.json').write_text(json.dumps(evidence, indent=2))

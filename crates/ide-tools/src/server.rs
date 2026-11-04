@@ -1,4 +1,4 @@
-//! `lama-server` builds for remote development: the release of this
+//! `luma-server` builds for remote development: the release of this
 //! version publishes one per supported host platform (see `release.yml`).
 
 use crate::process::Http;
@@ -15,12 +15,12 @@ pub const PLATFORMS: &[(&str, &str)] =
 
 /// The release asset of the server for `os`-`arch` (gzip-compressed binary).
 pub fn asset_name(os: &str, arch: &str) -> String {
-    format!("lama-server-{os}-{arch}.gz")
+    format!("luma-server-{os}-{arch}.gz")
 }
 
 /// Where a downloaded server of `version` is kept.
 pub fn cached_path(app_data: &Path, version: &str, os: &str, arch: &str) -> PathBuf {
-    app_data.join("server").join(version).join(format!("{os}-{arch}")).join("lama-server")
+    app_data.join("server").join(version).join(format!("{os}-{arch}")).join("luma-server")
 }
 
 /// The server of `version` for `os`-`arch`: the cached download, or the release
@@ -60,7 +60,7 @@ pub fn fetch(
             sha256: Some(sha256),
         };
         let archive = fetch_verified(&http, &dl, &staging, cancel, emit)?;
-        let unpacked = staging.join("lama-server");
+        let unpacked = staging.join("luma-server");
         let mut gz = flate2::read::GzDecoder::new(std::fs::File::open(&archive)?);
         std::io::copy(&mut gz, &mut std::fs::File::create(&unpacked)?)?;
         #[cfg(unix)]
@@ -91,9 +91,9 @@ mod tests {
 
     #[test]
     fn names_and_cache_layout() {
-        assert_eq!(asset_name("linux", "x86_64"), "lama-server-linux-x86_64.gz");
+        assert_eq!(asset_name("linux", "x86_64"), "luma-server-linux-x86_64.gz");
         let p = cached_path(Path::new("/data"), "1.2.3", "linux", "aarch64");
-        assert_eq!(p, Path::new("/data/server/1.2.3/linux-aarch64/lama-server"));
+        assert_eq!(p, Path::new("/data/server/1.2.3/linux-aarch64/luma-server"));
     }
 
     #[test]

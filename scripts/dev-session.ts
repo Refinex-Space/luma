@@ -9,7 +9,7 @@ export function worktreeId(root: string): string {
   for (const byte of Buffer.from(root)) {
     hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
   }
-  return `space.refinex.lama.dev.w${hash.toString(16).padStart(16, "0")}`;
+  return `space.refinex.luma.dev.w${hash.toString(16).padStart(16, "0")}`;
 }
 
 export interface DevSession {

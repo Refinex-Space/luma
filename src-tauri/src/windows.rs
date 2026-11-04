@@ -24,7 +24,7 @@ use tauri::utils::config::{Color, WindowConfig};
 use tauri::{AppHandle, Emitter, Manager, Theme, WebviewWindow, WebviewWindowBuilder};
 
 /// Tells a window that a pending launch is waiting for it.
-pub const LAUNCH_EVENT: &str = "lama://launch";
+pub const LAUNCH_EVENT: &str = "luma://launch";
 const MAIN: &str = "main";
 const PREFIX: &str = "project-";
 const SETTINGS_PREFIX: &str = "settings-";
@@ -190,7 +190,7 @@ pub fn cycle_target(sorted: &[String], current: &str, forward: bool) -> Option<S
     Some(sorted[j].clone())
 }
 
-/// The project path from command-line arguments (`lama /path/to/project`):
+/// The project path from command-line arguments (`luma /path/to/project`):
 /// the first argument after the binary that is not a flag, resolved against `cwd`.
 pub fn cli_path(args: &[String], cwd: &Path) -> Option<PathBuf> {
     args.iter().skip(1).find(|a| !a.starts_with('-') && !a.is_empty() && !a.starts_with("psn_")).map(|a| {
@@ -961,7 +961,7 @@ fn centered(px: f64, py: f64, pw: f64, ph: f64, w: f64, h: f64) -> (f64, f64) {
 fn dev_font_preferences(
     builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
 ) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
-    if std::env::var("LAMA_DEV_DISALLOW_USER_FONTS").as_deref() == Ok("1") {
+    if std::env::var("LUMA_DEV_DISALLOW_USER_FONTS").as_deref() == Ok("1") {
         use objc2::{MainThreadMarker, msg_send, sel};
         use objc2_foundation::NSObjectProtocol;
         let config = unsafe {
@@ -1065,11 +1065,11 @@ mod tests {
     #[test]
     fn cli_path_skips_flags_and_resolves_relative() {
         let cwd = Path::new("/work");
-        let args = s(&["lama", "--verbose", "proj"]);
+        let args = s(&["luma", "--verbose", "proj"]);
         assert_eq!(cli_path(&args, cwd), Some(PathBuf::from("/work/proj")));
-        assert_eq!(cli_path(&s(&["lama", "/abs/p"]), cwd), Some(PathBuf::from("/abs/p")));
-        assert_eq!(cli_path(&s(&["lama"]), cwd), None);
-        assert_eq!(cli_path(&s(&["lama", "-psn_0_123"]), cwd), None);
+        assert_eq!(cli_path(&s(&["luma", "/abs/p"]), cwd), Some(PathBuf::from("/abs/p")));
+        assert_eq!(cli_path(&s(&["luma"]), cwd), None);
+        assert_eq!(cli_path(&s(&["luma", "-psn_0_123"]), cwd), None);
     }
 
     #[test]

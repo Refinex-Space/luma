@@ -10,9 +10,9 @@ import { usePlatform } from "@/platform/platformInfo";
 
 describe("window title", () => {
   it("is `<project> – <file>` like IDEA", () => {
-    expect(windowTitle("lama", "/p/lama/src/main.rs")).toBe("lama – main.rs");
-    expect(windowTitle("lama", null)).toBe("lama");
-    expect(windowTitle(null, null)).toBe("Lama");
+    expect(windowTitle("luma", "/p/luma/src/main.rs")).toBe("luma – main.rs");
+    expect(windowTitle("luma", null)).toBe("luma");
+    expect(windowTitle(null, null)).toBe("Luma");
   });
 });
 

@@ -25,7 +25,7 @@ describe("Cart", () => {
     expect(() => new Cart().add(mouse, 0)).toThrow(RangeError);
   });
 
-  it.skipIf(!process.env.LAMA_FAIL)("intentionally fails (set LAMA_FAIL=1)", () => {
+  it.skipIf(!process.env.LUMA_FAIL)("intentionally fails (set LUMA_FAIL=1)", () => {
     expect(formatMoney(cents(1999))).toBe("$19.98");
   });
 });

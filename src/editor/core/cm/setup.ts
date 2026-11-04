@@ -30,8 +30,8 @@ import { editorPrefs, lineCommentStyleFor, type EditorExtras } from "@/platform/
 import { BUNDLED_MONO_FAMILY, monoFontFamily } from "@/platform/fonts";
 import { editorContributions, HEAVY_LIMIT, type EditorDocContext } from "@/editor/api";
 import { distractionFreeWidth, isDistractionFree } from "@/workbench/distractionFree";
-import { lamaHighlightStyle } from "./highlight";
-import { lamaTheme } from "./theme";
+import { lumaHighlightStyle } from "./highlight";
+import { lumaTheme } from "./theme";
 import { caretRowHighlight } from "./caretRow";
 import { changeLane, overviewLane } from "./lanes";
 import { foldingExtension } from "./folding";
@@ -180,18 +180,18 @@ export function fontExtension(settings: EditorSettings | undefined): Extension {
   const family = settings?.fontFamily;
   const fallback = prefs.fallbackFont.trim();
   if ((family && family !== BUNDLED_MONO_FAMILY) || fallback) {
-    vars.push(`--lama-editor-font: ${monoFontFamily(family, fallback, "var(--font-mono)")}`);
+    vars.push(`--luma-editor-font: ${monoFontFamily(family, fallback, "var(--font-mono)")}`);
   }
   if (settings?.fontSize)
-    vars.push(`--lama-editor-font-size: ${settings.fontSize}px`, `--lama-editor-base-size: ${settings.fontSize}px`);
+    vars.push(`--luma-editor-font-size: ${settings.fontSize}px`, `--luma-editor-base-size: ${settings.fontSize}px`);
   if (settings?.lineHeight)
     vars.push(
-      `--lama-editor-line-height: ${settings.lineHeight}px`,
-      `--lama-editor-base-line: ${settings.lineHeight}px`,
+      `--luma-editor-line-height: ${settings.lineHeight}px`,
+      `--luma-editor-base-line: ${settings.lineHeight}px`,
     );
   const attrs: Record<string, string> = {};
   if (vars.length) attrs.style = vars.join("; ");
-  if (prefs.ligatures) attrs.class = "cm-lama-ligatures";
+  if (prefs.ligatures) attrs.class = "cm-luma-ligatures";
   return Object.keys(attrs).length ? EditorView.editorAttributes.of(attrs) : [];
 }
 
@@ -244,7 +244,7 @@ export function lineNumbersExtension(settings: EditorSettings | undefined): Exte
 
 /**
  * Distraction Free Mode: no gutter, text column centred at the configured
- * width (see `cm-lama-distractionFree` in theme.ts).
+ * width (see `cm-luma-distractionFree` in theme.ts).
  */
 export function distractionFreeExtension(
   settings: EditorSettings | undefined,
@@ -253,8 +253,8 @@ export function distractionFreeExtension(
   if (!active) return [];
   const columns = distractionFreeWidth(prefsOf(settings).appearance.distractionFreeWidth);
   return EditorView.editorAttributes.of({
-    class: "cm-lama-distractionFree",
-    style: `--lama-df-columns: ${columns}`,
+    class: "cm-luma-distractionFree",
+    style: `--luma-df-columns: ${columns}`,
   });
 }
 
@@ -330,7 +330,7 @@ export function baseExtensions(o: SetupOptions): Extension {
   return [
     tooltipSpace,
     compartments.font.of(fontExtension(o.settings)),
-    lamaTheme,
+    lumaTheme,
     compartments.lineNumbers.of(lineNumbersExtension(o.settings)),
     // New UI order: numbers | contributed icon gutters | VCS bar | fold chevrons.
     Prec.lowest(changeLane),
@@ -351,7 +351,7 @@ export function baseExtensions(o: SetupOptions): Extension {
     clipboardDocumentPath.of(o.ctx.path),
     clipboardFilesExtension,
     indentOnInput(),
-    syntaxHighlighting(lamaHighlightStyle),
+    syntaxHighlighting(lumaHighlightStyle),
     syntaxHighlightField,
     closeBrackets(),
     caretRowHighlight,

@@ -327,10 +327,10 @@ function ResetDialog({ commit, onClose }: { commit?: Commit; onClose: () => void
           </div>
         ) : (
           <>
-            <label className={styles.fieldLabel} htmlFor="lama-reset-to">
+            <label className={styles.fieldLabel} htmlFor="luma-reset-to">
               <T>To commit:</T>
             </label>
-            <Input id="lama-reset-to" data-autofocus mono value={target} onChange={(e) => setTarget(e.target.value)} />
+            <Input id="luma-reset-to" data-autofocus mono value={target} onChange={(e) => setTarget(e.target.value)} />
           </>
         )}
         {RESET_MODES.map((m) => (
@@ -416,11 +416,11 @@ function TagDialog({ onClose }: { onClose: () => void }) {
       ]}
     >
       <div className={styles.form}>
-        <label className={styles.fieldLabel} htmlFor="lama-tag-name">
+        <label className={styles.fieldLabel} htmlFor="luma-tag-name">
           <T>Tag name:</T>
         </label>
         <Input
-          id="lama-tag-name"
+          id="luma-tag-name"
           data-autofocus
           mono
           value={name}
@@ -429,15 +429,15 @@ function TagDialog({ onClose }: { onClose: () => void }) {
         />
         {name && error && <div className={styles.error}>{error}</div>}
         <Checkbox checked={force} onChange={setForce} label="Force" />
-        <label className={styles.fieldLabel} htmlFor="lama-tag-commit">
+        <label className={styles.fieldLabel} htmlFor="luma-tag-commit">
           <T>Commit:</T>
         </label>
-        <Input id="lama-tag-commit" mono value={commit} onChange={(e) => setCommit(e.target.value)} />
-        <label className={styles.fieldLabel} htmlFor="lama-tag-message">
+        <Input id="luma-tag-commit" mono value={commit} onChange={(e) => setCommit(e.target.value)} />
+        <label className={styles.fieldLabel} htmlFor="luma-tag-message">
           <T>Message:</T>
         </label>
         <textarea
-          id="lama-tag-message"
+          id="luma-tag-message"
           className={styles.textarea}
           rows={4}
           value={message}

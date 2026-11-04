@@ -425,7 +425,7 @@ impl ProcessManager {
         let waiter_entry = entry.clone();
         let run_root = root.to_path_buf();
         std::thread::Builder::new()
-            .name(format!("lama-run-wait-{}", id.0))
+            .name(format!("luma-run-wait-{}", id.0))
             .spawn(move || {
                 let mut status = child.wait();
                 if status.as_ref().is_ok_and(ExitStatus::success)
@@ -521,7 +521,7 @@ impl ProcessManager {
             return Err(IdeError::internal(format!("failed to start output threads: {e}")));
         }
         std::thread::Builder::new()
-            .name(format!("lama-run-wait-{}", id.0))
+            .name(format!("luma-run-wait-{}", id.0))
             .spawn(move || {
                 let status = child.wait();
                 drop(temp);
@@ -611,7 +611,7 @@ impl ProcessManager {
         }
         let entry = entry.clone();
         std::thread::Builder::new()
-            .name(format!("lama-run-stop-{}", id.0))
+            .name(format!("luma-run-stop-{}", id.0))
             .spawn(move || {
                 let exits_within = |limit: Duration| {
                     let deadline = Instant::now() + limit;
@@ -889,7 +889,7 @@ fn spawn_reader(
     tx: Sender<Msg>,
 ) -> std::io::Result<()> {
     let label = if stream == Stream::Stdout { "out" } else { "err" };
-    std::thread::Builder::new().name(format!("lama-run-{label}-{}", id.0)).spawn(move || {
+    std::thread::Builder::new().name(format!("luma-run-{label}-{}", id.0)).spawn(move || {
         let mut buf = vec![0u8; 16 * 1024];
         loop {
             match pipe.read(&mut buf) {
@@ -923,7 +923,7 @@ fn spawn_pump(
     encoding: Option<String>,
     notice: Option<String>,
 ) -> std::io::Result<()> {
-    std::thread::Builder::new().name(format!("lama-run-pump-{}", entry.id.0)).spawn(move || {
+    std::thread::Builder::new().name(format!("luma-run-pump-{}", entry.id.0)).spawn(move || {
         let mut out_dec = OutputDecoder::for_label(encoding.as_deref());
         let mut err_dec = OutputDecoder::for_label(encoding.as_deref());
         // "Picked up JAVA_TOOL_OPTIONS: …" from every JVM given the console encoding, on
@@ -1110,7 +1110,7 @@ mod tests {
 
     #[test]
     fn shell_lines_use_cmd_verbatim_on_windows() {
-        let line = r#"(if not exist "C:\T\lama-run" mkdir "C:\T\lama-run") && "C:\Program Files\rustc.exe" -o "C:\T\lama-run\hi.exe" hi.rs"#;
+        let line = r#"(if not exist "C:\T\luma-run" mkdir "C:\T\luma-run") && "C:\Program Files\rustc.exe" -o "C:\T\luma-run\hi.exe" hi.rs"#;
         let inv = shell_invocation(line, true, Some(r"C:\Windows\system32\cmd.exe".into()));
         assert_eq!(inv.program, PathBuf::from(r"C:\Windows\system32\cmd.exe"));
         assert_eq!(inv.args, ["/D", "/S", "/C", &format!("\"{line}\"")]);

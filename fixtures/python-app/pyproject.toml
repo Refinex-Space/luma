@@ -1,7 +1,7 @@
 [project]
-name = "lama-fixture-tasks"
+name = "luma-fixture-tasks"
 version = "0.1.0"
-description = "Lama QA fixture: a tiny task tracker"
+description = "Luma QA fixture: a tiny task tracker"
 requires-python = ">=3.10"
 dependencies = []
 

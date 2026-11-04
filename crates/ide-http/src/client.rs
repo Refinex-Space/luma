@@ -38,7 +38,7 @@ pub fn build(proxy: &ProxySettings) -> IdeResult<reqwest::Client> {
     let builder = reqwest::Client::builder()
         .tls_backend_preconfigured(tls)
         .connect_timeout(Duration::from_secs(30))
-        .user_agent(concat!("Lama-HttpClient/", env!("CARGO_PKG_VERSION")));
+        .user_agent(concat!("Luma-HttpClient/", env!("CARGO_PKG_VERSION")));
     with_proxy(builder, proxy).build().map_err(|e| fail(e.to_string()))
 }
 

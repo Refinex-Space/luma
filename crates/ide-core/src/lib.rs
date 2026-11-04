@@ -1,4 +1,4 @@
-//! Shared vocabulary for every Lama crate.
+//! Shared vocabulary for every Luma crate.
 //!
 //! Anything that crosses a crate boundary or the IPC boundary lives here, so
 //! feature crates depend on `ide-core` and never on each other's internals.

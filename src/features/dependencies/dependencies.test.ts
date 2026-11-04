@@ -186,7 +186,7 @@ describe("Cargo dependency versions", () => {
   });
   it("completes only at a parsed dependency version, preserving descending source order", async () => {
     const view = editor();
-    const source = view.state.languageDataAt<(ctx: CompletionContext) => Promise<unknown>>("lamaCompletion", from)[0]!;
+    const source = view.state.languageDataAt<(ctx: CompletionContext) => Promise<unknown>>("lumaCompletion", from)[0]!;
     const result = await source(new CompletionContext(view.state, from + 3, true, view));
     expect(result).toMatchObject({
       from,

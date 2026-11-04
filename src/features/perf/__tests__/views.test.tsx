@@ -32,10 +32,10 @@ const metrics: AppMetrics = {
 describe("perf views", () => {
   it("renders memory details", () => {
     render(<MemoryDetails metrics={metrics} />);
-    const lama = screen.getByRole("group", { name: "Lama" });
-    expect(lama.textContent).toContain("360 MB");
-    expect(lama.textContent).toContain("Web content");
-    expect(lama.textContent).toContain("300 MB");
+    const luma = screen.getByRole("group", { name: "Luma" });
+    expect(luma.textContent).toContain("360 MB");
+    expect(luma.textContent).toContain("Web content");
+    expect(luma.textContent).toContain("300 MB");
     const servers = screen.getByRole("group", { name: "Language servers" });
     expect(servers.textContent).toContain("jdtls");
     expect(servers.textContent).toContain("idea");

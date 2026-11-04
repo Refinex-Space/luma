@@ -49,7 +49,7 @@ export function mapScope(scope: FindScope, changes: ChangeDesc): FindScope | nul
   return to > from ? { from, to } : null;
 }
 
-const scopeDeco = Decoration.mark({ class: "cm-lama-findScope" });
+const scopeDeco = Decoration.mark({ class: "cm-luma-findScope" });
 
 export const findScope = StateField.define<FindScope | null>({
   create: () => null,
@@ -136,9 +136,9 @@ export const findMarks = StateField.define<number[]>({
     ),
 });
 
-const matchDeco = Decoration.mark({ class: "cm-lama-findMatch" });
-const currentDeco = Decoration.mark({ class: "cm-lama-findMatch cm-lama-findMatch-current" });
-const excludedDeco = Decoration.mark({ class: "cm-lama-findExcluded" });
+const matchDeco = Decoration.mark({ class: "cm-luma-findMatch" });
+const currentDeco = Decoration.mark({ class: "cm-luma-findMatch cm-luma-findMatch-current" });
+const excludedDeco = Decoration.mark({ class: "cm-luma-findExcluded" });
 const MAX_VISIBLE = 2000;
 
 function buildHighlights(view: EditorView): DecorationSet {

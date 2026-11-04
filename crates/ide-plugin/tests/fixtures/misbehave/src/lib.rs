@@ -5,7 +5,7 @@ wit_bindgen::generate!({
     path: "../../../../../wit",
 });
 
-use lama::plugin::host;
+use luma::plugin::host;
 
 struct Misbehave;
 

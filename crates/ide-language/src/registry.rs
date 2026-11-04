@@ -954,7 +954,7 @@ mod tests {
 
     #[test]
     fn user_overrides_replace_builtins() {
-        let dir = std::env::temp_dir().join(format!("lama-lang-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("luma-lang-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("rust.toml"), "id = \"rust\"\nname = \"My Rust\"\nextensions = [\"rs\", \"rsx\"]\n")
             .unwrap();

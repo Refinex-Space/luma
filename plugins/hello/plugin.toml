@@ -2,11 +2,11 @@ id = "hello"
 name = "Hello"
 version = "0.1.0"
 description = "Sample plugin: inserts today's date and counts words in the active file."
-authors = ["Lama contributors"]
+authors = ["Luma contributors"]
 change-notes = """
 0.1.0 — first release: Insert Date and Word Count of Active File commands.
 """
-lama-api = "0.1"
+luma-api = "0.1"
 wasm = "dist/plugin.wasm"
 permissions = ["project-read", "editor-read", "editor-write"]
 

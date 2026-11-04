@@ -282,7 +282,7 @@ describe("applying completions", () => {
       view.dispatch({
         effects: StateEffect.appendConfig.of([
           completionExtension(),
-          EditorState.languageData.of(() => [{ lamaCompletion: source }]),
+          EditorState.languageData.of(() => [{ lumaCompletion: source }]),
         ]),
       });
       startCompletion(view);
@@ -314,7 +314,7 @@ describe("applying completions", () => {
       view.dispatch({
         effects: StateEffect.appendConfig.of([
           completionExtension(),
-          EditorState.languageData.of(() => [{ lamaCompletion: source }]),
+          EditorState.languageData.of(() => [{ lumaCompletion: source }]),
         ]),
       });
       startCompletion(view);
@@ -420,7 +420,7 @@ describe("explicit completion", () => {
       state: EditorState.create({
         doc: "pri",
         selection: { anchor: 3 },
-        extensions: [completionExtension(), EditorState.languageData.of(() => [{ lamaCompletion: source }])],
+        extensions: [completionExtension(), EditorState.languageData.of(() => [{ lumaCompletion: source }])],
       }),
       parent: document.body,
     });

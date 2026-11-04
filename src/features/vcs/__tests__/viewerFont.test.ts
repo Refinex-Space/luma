@@ -23,14 +23,14 @@ describe("viewer font", () => {
     });
     views.push(view);
     const style = () => view.dom.style;
-    expect(style().getPropertyValue("--lama-editor-font")).toContain("Fira Code");
-    expect(style().getPropertyValue("--lama-editor-font-size")).toBe("16px");
-    expect(style().getPropertyValue("--lama-editor-line-height")).toBe("22px");
-    expect(view.dom.classList.contains("cm-lama-ligatures")).toBe(false);
+    expect(style().getPropertyValue("--luma-editor-font")).toContain("Fira Code");
+    expect(style().getPropertyValue("--luma-editor-font-size")).toBe("16px");
+    expect(style().getPropertyValue("--luma-editor-line-height")).toBe("22px");
+    expect(view.dom.classList.contains("cm-luma-ligatures")).toBe(false);
 
     setEditor({ fontSize: 11, ligatures: true });
-    expect(style().getPropertyValue("--lama-editor-font")).toBe("");
-    expect(style().getPropertyValue("--lama-editor-font-size")).toBe("11px");
-    expect(view.dom.classList.contains("cm-lama-ligatures")).toBe(true);
+    expect(style().getPropertyValue("--luma-editor-font")).toBe("");
+    expect(style().getPropertyValue("--luma-editor-font-size")).toBe("11px");
+    expect(view.dom.classList.contains("cm-luma-ligatures")).toBe(true);
   });
 });

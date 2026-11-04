@@ -8,7 +8,7 @@ async function configure(page: Page, extra = 0) {
     const projectPath = "/src/platform/project.ts";
     const { useRun } = await import(storePath);
     const { useProject } = await import(projectPath);
-    localStorage.setItem(`lama.services.runTypes:${useProject.getState().project.root}`, '["spring-boot","npm"]');
+    localStorage.setItem(`luma.services.runTypes:${useProject.getState().project.root}`, '["spring-boot","npm"]');
     useRun.setState({
       configs: [
         ["gateway", "spring-boot"],
@@ -87,7 +87,7 @@ test("service dragging scrolls across virtual rows without losing source identit
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const key = Object.keys(localStorage).find((k) => k.startsWith("lama.services.runOrder:"));
+        const key = Object.keys(localStorage).find((k) => k.startsWith("luma.services.runOrder:"));
         return key ? JSON.parse(localStorage.getItem(key)!)["spring-boot"].slice(-2) : [];
       }),
     )

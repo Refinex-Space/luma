@@ -38,7 +38,7 @@ afterEach(() =>
   act(() => {
     dismissUsagesPopup();
     useUsageAccessOptions.setState({ read: true, write: true });
-    localStorage.removeItem("lama.usages.accessFilter.v1");
+    localStorage.removeItem("luma.usages.accessFilter.v1");
   }),
 );
 

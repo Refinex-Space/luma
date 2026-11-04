@@ -117,10 +117,10 @@ describe("EditorController", () => {
     expect(view.dom.querySelector(".cm-lineNumbers")).not.toBeNull();
     setDistractionFree(true);
     expect(view.dom.querySelector(".cm-lineNumbers")).toBeNull();
-    expect(view.dom.classList.contains("cm-lama-distractionFree")).toBe(true);
+    expect(view.dom.classList.contains("cm-luma-distractionFree")).toBe(true);
     setDistractionFree(false);
     expect(view.dom.querySelector(".cm-lineNumbers")).not.toBeNull();
-    expect(view.dom.classList.contains("cm-lama-distractionFree")).toBe(false);
+    expect(view.dom.classList.contains("cm-luma-distractionFree")).toBe(false);
     resetDistractionFree();
     slot.unmount();
     host.remove();

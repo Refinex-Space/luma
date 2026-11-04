@@ -72,8 +72,8 @@ describe("menu event routing", () => {
   it("runs the action named by the event, passing the argument", async () => {
     const run = vi.fn();
     const off = registerAction({ id: "test.menuRoute", title: "Test", run });
-    await expect(routeMenuEvent({ action: "test.menuRoute", arg: "/p/lama" })).resolves.toBe(true);
-    expect(run).toHaveBeenCalledWith(expect.objectContaining({ arg: "/p/lama" }));
+    await expect(routeMenuEvent({ action: "test.menuRoute", arg: "/p/luma" })).resolves.toBe(true);
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ arg: "/p/luma" }));
     await routeMenuEvent({ action: "test.menuRoute", arg: null });
     expect(run).toHaveBeenLastCalledWith(expect.objectContaining({ arg: undefined }));
     off();
@@ -112,7 +112,7 @@ describe("menu config", () => {
   });
 
   it("sends localised labels with platform-specific variants", async () => {
-    expect(buildMenuConfig("macos").labels["menu.app.quit"]).toBe("Quit Lama");
+    expect(buildMenuConfig("macos").labels["menu.app.quit"]).toBe("Quit Luma");
     expect(buildMenuConfig("windows").labels["menu.app.quit"]).toBe("Exit");
     expect(buildMenuConfig("windows").labels["menu.help.showLog"]).toBe("Show Log in Explorer");
     await setLocale("zh");

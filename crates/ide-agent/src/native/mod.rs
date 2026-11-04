@@ -5,9 +5,9 @@
 //! A shim speaks ACP v1 as the agent side, plus:
 //! - `agentCapabilities.sessionCapabilities.fork` and `session/fork`
 //!   (`{ sessionId, cwd, mcpServers }` → a `session/new` result for the copy);
-//! - `agentCapabilities._meta.lama.rollback` and `_lama/rollback`
+//! - `agentCapabilities._meta.luma.rollback` and `_luma/rollback`
 //!   (`{ sessionId, turns }`: drops the last `turns` user turns from the session);
-//! - `agentCapabilities._meta.lama.steer` and `_lama/steer`
+//! - `agentCapabilities._meta.luma.steer` and `_luma/steer`
 //!   (`{ sessionId, prompt }`: adds ACP content blocks to the running turn; fails when
 //!   no turn runs).
 

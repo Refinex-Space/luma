@@ -2,9 +2,9 @@
 name = "inventory"
 version = "0.1.0"
 edition = "2021"
-description = "Lama QA fixture: a tiny inventory CLI"
+description = "Luma QA fixture: a tiny inventory CLI"
 
-# Standalone crate: not part of the Lama workspace.
+# Standalone crate: not part of the Luma workspace.
 [workspace]
 
 [features]

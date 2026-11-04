@@ -233,12 +233,12 @@ impl CodexShim {
             "session/fork" => self.fork_session(&params).await,
             "session/set_config_option" => self.set_config(&params).await,
             "session/prompt" => self.prompt(&params).await,
-            "_lama/steer" => self.steer(&params).await,
-            "_lama/rollback" => self.rollback(&params).await,
+            "_luma/steer" => self.steer(&params).await,
+            "_luma/rollback" => self.rollback(&params).await,
             "session/close" => self.close(&params).await,
             // Models and modes, without `thread/start`: a New Task page can offer them
             // before the first message, and no thread is left behind.
-            "_lama/options" => self.preview_options().await,
+            "_luma/options" => self.preview_options().await,
             _ => Err(error(codes::METHOD_NOT_FOUND, format!("unsupported method {method}"))),
         }
     }
@@ -248,7 +248,7 @@ impl CodexShim {
             .call(
                 "initialize",
                 json!({
-                    "clientInfo": { "name": "lama", "title": "Lama", "version": env!("CARGO_PKG_VERSION") },
+                    "clientInfo": { "name": "luma", "title": "Luma", "version": env!("CARGO_PKG_VERSION") },
                     "capabilities": { "experimentalApi": true, "optOutNotificationMethods": OPT_OUT },
                 }),
             )
@@ -269,7 +269,7 @@ impl CodexShim {
                 "promptCapabilities": { "image": true, "audio": false, "embeddedContext": true },
                 "mcpCapabilities": { "http": false, "sse": false },
                 "sessionCapabilities": { "fork": {}, "close": {} },
-                "_meta": { "lama": { "rollback": true, "steer": true } },
+                "_meta": { "luma": { "rollback": true, "steer": true } },
             },
             "agentInfo": { "name": "codex", "title": "Codex", "version": version },
             "authMethods": [],
@@ -998,7 +998,7 @@ fn stop_reason(turn: &Value, last_error: Option<Value>, rate_limits: Option<&Val
                 Failure::UsageLimit(resets) => Err(ResponseError {
                     code: codes::INTERNAL_ERROR,
                     message,
-                    data: Some(json!({ "lama": { "usageLimit": { "resetsAtMs": resets } } })),
+                    data: Some(json!({ "luma": { "usageLimit": { "resetsAtMs": resets } } })),
                 }),
                 Failure::Auth => Err(error(AUTH_REQUIRED, format!("Codex authentication failed: {message}"))),
                 Failure::Other => Err(error(codes::INTERNAL_ERROR, message)),

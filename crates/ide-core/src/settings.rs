@@ -1,5 +1,5 @@
 //! User-facing settings. Layered: defaults → global `settings.toml` →
-//! project `.lama/settings.toml`. Loading/merging lives in `ide-workspace`.
+//! project `.luma/settings.toml`. Loading/merging lives in `ide-workspace`.
 
 use serde::{Deserialize, Serialize};
 use specta::Type;

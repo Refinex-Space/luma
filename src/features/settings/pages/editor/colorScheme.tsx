@@ -96,7 +96,7 @@ const A = (id: string) => ATTRIBUTES.find((a) => a.id === id);
 
 type Seg = [string, string?];
 const SAMPLE: Seg[][] = [
-  [["# Lama color scheme preview", "lineComment"]],
+  [["# Luma color scheme preview", "lineComment"]],
   [["import ", "keyword"], ["os"]],
   [["@dataclass", "pyDecorator"]],
   [["class ", "keyword"], ["Greeter", "className"], [":"]],

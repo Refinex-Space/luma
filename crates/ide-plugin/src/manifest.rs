@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::{Component, Path, PathBuf};
 
-/// Plugin API version implemented by this host (`lama-api` in the manifest).
+/// Plugin API version implemented by this host (`luma-api` in the manifest).
 pub const API_VERSION: &str = "0.1";
 pub const MANIFEST_FILE: &str = "plugin.toml";
 
@@ -45,7 +45,7 @@ pub struct PluginManifest {
     /// Release notes of this version (Settings › Plugins › What's New).
     #[serde(default)]
     pub change_notes: Option<String>,
-    pub lama_api: String,
+    pub luma_api: String,
     /// Component file relative to the package directory; absent for
     /// contribution-only plugins (themes, languages).
     #[serde(default)]
@@ -114,8 +114,8 @@ impl PluginManifest {
         if !is_version(&self.version) {
             return Err(format!("`version` must look like 1.2.3, got {:?}", self.version));
         }
-        if !api_compatible(&self.lama_api) {
-            return Err(format!("unsupported lama-api {:?} (this IDE implements {API_VERSION})", self.lama_api));
+        if !api_compatible(&self.luma_api) {
+            return Err(format!("unsupported luma-api {:?} (this IDE implements {API_VERSION})", self.luma_api));
         }
         if let Some(wasm) = &self.wasm {
             check_relative(wasm, "wasm")?;
@@ -202,7 +202,7 @@ mod tests {
         version = "0.1.0"
         description = "Says hello"
         authors = ["A"]
-        lama-api = "0.1"
+        luma-api = "0.1"
         wasm = "dist/plugin.wasm"
         permissions = ["project-read", "editor-write"]
 
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn minimal_contribution_only_manifest() {
-        let m = PluginManifest::parse("id = \"t\"\nname = \"T\"\nversion = \"1.0.0\"\nlama-api = \"0.1.3\"").unwrap();
+        let m = PluginManifest::parse("id = \"t\"\nname = \"T\"\nversion = \"1.0.0\"\nluma-api = \"0.1.3\"").unwrap();
         assert!(m.wasm.is_none() && m.permissions.is_empty());
     }
 
@@ -242,11 +242,11 @@ mod tests {
     #[test]
     fn rejects_invalid_manifests() {
         let base = |extra: &str, id: &str, api: &str| {
-            format!("id = \"{id}\"\nname = \"N\"\nversion = \"1.0.0\"\nlama-api = \"{api}\"\n{extra}")
+            format!("id = \"{id}\"\nname = \"N\"\nversion = \"1.0.0\"\nluma-api = \"{api}\"\n{extra}")
         };
         assert!(err(&base("", "Bad.Id", "0.1")).contains("invalid plugin id"));
-        assert!(err(&base("", "ok", "0.2")).contains("unsupported lama-api"));
-        assert!(err(&base("", "ok", "0.10")).contains("unsupported lama-api"));
+        assert!(err(&base("", "ok", "0.2")).contains("unsupported luma-api"));
+        assert!(err(&base("", "ok", "0.10")).contains("unsupported luma-api"));
         assert!(err(&base("permissions = [\"network\"]", "ok", "0.1")).contains("unknown variant"));
         assert!(err(&base("wasm = \"../evil.wasm\"", "ok", "0.1")).contains("relative path"));
         assert!(err(&base("wasm = \"/abs.wasm\"", "ok", "0.1")).contains("relative path"));
@@ -258,8 +258,8 @@ mod tests {
         assert!(err(&base(traversal, "ok", "0.1")).contains("relative path"));
         let scheme_escape = "[[contributes.themes]]\npath = \"t.json\"\neditor-scheme = \"../s.json\"";
         assert!(err(&base(scheme_escape, "ok", "0.1")).contains("relative path"));
-        assert!(err("id = \"ok\"\nname = \"N\"\nversion = \"1.0\"\nlama-api = \"0.1\"").contains("version"));
-        assert!(err("id = \"ok\"\nname = \" \"\nversion = \"1.0.0\"\nlama-api = \"0.1\"").contains("name"));
+        assert!(err("id = \"ok\"\nname = \"N\"\nversion = \"1.0\"\nluma-api = \"0.1\"").contains("version"));
+        assert!(err("id = \"ok\"\nname = \" \"\nversion = \"1.0.0\"\nluma-api = \"0.1\"").contains("name"));
     }
 
     #[test]

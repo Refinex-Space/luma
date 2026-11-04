@@ -58,7 +58,7 @@ impl AppState {
         let syntax: Arc<OnceLock<Arc<Syntax>>> = Arc::default();
         {
             let syntax = syntax.clone();
-            std::thread::Builder::new().name("lama-syntax-init".into()).spawn(move || {
+            std::thread::Builder::new().name("luma-syntax-init".into()).spawn(move || {
                 syntax.get_or_init(|| Arc::new(Syntax::new()));
             })?;
         }

@@ -128,7 +128,7 @@ export function atEdgeLine(text: string, caret: number, dir: -1 | 1): boolean {
 }
 
 /** The client-owned approval toggle. It is not something the agent reported. */
-const CLIENT_OPTION = "lama.cursor.approval";
+const CLIENT_OPTION = "luma.cursor.approval";
 
 /** Whether the agent has offered models, modes or thinking effort (not only the client toggle). */
 export function offeredSettings(config: readonly AgentConfigOption[]): boolean {

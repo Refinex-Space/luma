@@ -1285,7 +1285,7 @@ const KIND_COLOR: Partial<Record<AgentChange["kind"], string>> = {
   conflicted: "var(--vcs-conflict)",
 };
 
-const CHANGES_OPEN_KEY = "lama.agents.changesOpen.v1";
+const CHANGES_OPEN_KEY = "luma.agents.changesOpen.v1";
 
 function loadChangesOpen(): Record<string, boolean> {
   try {

@@ -63,7 +63,7 @@ import { refreshNow, repoName, selectRepo, useVcs } from "./store";
 import styles from "./CommitView.module.css";
 
 /** MIME type of changed files dragged between change lists (absolute paths, newline-separated). */
-const CHANGES_MIME = "application/x-lama-changes";
+const CHANGES_MIME = "application/x-luma-changes";
 
 /** Shown text of a node: group names are translated, except the names of user change lists. */
 function nodeText(n: ChangeNode): string {

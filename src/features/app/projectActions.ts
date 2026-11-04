@@ -14,11 +14,11 @@ import { tx } from "@/platform/i18n";
 
 /** localStorage prefixes of IDE-level state exported with the settings (templates, macros, layouts). */
 export const EXPORTED_STORAGE = [
-  "lama.liveTemplates.",
-  "lama.fileTemplates.",
-  "lama.postfix.",
-  "lama.macros.",
-  "lama.toolWindowLayouts.",
+  "luma.liveTemplates.",
+  "luma.fileTemplates.",
+  "luma.postfix.",
+  "luma.macros.",
+  "luma.toolWindowLayouts.",
 ];
 
 export function exportedStorage(
@@ -42,8 +42,8 @@ async function exportSettings() {
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = await save({
     title: "Export Settings",
-    defaultPath: "lama-settings.json",
-    filters: [{ name: "Lama settings", extensions: ["json"] }],
+    defaultPath: "luma-settings.json",
+    filters: [{ name: "Luma settings", extensions: ["json"] }],
   });
   if (!path) return;
   try {
@@ -64,7 +64,7 @@ async function importSettings() {
   const picked = await open({
     title: "Import Settings",
     multiple: false,
-    filters: [{ name: "Lama settings", extensions: ["json"] }],
+    filters: [{ name: "Luma settings", extensions: ["json"] }],
   });
   const path = Array.isArray(picked) ? picked[0] : picked;
   if (!path) return;

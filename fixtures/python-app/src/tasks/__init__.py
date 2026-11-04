@@ -1,4 +1,4 @@
-"""A tiny task tracker used as an Lama QA fixture."""
+"""A tiny task tracker used as an Luma QA fixture."""
 
 from .models import Priority, Task, TaskList
 

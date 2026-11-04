@@ -1,12 +1,12 @@
 [package]
-name = "lama"
-description = "Lama desktop shell: an open-source IDE inspired by IntelliJ IDEA"
+name = "luma"
+description = "Luma desktop shell: an open-source IDE inspired by IntelliJ IDEA"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "lama_lib"
+name = "luma_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -150,7 +150,7 @@ export function runtime(sessionId: string): SessionRuntime | undefined {
 // ---------------------------------------------------------------------------
 // Configurations
 
-const SELECTED_KEY = "lama.run.selected:";
+const SELECTED_KEY = "luma.run.selected:";
 
 function readSelected(root: string): string | null {
   try {
@@ -229,7 +229,7 @@ export function selectedConfig(): RunConfig | undefined {
 // ---------------------------------------------------------------------------
 // Temporary configurations (IDEA: created by gutter / context runs, at most 5)
 
-const TEMPORARY_KEY = "lama.run.temporary:";
+const TEMPORARY_KEY = "luma.run.temporary:";
 export const MAX_TEMPORARY = 5;
 
 function readTemporary(root: string): RunConfig[] {

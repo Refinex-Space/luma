@@ -102,7 +102,7 @@ struct Manifest {
     source: Option<String>,
 }
 
-const MANIFEST: &str = ".lama-tool.json";
+const MANIFEST: &str = ".luma-tool.json";
 
 /// `typescript@6` → `typescript`, `@vue/language-server` unchanged.
 fn npm_name(spec: &str) -> &str {
@@ -860,7 +860,7 @@ impl Tools {
     fn ensure_package_json(&self) -> IdeResult<()> {
         let pj = self.root.join("package.json");
         if !pj.exists() {
-            std::fs::write(pj, "{\n  \"name\": \"lama-tools\",\n  \"private\": true\n}\n")?;
+            std::fs::write(pj, "{\n  \"name\": \"luma-tools\",\n  \"private\": true\n}\n")?;
         }
         Ok(())
     }

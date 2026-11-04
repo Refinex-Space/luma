@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin>
   <extension point="org.eclipse.jdt.ls.core.delegateCommandHandler">
-    <delegateCommandHandler class="ai.lama.usages.UsagesCommand">
-      <command id="lama.java.usages"/>
+    <delegateCommandHandler class="ai.luma.usages.UsagesCommand">
+      <command id="luma.java.usages"/>
     </delegateCommandHandler>
-    <delegateCommandHandler class="ai.lama.configuration.ConfigurationCommand">
-      <command id="lama.java.configuration"/>
+    <delegateCommandHandler class="ai.luma.configuration.ConfigurationCommand">
+      <command id="luma.java.configuration"/>
     </delegateCommandHandler>
   </extension>
 </plugin>

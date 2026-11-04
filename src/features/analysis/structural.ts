@@ -23,7 +23,7 @@ import { notifications } from "@/workbench/contributions";
 import { resolveScope, type ScopeChoice } from "./scope";
 import { tx } from "@/platform/i18n";
 
-const STATE_KEY = "lama.analysis.structural.v1";
+const STATE_KEY = "luma.analysis.structural.v1";
 
 export interface StructuralForm {
   pattern: string;

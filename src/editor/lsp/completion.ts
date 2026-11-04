@@ -389,14 +389,14 @@ export function makeCompletion(item: CompletionItem, req: RequestContext): LspCo
 }
 
 /**
- * Sources other features contribute via the `lamaCompletion` language-data
+ * Sources other features contribute via the `lumaCompletion` language-data
  * key (live templates, postfix, SQL). Results starting where the first one
  * does are merged into one list. Options may carry `icon` (an icon name, `null`
  * for none) and `typeText` (the right-aligned type column), like LSP items.
  */
 const contributedSource: CompletionSource = async (ctx) => {
   const results: CompletionResult[] = [];
-  for (const source of ctx.state.languageDataAt<CompletionSource>("lamaCompletion", ctx.pos)) {
+  for (const source of ctx.state.languageDataAt<CompletionSource>("lumaCompletion", ctx.pos)) {
     const result = await source(ctx);
     if (result) results.push(result);
   }
@@ -547,12 +547,12 @@ export function matchesCase(label: string, typed: string, mode: string): boolean
 
 /**
  * A source another feature restricts the lookup to, via the
- * `lamaExclusiveCompletion` language-data key (`(state) => source | null`;
+ * `lumaExclusiveCompletion` language-data key (`(state) => source | null`;
  * ⌘J's live templates).
  */
 function exclusiveSource(ctx: CompletionContext): CompletionSource | null {
   type Provider = (state: CompletionContext["state"]) => CompletionSource | null;
-  for (const f of ctx.state.languageDataAt<Provider>("lamaExclusiveCompletion", ctx.pos)) {
+  for (const f of ctx.state.languageDataAt<Provider>("lumaExclusiveCompletion", ctx.pos)) {
     const source = f(ctx.state);
     if (source) return source;
   }

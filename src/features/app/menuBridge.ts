@@ -1,7 +1,7 @@
 /**
  * Native menu ↔ action system.
  *
- * The backend emits `lama://menu` `{ action, arg }` to the focused window when
+ * The backend emits `luma://menu` `{ action, arg }` to the focused window when
  * an IDE menu item is clicked; we run `executeAction(action, arg)`. In the
  * other direction we push localised labels (`menu.*` catalog keys) and the
  * shortcut text of every keymap binding, so the menu shows the JS keymap's
@@ -18,7 +18,7 @@ import { isDistractionFree, useDistractionFree } from "@/workbench/distractionFr
 import { useToolWindowLayouts } from "@/workbench/toolwindows/layouts";
 import { hostOs, type HostOs } from "./host";
 
-export const MENU_EVENT = "lama://menu";
+export const MENU_EVENT = "luma://menu";
 
 export interface MenuRoute {
   action: string;

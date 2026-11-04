@@ -92,7 +92,7 @@ mod tests {
             assert!(is_apple_clangd(Path::new(path)), "{path}");
         }
         for path in [
-            "/Users/me/Library/Application Support/lama/tools/clangd/bin/clangd",
+            "/Users/me/Library/Application Support/luma/tools/clangd/bin/clangd",
             "/opt/homebrew/opt/llvm/bin/clangd",
             "/usr/local/bin/clangd",
             "/usr/bin/clangd-custom",

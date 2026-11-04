@@ -87,7 +87,7 @@ export const DEFAULT_DEPLOYMENT: DeploymentSettingsValid = {
   autoUpload: "never",
   deleteRemote: false,
   preserveTimestamps: true,
-  exclude: [".git", ".svn", ".hg", ".idea", ".lama", ".DS_Store", "*.pyc", "__pycache__"],
+  exclude: [".git", ".svn", ".hg", ".idea", ".luma", ".DS_Store", "*.pyc", "__pycache__"],
 };
 
 export const DEFAULT_RUN_TARGET: RunTargetValid = {

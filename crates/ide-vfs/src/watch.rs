@@ -236,7 +236,7 @@ impl Watcher {
         let thread = {
             let state = state.clone();
             std::thread::Builder::new()
-                .name("lama-fs-watch".into())
+                .name("luma-fs-watch".into())
                 .spawn(move || state.run(&*emit))
                 .map_err(|e| io_error(format!("cannot start file watcher: {e}")))?
         };
@@ -706,7 +706,7 @@ mod tests {
     fn atomic_save_temp_files_are_not_reported() {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().canonicalize().unwrap();
-        let temp = root.join(".a.py.lama-tmp-42-0");
+        let temp = root.join(".a.py.luma-tmp-42-0");
         std::fs::write(&temp, "x").unwrap();
         std::fs::write(root.join("a.py"), "x").unwrap();
         let filter = EventFilter::new(root.clone(), &[]);

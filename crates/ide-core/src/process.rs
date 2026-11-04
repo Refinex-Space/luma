@@ -438,8 +438,8 @@ mod tests {
                 }
             }
         }
-        let name = format!("Software\\space.refinex.lama.registry-read-test-{}", std::process::id());
-        let variable = format!("LAMA_TEST_REGVAR_{}", std::process::id());
+        let name = format!("Software\\space.refinex.luma.registry-read-test-{}", std::process::id());
+        let variable = format!("LUMA_TEST_REGVAR_{}", std::process::id());
         let long = "x".repeat(600);
         let mut key: HKEY = std::ptr::null_mut();
         let opened = unsafe {
@@ -505,14 +505,14 @@ mod tests {
 
     #[test]
     fn shell_env_adds_only_what_the_process_lacks_and_the_overlay_wins() {
-        set_shell_env(vec![("LAMA_SHELL_ONLY_VAR".into(), "1".into()), ("PATH".into(), "/from/shell".into())]);
+        set_shell_env(vec![("LUMA_SHELL_ONLY_VAR".into(), "1".into()), ("PATH".into(), "/from/shell".into())]);
         let vars: Vec<_> = shell_env().collect();
-        assert_eq!(vars, [(OsString::from("LAMA_SHELL_ONLY_VAR"), OsString::from("1"))]);
+        assert_eq!(vars, [(OsString::from("LUMA_SHELL_ONLY_VAR"), OsString::from("1"))]);
 
         // The overlay (process-wide too, hence the same test).
-        set_shell_env(vec![("LAMA_OVERLAY_A".into(), "shell".into()), ("LAMA_OVERLAY_B".into(), "b".into())]);
+        set_shell_env(vec![("LUMA_OVERLAY_A".into(), "shell".into()), ("LUMA_OVERLAY_B".into(), "b".into())]);
         set_env_overlay(vec![
-            ("LAMA_OVERLAY_A".into(), Some("project".into())),
+            ("LUMA_OVERLAY_A".into(), Some("project".into())),
             ("PATH".into(), Some("/reloaded".into())),
             ("HOME".into(), None),
         ]);
@@ -520,14 +520,14 @@ mod tests {
         cmd.env("PATH", "/custom");
         host_env(&mut cmd);
         let get = |k: &str| cmd.get_envs().find(|(n, _)| *n == k).map(|(_, v)| v.map(OsStr::to_owned));
-        assert_eq!(get("LAMA_OVERLAY_A"), Some(Some("project".into())));
+        assert_eq!(get("LUMA_OVERLAY_A"), Some(Some("project".into())));
         assert_eq!(get("PATH"), Some(Some("/custom".into())), "the call site's value wins");
         assert_eq!(get("HOME"), Some(None));
         let shell: Vec<_> = shell_env().map(|(k, _)| k).collect();
-        assert_eq!(shell, [OsString::from("LAMA_OVERLAY_B")]);
+        assert_eq!(shell, [OsString::from("LUMA_OVERLAY_B")]);
         assert_eq!(host_var_os("PATH"), Some("/reloaded".into()));
         assert!(host_vars().all(|(k, _)| k != "HOME"));
-        assert!(host_vars().any(|(k, v)| k == "LAMA_OVERLAY_A" && v == "project"));
+        assert!(host_vars().any(|(k, v)| k == "LUMA_OVERLAY_A" && v == "project"));
         assert_eq!(host_env_fixes().len(), env_overlay().len());
         set_env_overlay(Vec::new());
     }
@@ -584,9 +584,9 @@ mod tests {
     fn variables_left_empty_are_removed() {
         // AppRun prepends to an unset variable, leaving a trailing `:`; hooks set single paths.
         let got = fixes(&[
-            ("APPIMAGE", "/opt/lama/Lama.AppImage"),
+            ("APPIMAGE", "/opt/luma/Luma.AppImage"),
             ("APPDIR", "/tmp/.mount_x/"),
-            ("ARGV0", "/opt/lama/Lama.AppImage"),
+            ("ARGV0", "/opt/luma/Luma.AppImage"),
             ("OWD", "/home/me"),
             ("LD_LIBRARY_PATH", "/tmp/.mount_x/usr/lib/:/tmp/.mount_x/lib/:"),
             ("GIO_MODULE_DIR", "/tmp/.mount_x/usr/lib/gio/modules"),

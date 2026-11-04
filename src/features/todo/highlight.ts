@@ -27,8 +27,8 @@ function marks(color: string) {
   let m = markCache.get(color);
   if (!m) {
     m = {
-      line: Decoration.mark({ class: "cm-lama-todo", attributes: { style: `--todo-color: ${color}` } }),
-      keyword: Decoration.mark({ class: "cm-lama-todo-keyword" }),
+      line: Decoration.mark({ class: "cm-luma-todo", attributes: { style: `--todo-color: ${color}` } }),
+      keyword: Decoration.mark({ class: "cm-luma-todo-keyword" }),
     };
     markCache.set(color, m);
   }
@@ -82,8 +82,8 @@ export function todoDecorations(view: EditorView, settings: TodoSettings): Decor
 }
 
 const theme = EditorView.baseTheme({
-  ".cm-lama-todo, .cm-lama-todo *": { color: "var(--todo-color) !important", fontStyle: "italic" },
-  ".cm-lama-todo-keyword, .cm-lama-todo-keyword *": {
+  ".cm-luma-todo, .cm-luma-todo *": { color: "var(--todo-color) !important", fontStyle: "italic" },
+  ".cm-luma-todo-keyword, .cm-luma-todo-keyword *": {
     fontWeight: "var(--fw-code-bold, 700)",
     fontStyle: "normal",
   },

@@ -11,46 +11,46 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-const ZSHENV: &str = r#"# Lama shell integration (generated)
-_lama_dir=$ZDOTDIR
-ZDOTDIR=${LAMA_USER_ZDOTDIR:-$HOME}
+const ZSHENV: &str = r#"# Luma shell integration (generated)
+_luma_dir=$ZDOTDIR
+ZDOTDIR=${LUMA_USER_ZDOTDIR:-$HOME}
 [[ -f $ZDOTDIR/.zshenv ]] && . $ZDOTDIR/.zshenv
-LAMA_USER_ZDOTDIR=$ZDOTDIR
-ZDOTDIR=$_lama_dir
+LUMA_USER_ZDOTDIR=$ZDOTDIR
+ZDOTDIR=$_luma_dir
 "#;
 
-const ZPROFILE: &str = r#"# Lama shell integration (generated)
-ZDOTDIR=$LAMA_USER_ZDOTDIR
+const ZPROFILE: &str = r#"# Luma shell integration (generated)
+ZDOTDIR=$LUMA_USER_ZDOTDIR
 [[ -f $ZDOTDIR/.zprofile ]] && . $ZDOTDIR/.zprofile
-LAMA_USER_ZDOTDIR=$ZDOTDIR
-ZDOTDIR=$_lama_dir
+LUMA_USER_ZDOTDIR=$ZDOTDIR
+ZDOTDIR=$_luma_dir
 "#;
 
-const ZSHRC: &str = r#"# Lama shell integration (generated)
-ZDOTDIR=$LAMA_USER_ZDOTDIR
+const ZSHRC: &str = r#"# Luma shell integration (generated)
+ZDOTDIR=$LUMA_USER_ZDOTDIR
 [[ -f $ZDOTDIR/.zshrc ]] && . $ZDOTDIR/.zshrc
-LAMA_USER_ZDOTDIR=$ZDOTDIR
-ZDOTDIR=$_lama_dir
-_lama_osc7() { printf '\e]133;D\a\e]7;file://%s%s\a' "${HOST}" "${PWD}" }
-_lama_preexec() { printf '\e]133;C\a' }
+LUMA_USER_ZDOTDIR=$ZDOTDIR
+ZDOTDIR=$_luma_dir
+_luma_osc7() { printf '\e]133;D\a\e]7;file://%s%s\a' "${HOST}" "${PWD}" }
+_luma_preexec() { printf '\e]133;C\a' }
 # First, so the command counts as finished before other hooks set the prompt's title.
-precmd_functions=(_lama_osc7 ${precmd_functions:#_lama_osc7})
-preexec_functions+=(_lama_preexec)
+precmd_functions=(_luma_osc7 ${precmd_functions:#_luma_osc7})
+preexec_functions+=(_luma_preexec)
 if [[ ! -o login ]]; then
-  ZDOTDIR=$LAMA_USER_ZDOTDIR
-  unset LAMA_USER_ZDOTDIR _lama_dir
+  ZDOTDIR=$LUMA_USER_ZDOTDIR
+  unset LUMA_USER_ZDOTDIR _luma_dir
 fi
 "#;
 
-const ZLOGIN: &str = r#"# Lama shell integration (generated)
-ZDOTDIR=$LAMA_USER_ZDOTDIR
+const ZLOGIN: &str = r#"# Luma shell integration (generated)
+ZDOTDIR=$LUMA_USER_ZDOTDIR
 [[ -f $ZDOTDIR/.zlogin ]] && . $ZDOTDIR/.zlogin
-unset LAMA_USER_ZDOTDIR _lama_dir
+unset LUMA_USER_ZDOTDIR _luma_dir
 "#;
 
-const BASHRC: &str = r#"# Lama shell integration (generated)
-if [ "${LAMA_LOGIN:-}" = 1 ]; then
-  unset LAMA_LOGIN
+const BASHRC: &str = r#"# Luma shell integration (generated)
+if [ "${LUMA_LOGIN:-}" = 1 ]; then
+  unset LUMA_LOGIN
   [ -f /etc/profile ] && . /etc/profile
   if [ -f ~/.bash_profile ]; then . ~/.bash_profile
   elif [ -f ~/.bash_login ]; then . ~/.bash_login
@@ -59,10 +59,10 @@ if [ "${LAMA_LOGIN:-}" = 1 ]; then
 else
   [ -f ~/.bashrc ] && . ~/.bashrc
 fi
-__lama_osc7() { printf '\e]133;D\a\e]7;file://%s%s\a' "${HOSTNAME}" "${PWD}"; }
+__luma_osc7() { printf '\e]133;D\a\e]7;file://%s%s\a' "${HOSTNAME}" "${PWD}"; }
 case ";${PROMPT_COMMAND:-};" in
-  *";__lama_osc7;"*) ;;
-  *) PROMPT_COMMAND="__lama_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+  *";__luma_osc7;"*) ;;
+  *) PROMPT_COMMAND="__luma_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
 esac
 # PS0 (bash 4.4+) prints before each command runs.
 case "${PS0:-}" in
@@ -72,13 +72,13 @@ esac
 "#;
 
 const FISH_INIT: &str = concat!(
-    r#"function __lama_osc7 --on-event fish_prompt; printf '\e]133;D\a\e]7;file://%s%s\a' (hostname) $PWD; end; "#,
-    r#"function __lama_preexec --on-event fish_preexec; printf '\e]133;C\a'; end"#,
+    r#"function __luma_osc7 --on-event fish_prompt; printf '\e]133;D\a\e]7;file://%s%s\a' (hostname) $PWD; end; "#,
+    r#"function __luma_preexec --on-event fish_preexec; printf '\e]133;C\a'; end"#,
 );
 
 /// Directory holding the generated startup files (written on demand).
 fn scripts_dir() -> PathBuf {
-    std::env::temp_dir().join(format!("lama-shell-integration-{}", env!("CARGO_PKG_VERSION")))
+    std::env::temp_dir().join(format!("luma-shell-integration-{}", env!("CARGO_PKG_VERSION")))
 }
 
 fn write_if_changed(path: &Path, content: &str) -> std::io::Result<()> {
@@ -108,7 +108,7 @@ pub(crate) fn apply(shell_name: &str, args: &mut Vec<String>, env: &mut BTreeMap
             write_if_changed(&zdir.join(".zlogin"), ZLOGIN)?;
             let user = env.get("ZDOTDIR").cloned().or_else(|| std::env::var("ZDOTDIR").ok()).filter(|v| !v.is_empty());
             if let Some(user) = user {
-                env.insert("LAMA_USER_ZDOTDIR".into(), user);
+                env.insert("LUMA_USER_ZDOTDIR".into(), user);
             }
             env.insert("ZDOTDIR".into(), zdir.to_string_lossy().into_owned());
             Ok(())
@@ -119,10 +119,10 @@ pub(crate) fn apply(shell_name: &str, args: &mut Vec<String>, env: &mut BTreeMap
                 return false;
             }
             (|| -> std::io::Result<()> {
-                let rc = dir.join("bash").join("lama.bashrc");
+                let rc = dir.join("bash").join("luma.bashrc");
                 write_if_changed(&rc, BASHRC)?;
                 if args.iter().any(|a| a == "-l" || a == "--login") {
-                    env.insert("LAMA_LOGIN".into(), "1".into());
+                    env.insert("LUMA_LOGIN".into(), "1".into());
                 }
                 *args = vec!["--init-file".into(), rc.to_string_lossy().into_owned(), "-i".into()];
                 Ok(())
@@ -158,7 +158,7 @@ mod tests {
         assert!(apply("bash", &mut args, &mut env));
         assert_eq!(args[0], "--init-file");
         assert!(Path::new(&args[1]).is_file());
-        assert_eq!(env.get("LAMA_LOGIN").map(String::as_str), Some("1"));
+        assert_eq!(env.get("LUMA_LOGIN").map(String::as_str), Some("1"));
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod tests {
         assert!(apply("zsh", &mut args, &mut env));
         let dir = PathBuf::from(&env["ZDOTDIR"]);
         assert!(dir.join(".zshrc").is_file());
-        assert_eq!(env["LAMA_USER_ZDOTDIR"], "/home/me/zsh");
+        assert_eq!(env["LUMA_USER_ZDOTDIR"], "/home/me/zsh");
         assert_eq!(args, vec!["-l"]);
     }
 }

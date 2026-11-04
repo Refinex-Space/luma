@@ -10,7 +10,7 @@ try {
     style.textContent = css;
     document.head.appendChild(style);
   };
-  const last = JSON.parse(localStorage.getItem("lama.theme") ?? "null");
+  const last = JSON.parse(localStorage.getItem("luma.theme") ?? "null");
   if (last?.theme) root.dataset.theme = last.theme;
   if (last?.contrast) root.dataset.contrast = last.contrast;
   // A built-in palette theme (Solarized, One) over its light / dark base (tokens.css).
@@ -18,9 +18,9 @@ try {
     root.dataset.colorTheme = last.colorTheme;
   // A plugin theme's stylesheet (plugins/bridge.ts), so the workbench doesn't
   // show the built-in theme until the plugin host answers.
-  const plugin = JSON.parse(localStorage.getItem("lama.pluginTheme") ?? "null");
+  const plugin = JSON.parse(localStorage.getItem("luma.pluginTheme") ?? "null");
   if (typeof plugin?.id === "string" && typeof plugin.css === "string" && !/[<\\]|url\(/i.test(plugin.css)) {
-    addStyle("lama-plugin-theme", plugin.css);
+    addStyle("luma-plugin-theme", plugin.css);
     root.dataset.pluginTheme = plugin.id;
     root.dataset.pluginThemeKind = root.dataset.theme = plugin.kind === "light" ? "light" : "dark";
     delete root.dataset.contrast;
@@ -32,7 +32,7 @@ try {
     ["--boot-fg", last?.fg],
     ["--boot-accent", last?.accent],
   ].filter(([, v]) => typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v));
-  if (colors.length) addStyle("lama-boot-colors", `:root { ${colors.map(([k, v]) => `${k}: ${v};`).join(" ")} }`);
+  if (colors.length) addStyle("luma-boot-colors", `:root { ${colors.map(([k, v]) => `${k}: ${v};`).join(" ")} }`);
 } catch {
   /* storage unavailable */
 }

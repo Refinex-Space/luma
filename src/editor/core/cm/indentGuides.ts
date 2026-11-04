@@ -14,8 +14,8 @@ function guideDeco(levels: number, step: number) {
   if (!d) {
     d = Decoration.line({
       attributes: {
-        class: "cm-lama-guides",
-        style: `--lama-guide-levels: ${levels}; --lama-guide-step: ${step}`,
+        class: "cm-luma-guides",
+        style: `--luma-guide-levels: ${levels}; --luma-guide-step: ${step}`,
       },
     });
     cache.set(key, d);

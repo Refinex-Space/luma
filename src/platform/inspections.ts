@@ -430,7 +430,7 @@ export interface SeenCode {
   sample: string;
 }
 
-const SEEN_KEY = "lama.inspections.seenCodes";
+const SEEN_KEY = "luma.inspections.seenCodes";
 const SEEN_LIMIT = 500;
 let seen: Map<string, SeenCode> | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

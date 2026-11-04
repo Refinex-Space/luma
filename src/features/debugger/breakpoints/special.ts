@@ -47,7 +47,7 @@ interface SpecialState {
 
 export const useSpecialBreakpoints = create<SpecialState>(() => ({ root: null, methods: [], fields: [], status: {} }));
 
-const STORAGE_PREFIX = "lama.debugger.specialBreakpoints:";
+const STORAGE_PREFIX = "luma.debugger.specialBreakpoints:";
 
 function str(v: unknown): string | null {
   return typeof v === "string" ? v : null;

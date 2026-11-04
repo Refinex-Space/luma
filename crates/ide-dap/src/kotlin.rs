@@ -24,7 +24,7 @@ impl SourceMirror {
         if base.starts_with(fs::canonicalize(project)?) {
             return Err(IdeError::invalid("Kotlin source mirror must be outside the project"));
         }
-        let dir = tempfile::Builder::new().prefix("lama-kotlin-").tempdir_in(base)?;
+        let dir = tempfile::Builder::new().prefix("luma-kotlin-").tempdir_in(base)?;
         let source_dir = if project.join("src").is_dir() { project.join("src") } else { project.to_owned() };
         let mut mirror = Self {
             dir,
@@ -49,7 +49,7 @@ impl SourceMirror {
             if kind.is_dir() {
                 if !matches!(
                     entry.file_name().to_str(),
-                    Some(".git" | ".gradle" | "build" | "target" | "node_modules" | ".idea" | ".lama")
+                    Some(".git" | ".gradle" | "build" | "target" | "node_modules" | ".idea" | ".luma")
                 ) {
                     self.scan(&path)?;
                 }

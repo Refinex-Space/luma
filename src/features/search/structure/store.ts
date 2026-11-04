@@ -163,7 +163,7 @@ export function useLiveOutline() {
 // ---------------------------------------------------------------------------
 // View options (persisted)
 
-const OPTIONS_KEY = "lama.structure.options.v1";
+const OPTIONS_KEY = "luma.structure.options.v1";
 
 interface StructureOptions {
   alphabetical: boolean;

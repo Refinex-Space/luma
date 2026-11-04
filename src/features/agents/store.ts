@@ -74,10 +74,10 @@ interface AgentsState {
   homeOpen: boolean;
 }
 
-const DRAFT_KEY = "lama.agents.draft.v2";
-const HISTORY_KEY = "lama.agents.history.v1";
+const DRAFT_KEY = "luma.agents.draft.v2";
+const HISTORY_KEY = "luma.agents.history.v1";
 const HISTORY_SIZE = 50;
-const SESSION_LOCATION_KEY = "lama.agents.sessionLocation.v1";
+const SESSION_LOCATION_KEY = "luma.agents.sessionLocation.v1";
 
 function load<T>(key: string, fallback: T): T {
   try {

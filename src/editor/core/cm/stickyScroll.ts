@@ -9,7 +9,7 @@ import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { foldNodeProp, syntaxTree } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
 import { backendFolds } from "./folding";
-import { lamaHighlightStyle } from "./highlight";
+import { lumaHighlightStyle } from "./highlight";
 
 /** Maximum number of sticky lines (Settings › Editor › Code Editing). */
 export const stickyMaxLines = Facet.define<number, number>({
@@ -68,7 +68,7 @@ function renderLineContent(state: EditorState, lineNo: number, target: HTMLEleme
   if (tree.length >= end) {
     highlightTree(
       tree,
-      lamaHighlightStyle,
+      lumaHighlightStyle,
       (from, to, cls) => {
         push(Math.max(from, pos), "");
         push(Math.min(to, end), cls);
@@ -108,7 +108,7 @@ class StickyScroll {
 
   constructor(private view: EditorView) {
     this.dom = document.createElement("div");
-    this.dom.className = "cm-lama-sticky";
+    this.dom.className = "cm-luma-sticky";
     this.dom.style.display = "none";
     this.dom.setAttribute("aria-hidden", "true");
     this.dom.addEventListener("mousedown", this.onMouseDown);
@@ -192,18 +192,18 @@ class StickyScroll {
           const frag = document.createDocumentFragment();
           for (const n of lines) {
             const row = document.createElement("div");
-            row.className = "cm-lama-stickyLine";
+            row.className = "cm-luma-stickyLine";
             row.dataset.line = String(n);
             const num = document.createElement("span");
-            num.className = "cm-lama-stickyNumber";
+            num.className = "cm-luma-stickyNumber";
             num.style.width = `${numberWidth}px`;
             num.style.marginLeft = `${numberLeft}px`;
             num.style.marginRight = `${Math.max(0, gutterWidth - numberLeft - numberWidth)}px`;
             num.textContent = String(n);
             const text = document.createElement("span");
-            text.className = "cm-lama-stickyText";
+            text.className = "cm-luma-stickyText";
             const inner = document.createElement("span");
-            inner.className = "cm-lama-stickyInner";
+            inner.className = "cm-luma-stickyInner";
             inner.style.display = "inline-block";
             inner.style.paddingLeft = "6px";
             renderLineContent(this.view.state, n, inner);
@@ -213,7 +213,7 @@ class StickyScroll {
           }
           this.dom.replaceChildren(frag);
         }
-        for (const inner of this.dom.querySelectorAll<HTMLElement>(".cm-lama-stickyInner"))
+        for (const inner of this.dom.querySelectorAll<HTMLElement>(".cm-luma-stickyInner"))
           inner.style.transform = scrollLeft ? `translateX(${-scrollLeft}px)` : "";
       },
     });
@@ -221,13 +221,13 @@ class StickyScroll {
 
   private onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
-    const row = (e.target as HTMLElement).closest<HTMLElement>(".cm-lama-stickyLine");
+    const row = (e.target as HTMLElement).closest<HTMLElement>(".cm-luma-stickyLine");
     if (!row?.dataset.line) return;
     e.preventDefault();
     // The line number of a sticky line is not a link (IDEA).
     const inner = (e.target as HTMLElement)
-      .closest(".cm-lama-stickyText")
-      ?.querySelector<HTMLElement>(".cm-lama-stickyInner");
+      .closest(".cm-luma-stickyText")
+      ?.querySelector<HTMLElement>(".cm-luma-stickyInner");
     if (!inner) return;
     const state = this.view.state;
     const line = state.doc.line(Math.min(Number(row.dataset.line), state.doc.lines));

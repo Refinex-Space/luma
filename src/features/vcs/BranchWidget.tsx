@@ -143,7 +143,7 @@ const REPO_ACTIONS: PopupAction[] = [
   { id: "vcs.checkoutRevision", label: "Checkout Tag or Revision…", icon: "branch", group: "branch" },
 ];
 
-const OPTIONS_KEY = "lama.vcs.branchesPopup.options";
+const OPTIONS_KEY = "luma.vcs.branchesPopup.options";
 
 interface PopupOptions {
   groupByPrefix: boolean;

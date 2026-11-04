@@ -702,7 +702,7 @@ impl LspManager {
         }
         let mut params = json!({
             "processId": std::process::id(),
-            "clientInfo": { "name": "Lama", "version": env!("CARGO_PKG_VERSION") },
+            "clientInfo": { "name": "Luma", "version": env!("CARGO_PKG_VERSION") },
             "locale": "en",
             "rootPath": server.root.to_string_lossy(),
             "rootUri": root_uri,
@@ -1247,7 +1247,7 @@ impl LspManager {
         // Old/custom servers retain the standard protocol, including cancellation and scope widening.
         if targets.len() == 1
             && targets[0].server.name == "jdtls"
-            && targets[0].caps().commands().iter().any(|c| c == "lama.java.usages")
+            && targets[0].caps().commands().iter().any(|c| c == "luma.java.usages")
         {
             let classified = async {
                 let t = &targets[0];
@@ -1269,7 +1269,7 @@ impl LspManager {
                             t,
                             "workspace/executeCommand",
                             json!({
-                                "command": "lama.java.usages",
+                                "command": "luma.java.usages",
                                 "arguments": [params["textDocument"]["uri"], params["position"]["line"],
                                     params["position"]["character"], include_declaration]
                             }),

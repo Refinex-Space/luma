@@ -152,7 +152,7 @@ pub enum PatchSource {
     Commits { commits: Vec<String>, reverse: bool },
 }
 
-// ---- shelf (`.lama/shelf`) and change lists (`.lama/changelists.json`) ----
+// ---- shelf (`.luma/shelf`) and change lists (`.luma/changelists.json`) ----
 
 const PRIVATE_ENTRIES: [&str; 2] = ["/shelf/", "/changelists.json"];
 
@@ -162,7 +162,7 @@ fn shelf_dir(root: &Path) -> PathBuf {
 
 fn keep_private(root: &Path) {
     if let Err(e) = ide_vcs::changelists::ensure_ignored(&ide_core::project_dir::path(root, ""), &PRIVATE_ENTRIES) {
-        tracing::warn!("could not update .lama/.gitignore: {e}");
+        tracing::warn!("could not update .luma/.gitignore: {e}");
     }
 }
 

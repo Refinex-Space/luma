@@ -1,14 +1,14 @@
-# <img src="docs/media/lama-mark-64.png" alt="" width="36" height="36" /> Lama
+# <img src="docs/media/luma-mark-64.png" alt="" width="36" height="36" /> Luma
 
 面向日常开发的独立桌面 IDE。键位、工具窗口与 Search Everywhere 沿用 IntelliJ IDEA 的习惯，运行时是 Rust 与 Tauri 2 的原生应用。
 
-代码自开源项目 [OpenIDEA](https://github.com/l0ng-ai/openidea) fork，并在本仓库以 Lama 继续演进。编辑器、代码洞察、调试器、Git、终端、数据库与 HTTP 客户端覆盖 60+ 语言，可在 macOS、Windows、Linux 上构建。
+代码自开源项目 [OpenIDEA](https://github.com/l0ng-ai/openidea) fork，并在本仓库以 Luma 继续演进。编辑器、代码洞察、调试器、Git、终端、数据库与 HTTP 客户端覆盖 60+ 语言，可在 macOS、Windows、Linux 上构建。
 
 ## 与上游的关系
 
 本仓库由 [l0ng-ai/openidea](https://github.com/l0ng-ai/openidea) fork 而来，协议同为 Apache 2.0。上游版权与第三方声明见 [`NOTICE`](NOTICE)、[`LICENSE`](LICENSE)、[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
 
-合并上游时，优先对照其 `main`；Lama 侧的产品决策与品牌改动在本仓库独立推进。
+合并上游时，优先对照其 `main`；Luma 侧的产品决策与品牌改动在本仓库独立推进。
 
 ## 本地开发
 
@@ -88,8 +88,8 @@ pnpm e2e
 Notebook 内核相关的忽略测试需两套装了 `ipykernel` 的 Python，按需再开：
 
 ```bash
-LAMA_TEST_PYTHON=/first/env/bin/python \
-LAMA_TEST_PYTHON_SECOND=/second/env/bin/python \
+LUMA_TEST_PYTHON=/first/env/bin/python \
+LUMA_TEST_PYTHON_SECOND=/second/env/bin/python \
 cargo test -p ide-notebook --test kernel_runtime -- --ignored --test-threads=1
 ```
 

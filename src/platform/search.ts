@@ -68,7 +68,7 @@ function save(key: string, value: unknown) {
   }
 }
 
-const HISTORY_KEYS = { find: "lama.search.findHistory.v1", replace: "lama.search.replaceHistory.v1" };
+const HISTORY_KEYS = { find: "luma.search.findHistory.v1", replace: "luma.search.replaceHistory.v1" };
 const MAX_HISTORY = 20;
 
 /** Recent search (or replace) strings, newest first; shared by the find bar and Find in Files. */
@@ -99,7 +99,7 @@ interface CustomScopesState {
 
 export const useCustomScopes = create<CustomScopesState>(() => ({ root: null, scopes: [] }));
 
-const scopesKey = (root: string) => `lama.scopes.v1:${root}`;
+const scopesKey = (root: string) => `luma.scopes.v1:${root}`;
 
 function validScopes(v: unknown): CustomScope[] {
   if (!Array.isArray(v)) return [];

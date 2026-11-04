@@ -291,7 +291,7 @@
 }
 
 /* Inline statement errors in consoles. */
-:global(.cm-lama-db-error) {
+:global(.cm-luma-db-error) {
   text-decoration: underline wavy var(--danger);
   text-underline-offset: 3px;
 }
@@ -359,7 +359,7 @@
   color: var(--fg-muted);
 }
 .paramInput {
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-weight: var(--fw-code);
 }
 .formRow {
@@ -502,9 +502,9 @@
   color: var(--danger);
 }
 
-:global(.cm-lama-db-doc) {
+:global(.cm-luma-db-doc) {
   margin: 0;
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-weight: var(--fw-code);
   font-size: var(--fs-code);
   color: var(--fg-editor, var(--fg-strong));
@@ -524,7 +524,7 @@
   min-height: 0;
   overflow: auto;
   padding: 4px 8px;
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-weight: var(--fw-code);
   font-size: var(--fs-code);
   line-height: 1.5;
@@ -576,25 +576,25 @@
 }
 
 /* Console run feedback: timing after a statement, gutter check / error, error banner. */
-:global(.cm-lama-db-timing) {
+:global(.cm-luma-db-timing) {
   margin-left: 1.5em;
   color: var(--fg-muted);
   font-family: var(--font-ui);
   font-size: var(--fs-small);
   user-select: none;
 }
-:global(.cm-lama-db-gutter) {
+:global(.cm-luma-db-gutter) {
   width: 16px;
 }
-:global(.cm-lama-db-gutter .cm-gutterElement) {
+:global(.cm-luma-db-gutter .cm-gutterElement) {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-:global(.cm-lama-db-run-ok svg) {
+:global(.cm-luma-db-run-ok svg) {
   color: var(--success);
 }
-:global(.cm-lama-db-banner) {
+:global(.cm-luma-db-banner) {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -606,14 +606,14 @@
   font-family: var(--font-ui);
   font-size: var(--fs-ui);
 }
-:global(.cm-lama-db-banner-text) {
+:global(.cm-luma-db-banner-text) {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-:global(.cm-lama-db-banner-close) {
+:global(.cm-luma-db-banner-close) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -625,18 +625,18 @@
   color: var(--fg-secondary);
   cursor: pointer;
 }
-:global(.cm-lama-db-banner-close:hover) {
+:global(.cm-luma-db-banner-close:hover) {
   background: var(--bg-hover);
 }
 
 /* Parameter info in `VALUES (…)`. */
-:global(.cm-lama-db-params) {
+:global(.cm-luma-db-params) {
   padding: 4px 8px;
   font-family: var(--font-ui);
   font-size: var(--fs-ui);
   color: var(--fg-secondary);
 }
-:global(.cm-lama-db-param-current) {
+:global(.cm-luma-db-param-current) {
   font-weight: 700;
   color: var(--fg-strong);
 }
@@ -675,7 +675,7 @@
   min-height: 48px;
   max-height: 220px;
   overflow: auto;
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-weight: var(--fw-code);
   font-size: var(--fs-small);
   line-height: 1.5;
@@ -956,7 +956,7 @@
   border-radius: var(--radius-control);
   background: var(--bg-input);
   color: var(--fg-strong);
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-size: var(--fs-code);
 }
 .valueText:focus {
@@ -979,7 +979,7 @@
   width: 40%;
 }
 .aggregates td {
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   word-break: break-all;
 }
 
@@ -1125,7 +1125,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--bg-editor);
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-size: var(--fs-code);
   line-height: 1.6;
 }
@@ -1178,7 +1178,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
 }
 .importPreview {
   max-height: 200px;
@@ -1189,7 +1189,7 @@
 }
 .importPreview table {
   border-collapse: collapse;
-  font-family: var(--lama-editor-font, var(--font-mono));
+  font-family: var(--luma-editor-font, var(--font-mono));
   font-size: var(--fs-code);
 }
 .importPreview td {

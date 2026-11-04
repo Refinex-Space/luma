@@ -217,7 +217,7 @@ function scrollMarks(state: EditorState): ScrollbarMark[] {
 }
 
 const laneTheme = EditorView.baseTheme({
-  ".cm-lama-lane .cm-gutterElement:has(.cm-lama-laneBar, .cm-lama-laneDeleted)": { cursor: "pointer" },
+  ".cm-luma-lane .cm-gutterElement:has(.cm-luma-laneBar, .cm-luma-laneDeleted)": { cursor: "pointer" },
 });
 
 /**
@@ -227,7 +227,7 @@ const laneTheme = EditorView.baseTheme({
  */
 export function laneMouseDown(view: EditorView, event: MouseEvent, path: string): boolean {
   if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return false;
-  const lane = view.dom.querySelector(".cm-lama-lane");
+  const lane = view.dom.querySelector(".cm-luma-lane");
   if (!lane) return false;
   const rect = lane.getBoundingClientRect();
   if (event.clientX < rect.left - 1 || event.clientX > rect.right + 3) return false;

@@ -92,7 +92,7 @@ export function appActions(): Action[] {
       id: "help.showLog",
       title: t("app.action.showLog", { os }),
       category: t("app.category.help"),
-      keywords: ["log", "logs", "lama.log"],
+      keywords: ["log", "logs", "luma.log"],
       run: showLog,
     },
     edit("edit.undo", "undo", "app.action.undo"),

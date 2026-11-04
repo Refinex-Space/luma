@@ -65,7 +65,7 @@ describe("bookmark store", () => {
   });
 
   it("ignores corrupt storage", () => {
-    localStorage.setItem("lama.bookmarks.v1:/bad", JSON.stringify([{ path: 1 }, { path: "/bad/x", line: 2 }, "nope"]));
+    localStorage.setItem("luma.bookmarks.v1:/bad", JSON.stringify([{ path: 1 }, { path: "/bad/x", line: 2 }, "nope"]));
     loadBookmarks("/bad");
     expect(useBookmarks.getState().items.map((b) => b.line)).toEqual([2]);
   });
@@ -101,7 +101,7 @@ describe("mnemonic bookmarks", () => {
       mnemonic: "7",
       description: "note",
     });
-    localStorage.setItem("lama.bookmarks.v1:/m", JSON.stringify([...list, { path: "/p/b", line: 0, mnemonic: "ab" }]));
+    localStorage.setItem("luma.bookmarks.v1:/m", JSON.stringify([...list, { path: "/p/b", line: 0, mnemonic: "ab" }]));
     loadBookmarks("/m");
     expect(useBookmarks.getState().items.map((b) => b.mnemonic)).toEqual(["7", undefined]);
   });

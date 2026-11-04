@@ -43,13 +43,13 @@ describe("Vim mode toggle", () => {
     expect(JSON.parse(localStorage.getItem(VIM_SETTINGS_KEY)!).enabled).toBe(true);
     await until(hasContribution);
     expect(getContext().vimMode).toBe(true);
-    expect(diffSide.dom.hasAttribute("data-lama-vim")).toBe(true);
+    expect(diffSide.dom.hasAttribute("data-luma-vim")).toBe(true);
     expect(getCM(diffSide)).not.toBeNull();
 
     await executeAction("vim.toggle");
     expect(useVimSettings.getState().enabled).toBe(false);
     expect(hasContribution()).toBe(false);
-    expect(diffSide.dom.hasAttribute("data-lama-vim")).toBe(false);
+    expect(diffSide.dom.hasAttribute("data-luma-vim")).toBe(false);
     expect(getCM(diffSide)).toBeNull();
     diffSide.destroy();
   });
@@ -78,7 +78,7 @@ describe("Vim engine", () => {
     Vim.mapclear();
   });
 
-  it(":action runs Lama actions by IdeaVim or Lama id", async () => {
+  it(":action runs Luma actions by IdeaVim or Luma id", async () => {
     const view = makeView();
     _handleEx(view, "action GotoDeclaration");
     _handleEx(view, "action code.reformat");

@@ -61,7 +61,7 @@ import styles from "./Database.module.css";
 import { tx } from "@/platform/i18n";
 
 /** `templates` feature's language-data key for finer template contexts. */
-const TEMPLATE_CONTEXT_KEY = "lamaTemplateContexts";
+const TEMPLATE_CONTEXT_KEY = "lumaTemplateContexts";
 
 export const SQL_LANGUAGE = "sql";
 const ROW_LIMITS = ["100", "500", "1000", "5000", "50000"];
@@ -112,7 +112,7 @@ const runField = StateField.define<RunState>({
       for (const m of st.marks) {
         if (m.error)
           ranges.push(
-            Decoration.mark({ class: "cm-lama-db-error", attributes: { title: m.error } }).range(m.from, m.to),
+            Decoration.mark({ class: "cm-luma-db-error", attributes: { title: m.error } }).range(m.from, m.to),
           );
         if (m.ms !== null)
           ranges.push(Decoration.widget({ widget: new TimingWidget(m.ms), side: 1 }).range(m.timingAt));
@@ -132,7 +132,7 @@ class TimingWidget extends WidgetType {
   }
   toDOM() {
     const span = document.createElement("span");
-    span.className = "cm-lama-db-timing";
+    span.className = "cm-luma-db-timing";
     span.textContent = this.ms < 1000 ? `${Math.round(this.ms)} ms` : `${(this.ms / 1000).toFixed(1)} s`;
     return span;
   }
@@ -146,14 +146,14 @@ class RunMarker extends GutterMarker {
     return other.error === this.error;
   }
   toDOM() {
-    const el = iconNode(this.error ? "error" : "check", 14, this.error ? "cm-lama-db-run-error" : "cm-lama-db-run-ok");
+    const el = iconNode(this.error ? "error" : "check", 14, this.error ? "cm-luma-db-run-error" : "cm-luma-db-run-ok");
     el.title = this.error ?? "Executed";
     return el;
   }
 }
 
 const runGutter = gutter({
-  class: "cm-lama-db-gutter",
+  class: "cm-luma-db-gutter",
   markers: (view) => {
     const st = view.state.field(runField);
     const doc = view.state.doc;
@@ -167,15 +167,15 @@ const runGutter = gutter({
 function errorBanner(message: string) {
   return (view: EditorView): Panel => {
     const dom = document.createElement("div");
-    dom.className = "cm-lama-db-banner";
+    dom.className = "cm-luma-db-banner";
     dom.setAttribute("role", "alert");
     const text = document.createElement("span");
-    text.className = "cm-lama-db-banner-text";
+    text.className = "cm-luma-db-banner-text";
     text.textContent = message;
     text.title = message;
     const close = document.createElement("button");
     close.type = "button";
-    close.className = "cm-lama-db-banner-close";
+    close.className = "cm-luma-db-banner-close";
     close.setAttribute("aria-label", "Close");
     close.appendChild(iconNode("close", 14));
     close.onclick = () => view.dispatch({ effects: setRun.of({ ...view.state.field(runField), banner: null }) });
@@ -356,7 +356,7 @@ function iconOf(c: SqlCandidate): string | null {
 
 function docNode(text: string): Node {
   const pre = document.createElement("pre");
-  pre.className = "cm-lama-db-doc";
+  pre.className = "cm-luma-db-doc";
   pre.textContent = text;
   return pre;
 }
@@ -491,11 +491,11 @@ function valuesInfo(path: string) {
       above: true,
       create: () => {
         const dom = document.createElement("div");
-        dom.className = "cm-lama-db-params";
+        dom.className = "cm-luma-db-params";
         names.forEach((n, i) => {
           if (i) dom.append(", ");
           const span = document.createElement("span");
-          if (i === slot.index) span.className = "cm-lama-db-param-current";
+          if (i === slot.index) span.className = "cm-luma-db-param-current";
           const type = typeOf(n);
           span.textContent = type ? `${n}:${type}` : n;
           dom.append(span);
@@ -519,7 +519,7 @@ export function consoleExtension(ctx: EditorDocContext): Extension {
     runGutter,
     showPanel.of(consolePanel(ctx.path)),
     EditorState.languageData.of(() => [
-      { lamaCompletion: completionSource(ctx.path), [TEMPLATE_CONTEXT_KEY]: templateContextsAt(ctx.path) },
+      { lumaCompletion: completionSource(ctx.path), [TEMPLATE_CONTEXT_KEY]: templateContextsAt(ctx.path) },
     ]),
     completeAfterTemplate,
     valuesInfo(ctx.path),

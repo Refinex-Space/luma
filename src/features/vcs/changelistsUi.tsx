@@ -41,22 +41,22 @@ function ChangelistForm({
 }) {
   return (
     <div className={styles.form}>
-      <label className={styles.fieldLabel} htmlFor="lama-cl-name">
+      <label className={styles.fieldLabel} htmlFor="luma-cl-name">
         <T>Name:</T>
       </label>
       <Input
-        id="lama-cl-name"
+        id="luma-cl-name"
         data-autofocus
         value={value.name}
         invalid={!!value.name && !!error}
         onChange={(e) => onChange({ ...value, name: e.target.value })}
       />
       {value.name && error && <div className={styles.error}>{error}</div>}
-      <label className={styles.fieldLabel} htmlFor="lama-cl-comment">
+      <label className={styles.fieldLabel} htmlFor="luma-cl-comment">
         <T>Comment:</T>
       </label>
       <textarea
-        id="lama-cl-comment"
+        id="luma-cl-comment"
         className={styles.textarea}
         rows={3}
         value={value.comment}

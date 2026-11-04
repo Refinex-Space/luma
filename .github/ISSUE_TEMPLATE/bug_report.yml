@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Lama doesn't work as expected
+description: Something in Luma doesn't work as expected
 labels: [bug]
 body:
   - type: markdown
@@ -22,10 +22,10 @@ body:
     attributes:
       label: Environment
       description: |
-        Open **About Lama** (macOS: Lama menu; Windows/Linux: Help menu), click **Copy Info**, and paste it here. Also mention the project type if it matters (e.g. Gradle multi-module, Spring Boot, Go workspace) and whether you use remote development.
+        Open **About Luma** (macOS: Luma menu; Windows/Linux: Help menu), click **Copy Info**, and paste it here. Also mention the project type if it matters (e.g. Gradle multi-module, Spring Boot, Go workspace) and whether you use remote development.
       render: text
       placeholder: |
-        About Lama
+        About Luma
         Version: 0.1.33
         Build: ...
         Platform: macOS aarch64
@@ -35,7 +35,7 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Start from opening Lama or a project. A small sample project or snippet helps a lot.
+      description: Start from opening Luma or a project. A small sample project or snippet helps a lot.
       placeholder: |
         1. Open a Gradle project whose settings.gradle includes modules in a loop
         2. Open the Gradle tool window
@@ -60,7 +60,7 @@ body:
     attributes:
       label: Logs
       description: |
-        Use **Help → Show Log in Finder / Explorer / Files** to find `lama.log` and paste the lines around the problem, or attach the file. Include console output or error messages too. Check for tokens or passwords before posting.
+        Use **Help → Show Log in Finder / Explorer / Files** to find `luma.log` and paste the lines around the problem, or attach the file. Include console output or error messages too. Check for tokens or passwords before posting.
       render: text
   - type: textarea
     id: extra

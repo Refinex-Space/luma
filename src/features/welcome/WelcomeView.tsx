@@ -170,7 +170,7 @@ export function WelcomeView() {
           <img className={styles.logo} src={logo} alt="" draggable={false} />
           <span className={styles.brandText}>
             <span className={styles.appName}>
-              <T>Lama</T>
+              <T>Luma</T>
             </span>
             {version && <span className={styles.version}>{version}</span>}
           </span>

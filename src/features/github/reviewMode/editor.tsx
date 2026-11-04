@@ -316,7 +316,7 @@ export class ReviewEditor {
       return;
     }
     const el = document.createElement("div");
-    el.className = "cm-lama-reviewMode";
+    el.className = "cm-luma-reviewMode";
     // Before the inspection widget (`Constraints.FIRST`).
     el.style.order = "-1";
     editorCorner(this.view).appendChild(el);

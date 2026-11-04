@@ -608,7 +608,7 @@ export const commands = {
 	args: string[],
 	cwd: IpcPath | null,
 	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.lama/run.toml`. */
+	/**  Detected configs are regenerated; user configs persist in `.luma/run.toml`. */
 	detected: boolean,
 	/**  Test runner configs render results in the test tree. */
 	isTest: boolean,
@@ -858,7 +858,7 @@ export const commands = {
 	pluginSubscribe: (onEvent: Channel<PluginEvent>) => __TAURI_INVOKE<void>("plugin_subscribe", { onEvent }),
 	/**
 	 *  Installed plugins plus the dev plugins of this window's project
-	 *  (`<project>/.lama/plugins/*`, rescanned on every call).
+	 *  (`<project>/.luma/plugins/*`, rescanned on every call).
 	 */
 	pluginList: () => typedError<PluginsSnapshot, IdeError>(__TAURI_INVOKE("plugin_list")),
 	pluginSetEnabled: (id: string, enabled: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("plugin_set_enabled", { id, enabled })),
@@ -1607,7 +1607,7 @@ export type BuildEvent =
 
 export type BuildInfo = {
 	version: string,
-	/**  Build id from CI (`LAMA_BUILD` at compile time), else `dev`. */
+	/**  Build id from CI (`LUMA_BUILD` at compile time), else `dev`. */
 	build: string,
 	profile: string,
 	os: string,
@@ -4737,7 +4737,7 @@ export type PluginLanguage = {
 export type PluginSource = 
 /**  Installed under `<app-data>/plugins/<id>/`. */
 "installed" | 
-/**  Loaded from `<project>/.lama/plugins/<dir>/` while that project is open. */
+/**  Loaded from `<project>/.luma/plugins/<dir>/` while that project is open. */
 "dev";
 
 export type PluginStatus = 
@@ -5361,7 +5361,7 @@ export type RunConfig_Deserialize = {
 	args: string[],
 	cwd: IpcPath | null,
 	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.lama/run.toml`. */
+	/**  Detected configs are regenerated; user configs persist in `.luma/run.toml`. */
 	detected: boolean,
 	/**  Test runner configs render results in the test tree. */
 	isTest: boolean,
@@ -5381,7 +5381,7 @@ export type RunConfig_Serialize = {
 	args: string[],
 	cwd: IpcPath | null,
 	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.lama/run.toml`. */
+	/**  Detected configs are regenerated; user configs persist in `.luma/run.toml`. */
 	detected: boolean,
 	/**  Test runner configs render results in the test tree. */
 	isTest: boolean,
@@ -5400,7 +5400,7 @@ export type RunExtras_Deserialize = {
 	params?: { [key in string]: string },
 	/**  Folder in the Run/Debug Configurations tree. */
 	folder?: string | null,
-	/**  Stored in the workspace (`.lama/run.local.toml`, not shared) instead of `run.toml`. */
+	/**  Stored in the workspace (`.luma/run.local.toml`, not shared) instead of `run.toml`. */
 	local?: boolean,
 	/**  Off: the process gets only the configured variables. */
 	includeSystemEnv?: boolean,
@@ -5439,7 +5439,7 @@ export type RunExtras_Serialize = {
 	params?: { [key in string]: string },
 	/**  Folder in the Run/Debug Configurations tree. */
 	folder?: string | null,
-	/**  Stored in the workspace (`.lama/run.local.toml`, not shared) instead of `run.toml`. */
+	/**  Stored in the workspace (`.luma/run.local.toml`, not shared) instead of `run.toml`. */
 	local?: boolean,
 	/**  Off: the process gets only the configured variables. */
 	includeSystemEnv?: boolean,

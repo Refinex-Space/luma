@@ -5,14 +5,14 @@ import { missingAdapter } from "../missingAdapter";
 const unavailable = (message: string) => new IpcError({ kind: "unavailable", message });
 
 describe("missing debug adapters", () => {
-  it("offers Lama's debugpy when the interpreter has none", () => {
-    const e = unavailable("debugpy is not installed for /opt/homebrew/bin/python3.14. Install Lama's copy");
+  it("offers Luma's debugpy when the interpreter has none", () => {
+    const e = unavailable("debugpy is not installed for /opt/homebrew/bin/python3.14. Install Luma's copy");
     expect(missingAdapter("debugpy", e)).toMatchObject({ tool: "debugpy", title: "debugpy is not installed" });
   });
 
   it("offers the managed install of a missing adapter binary", () => {
     const e = unavailable(
-      "debug adapter `js-debug` not found (`js-debug-adapter` is neither installed by Lama nor on PATH)",
+      "debug adapter `js-debug` not found (`js-debug-adapter` is neither installed by Luma nor on PATH)",
     );
     expect(missingAdapter("js-debug", e)).toMatchObject({
       tool: "js-debug",

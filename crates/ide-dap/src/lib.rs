@@ -758,8 +758,8 @@ impl DebugManager {
             .request_timeout(
                 "initialize",
                 json!({
-                    "clientID": "lama",
-                    "clientName": "Lama",
+                    "clientID": "luma",
+                    "clientName": "Luma",
                     "adapterID": s.adapter,
                     "locale": "en",
                     "linesStartAt1": true,

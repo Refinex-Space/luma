@@ -50,7 +50,7 @@ afterEach(() => {
   useKeymap.setState({ overrides: {} });
 });
 
-const savedVisible = () => JSON.parse(localStorage.getItem("lama.layout.v1:/work/df")!).visible;
+const savedVisible = () => JSON.parse(localStorage.getItem("luma.layout.v1:/work/df")!).visible;
 
 describe("distraction free mode", () => {
   it("toggles with one action whose title flips Enter / Exit, publishing a context key", async () => {
@@ -101,7 +101,7 @@ describe("distraction free mode", () => {
 
   it("survives an app restart and re-applies to a newly loaded project", () => {
     setDistractionFree(true);
-    expect(localStorage.getItem("lama.distractionFree")).toBe("1");
+    expect(localStorage.getItem("luma.distractionFree")).toBe("1");
     // Restart: fresh module, layout and session state; only localStorage remains.
     sessionStorage.clear();
     useDistractionFree.setState({ active: false });
@@ -112,7 +112,7 @@ describe("distraction free mode", () => {
     expect(isToolWindowVisible("project")).toBe(false);
     setDistractionFree(false);
     expect(isToolWindowVisible("project")).toBe(true);
-    expect(localStorage.getItem("lama.distractionFree")).toBeNull();
+    expect(localStorage.getItem("luma.distractionFree")).toBeNull();
   });
 
   it("is unbound in the IntelliJ keymap (⌃⌘D is macOS Look Up) and Escape does not exit", () => {

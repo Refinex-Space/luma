@@ -42,7 +42,7 @@ export interface ToolEnv {
 }
 
 /** Names only: every tool unknown. */
-export const OPTIMISTIC: ToolEnv = { tool: () => undefined, compileDir: "/tmp/lama-run" };
+export const OPTIMISTIC: ToolEnv = { tool: () => undefined, compileDir: "/tmp/luma-run" };
 
 export interface ContextInput {
   /** Absolute path of the file or directory. */

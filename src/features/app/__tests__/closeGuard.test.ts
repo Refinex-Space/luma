@@ -17,7 +17,7 @@ function deps(answers: PromptResult[]) {
   return { d, asked };
 }
 
-const base: CloseInput = { quitting: false, windows: 1, confirmExit: false, dirty: 0, project: "lama" };
+const base: CloseInput = { quitting: false, windows: 1, confirmExit: false, dirty: 0, project: "luma" };
 
 describe("decideClose", () => {
   it("closes silently when nothing needs asking", async () => {

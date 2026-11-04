@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin>
   <extension point="org.eclipse.jdt.ls.core.delegateCommandHandler">
-    <delegateCommandHandler class="ai.lama.kotlin.KotlinLibraries">
-      <command id="lama.kotlin.replace"/>
+    <delegateCommandHandler class="ai.luma.kotlin.KotlinLibraries">
+      <command id="luma.kotlin.replace"/>
     </delegateCommandHandler>
   </extension>
 </plugin>

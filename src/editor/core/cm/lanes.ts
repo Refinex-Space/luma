@@ -8,7 +8,7 @@ import { EditorView, ViewPlugin, gutter, type ViewUpdate } from "@codemirror/vie
 import { gutterLaneMarkers, scrollbarMarks, type ScrollbarMark } from "@/editor/api";
 
 export const changeLane: Extension = gutter({
-  class: "cm-lama-lane",
+  class: "cm-luma-lane",
   markers: (view) => view.state.facet(gutterLaneMarkers),
 });
 
@@ -67,7 +67,7 @@ class OverviewLane {
 
   constructor(private view: EditorView) {
     this.dom = document.createElement("div");
-    this.dom.className = "cm-lama-overview";
+    this.dom.className = "cm-luma-overview";
     this.dom.setAttribute("aria-hidden", "true");
     this.dom.addEventListener("mousedown", this.onMouseDown);
     view.dom.addEventListener("mousemove", this.onPointerMove);
@@ -139,7 +139,7 @@ class OverviewLane {
         for (const r of rows) {
           const el = document.createElement("div");
           el.className =
-            r.mark.kind === "thin" ? "cm-lama-overviewMark cm-lama-overviewMark-thin" : "cm-lama-overviewMark";
+            r.mark.kind === "thin" ? "cm-luma-overviewMark cm-luma-overviewMark-thin" : "cm-luma-overviewMark";
           el.style.top = `${r.top}${unit}`;
           el.style.height = `${r.height}${unit}`;
           el.style.background = r.mark.color;
@@ -148,7 +148,7 @@ class OverviewLane {
           frag.appendChild(el);
         }
         const c = document.createElement("div");
-        c.className = "cm-lama-overviewCaret";
+        c.className = "cm-luma-overviewCaret";
         c.style.top = `${caret}${unit}`;
         frag.appendChild(c);
         this.dom.replaceChildren(frag);
@@ -170,7 +170,7 @@ class OverviewLane {
       const y = p.y - s.getBoundingClientRect().top;
       over = !!thumb && p.x >= lane.left && p.x <= lane.right && y >= thumb.top && y <= thumb.bottom;
     }
-    this.dom.classList.toggle("cm-lama-overview-onThumb", over);
+    this.dom.classList.toggle("cm-luma-overview-onThumb", over);
   }
 
   private onPointerMove = (e: MouseEvent) => {
@@ -190,7 +190,7 @@ class OverviewLane {
 
   private onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
-    const marks = [...this.dom.querySelectorAll<HTMLElement>(".cm-lama-overviewMark")].map((el) => {
+    const marks = [...this.dom.querySelectorAll<HTMLElement>(".cm-luma-overviewMark")].map((el) => {
       const r = el.getBoundingClientRect();
       return { top: r.top, bottom: r.bottom, pos: Number(el.dataset.pos) };
     });

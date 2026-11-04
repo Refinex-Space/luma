@@ -10,8 +10,8 @@ import {
 } from "@codemirror/view";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { lamaTheme } from "@/editor/core/cm/theme";
-import { lamaHighlightStyle } from "@/editor/core/cm/highlight";
+import { lumaTheme } from "@/editor/core/cm/theme";
+import { lumaHighlightStyle } from "@/editor/core/cm/highlight";
 import { findLanguageDescription, loadSupport } from "@/editor/core/cm/languages";
 import { tx } from "@/platform/i18n";
 import type { NotebookSession } from "./session";
@@ -39,8 +39,8 @@ export function CellEditor({
     if (!host.current) return;
     const language = new Compartment();
     const configuration = [
-      lamaTheme,
-      syntaxHighlighting(lamaHighlightStyle),
+      lumaTheme,
+      syntaxHighlighting(lumaHighlightStyle),
       lineNumbers(),
       drawSelection(),
       highlightActiveLine(),

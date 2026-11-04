@@ -15,9 +15,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-pub const PORT_ENV: &str = "LAMA_ASKPASS_PORT";
-pub const COMMAND_ENV: &str = "LAMA_GIT_COMMAND_ID";
-pub const TOKEN_ENV: &str = "LAMA_ASKPASS_TOKEN";
+pub const PORT_ENV: &str = "LUMA_ASKPASS_PORT";
+pub const COMMAND_ENV: &str = "LUMA_GIT_COMMAND_ID";
+pub const TOKEN_ENV: &str = "LUMA_ASKPASS_TOKEN";
 /// An unanswered prompt fails after this long.
 const ANSWER_TIMEOUT: Duration = Duration::from_secs(300);
 

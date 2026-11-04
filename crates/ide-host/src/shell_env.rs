@@ -23,7 +23,7 @@ use std::ffi::{OsStr, OsString};
 pub fn inherit_login_shell_path(identifier: &str) -> Option<impl FnOnce() + use<>> {
     use std::time::Duration;
 
-    if std::env::var_os("LAMA_SKIP_SHELL_ENV").is_some() {
+    if std::env::var_os("LUMA_SKIP_SHELL_ENV").is_some() {
         return None;
     }
     record_startup_env();
@@ -79,7 +79,7 @@ const SERVER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 /// Call at startup before any other thread reads the environment.
 #[cfg(unix)]
 pub fn inherit_login_shell_env(identifier: &str) {
-    if std::env::var_os("LAMA_SKIP_SHELL_ENV").is_some() {
+    if std::env::var_os("LUMA_SKIP_SHELL_ENV").is_some() {
         return;
     }
     record_startup_env();
@@ -106,10 +106,10 @@ pub fn inherit_login_shell_env(identifier: &str) {
 }
 
 /// The login shell's environment, read now (Reload Environment). `Ok(None)` where the
-/// IDE doesn't read it (Windows, `LAMA_SKIP_SHELL_ENV`).
+/// IDE doesn't read it (Windows, `LUMA_SKIP_SHELL_ENV`).
 #[cfg(unix)]
 pub fn read_login_env_now() -> Result<Option<Vec<(OsString, OsString)>>, String> {
-    if std::env::var_os("LAMA_SKIP_SHELL_ENV").is_some() {
+    if std::env::var_os("LUMA_SKIP_SHELL_ENV").is_some() {
         return Ok(None);
     }
     let shell = login_shell();
@@ -159,7 +159,7 @@ pub(crate) fn read_login_env(shell: &str, timeout: std::time::Duration) -> Optio
     use std::process::{Command, Stdio};
     use std::time::Instant;
 
-    const MARK: &str = "__LAMA_ENV__";
+    const MARK: &str = "__LUMA_ENV__";
     let mut cmd = Command::new(shell);
     // As at startup: what this process took from the shell (and what a reload added) must
     // not go in again, or rc files that append to PATH would append twice and a variable
@@ -248,15 +248,15 @@ mod tests {
         let get = |env: &[(OsString, OsString)], k: &str| {
             env.iter().find(|(n, _)| n == k).map(|(_, v)| v.to_string_lossy().into_owned())
         };
-        std::fs::write(&rc, "export LAMA_TEST_RC=one\nexport PATH=/one/bin:$PATH\n").unwrap();
+        std::fs::write(&rc, "export LUMA_TEST_RC=one\nexport PATH=/one/bin:$PATH\n").unwrap();
         let first = read_login_env(&shell, Duration::from_secs(10)).unwrap();
-        assert_eq!(get(&first, "LAMA_TEST_RC").as_deref(), Some("one"));
+        assert_eq!(get(&first, "LUMA_TEST_RC").as_deref(), Some("one"));
         assert!(get(&first, "PATH").unwrap().starts_with("/one/bin:"));
         assert!(get(&first, "PWD").is_none() && get(&first, "SHLVL").is_none());
 
-        std::fs::write(&rc, "export LAMA_TEST_RC='two words'\n").unwrap();
+        std::fs::write(&rc, "export LUMA_TEST_RC='two words'\n").unwrap();
         let second = read_login_env(&shell, Duration::from_secs(10)).unwrap();
-        assert_eq!(get(&second, "LAMA_TEST_RC").as_deref(), Some("two words"));
+        assert_eq!(get(&second, "LUMA_TEST_RC").as_deref(), Some("two words"));
     }
 
     #[test]

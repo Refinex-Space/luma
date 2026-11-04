@@ -54,7 +54,7 @@ interface FindPopupState extends FindOptions {
   pinned: boolean;
 }
 
-const PINNED_KEY = "lama.search.findPinned.v1";
+const PINNED_KEY = "luma.search.findPinned.v1";
 
 export const useFindPopup = create<FindPopupState>(() => ({
   open: false,
@@ -137,7 +137,7 @@ export function hideFindPopup() {
   useFindPopup.setState({ open: false });
 }
 
-const MASKS_KEY = "lama.search.fileMasks.v1";
+const MASKS_KEY = "luma.search.fileMasks.v1";
 const DEFAULT_MASKS = ["*.ts,*.tsx", "*.rs", "*.kt", "*.java", "*.py", "*.go", "*.md", "*.json", "!*.test.*"];
 
 export function recentMasks(): string[] {

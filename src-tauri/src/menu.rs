@@ -26,7 +26,7 @@ use tauri::menu::{IsMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, 
 use tauri::{AppHandle, Runtime};
 
 /// Event emitted to the focused window when an IDE menu item is clicked.
-pub const MENU_EVENT: &str = "lama://menu";
+pub const MENU_EVENT: &str = "luma://menu";
 /// Prefix of Open Recent item ids; the rest of the id is the project path.
 const RECENT_PREFIX: &str = "recent:";
 /// Prefix of items the frontend lists ([`MenuConfig::dynamic`]): `dyn:<action>` or `dyn:<action>|<arg>`.
@@ -100,7 +100,7 @@ impl Native {
             Native::Paste => "Paste",
             Native::SelectAll => "Select All",
             Native::Services => "Services",
-            Native::Hide => "Hide Lama",
+            Native::Hide => "Hide Luma",
             Native::HideOthers => "Hide Others",
             Native::ShowAll => "Show All",
             Native::Minimize => "Minimize",
@@ -184,9 +184,9 @@ pub fn spec(os: Os) -> Vec<Entry> {
     if mac {
         menus.push(sub(
             "app",
-            "Lama",
+            "Luma",
             vec![
-                act("app.about", "About Lama"),
+                act("app.about", "About Luma"),
                 act("app.checkForUpdates", "Check for Updates…"),
                 SEP,
                 act("file.settings", "Settings…"),
@@ -197,7 +197,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
                 Entry::Native(Native::HideOthers),
                 Entry::Native(Native::ShowAll),
                 SEP,
-                accel("app.quit", "Quit Lama", "CmdOrCtrl+Q"),
+                accel("app.quit", "Quit Luma", "CmdOrCtrl+Q"),
             ],
         ));
     }
@@ -822,7 +822,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
         act("help.showLog", show_log),
     ];
     if !mac {
-        help.extend([act("app.checkForUpdates", "Check for Updates…"), SEP, act("app.about", "About Lama")]);
+        help.extend([act("app.checkForUpdates", "Check for Updates…"), SEP, act("app.about", "About Luma")]);
     }
     menus.push(sub("help", "Help", help));
     menus
@@ -1419,14 +1419,14 @@ mod tests {
     #[test]
     fn recent_labels_tildify_home() {
         let recent = vec![ide_workspace::RecentProject {
-            path: "/home/me/code/lama".into(),
-            name: "lama".into(),
+            path: "/home/me/code/luma".into(),
+            name: "luma".into(),
             opened_at_ms: 0.0,
             branch: None,
         }];
         let items = recent_items(&recent, Some(Path::new("/home/me")));
-        assert_eq!(items[0].label, "lama  —  ~/code/lama");
-        assert_eq!(items[0].path, "/home/me/code/lama");
+        assert_eq!(items[0].label, "luma  —  ~/code/luma");
+        assert_eq!(items[0].path, "/home/me/code/luma");
     }
 
     #[test]

@@ -34,7 +34,7 @@ export function countsOf(view: EditorView): Counts {
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = "cm-lama-inspection-button";
+  b.className = "cm-luma-inspection-button";
   b.setAttribute("aria-label", label);
   b.title = label;
   b.addEventListener("mousedown", (e) => e.preventDefault());
@@ -48,7 +48,7 @@ class InspectionWidget {
 
   constructor(private view: EditorView) {
     this.dom = document.createElement("div");
-    this.dom.className = "cm-lama-inspection";
+    this.dom.className = "cm-luma-inspection";
     this.dom.setAttribute("role", "toolbar");
     this.dom.setAttribute("aria-label", "Inspections");
     editorCorner(view).appendChild(this.dom);
@@ -78,20 +78,20 @@ class InspectionWidget {
         : "No problems found",
       open,
     );
-    summary.classList.add("cm-lama-inspection-summary");
-    if (!total) summary.appendChild(iconNode("check", 14, "cm-lama-inspection-ok"));
+    summary.classList.add("cm-luma-inspection-summary");
+    if (!total) summary.appendChild(iconNode("check", 14, "cm-luma-inspection-ok"));
     const add = (n: number, icon: string, cls: string) => {
       if (!n) return;
       const item = document.createElement("span");
-      item.className = `cm-lama-inspection-count ${cls}`;
+      item.className = `cm-luma-inspection-count ${cls}`;
       item.appendChild(iconNode(icon, 14));
       item.appendChild(document.createTextNode(String(n)));
       summary.appendChild(item);
     };
-    add(c.error, "error", "cm-lama-inspection-error");
-    add(c.warning, "warning", "cm-lama-inspection-warning");
-    add(c.info, "warning", "cm-lama-inspection-weak");
-    add(c.typo, "info", "cm-lama-inspection-typo");
+    add(c.error, "error", "cm-luma-inspection-error");
+    add(c.warning, "warning", "cm-luma-inspection-warning");
+    add(c.info, "warning", "cm-luma-inspection-weak");
+    add(c.typo, "info", "cm-luma-inspection-typo");
     const children: HTMLElement[] = [summary];
     if (total) {
       const prev = button(
@@ -123,7 +123,7 @@ class InspectionWidget {
 const inspectionPlugin = ViewPlugin.fromClass(InspectionWidget);
 
 const inspectionTheme = EditorView.theme({
-  ".cm-lama-inspection": {
+  ".cm-luma-inspection": {
     display: "flex",
     alignItems: "center",
     gap: "1px",
@@ -136,7 +136,7 @@ const inspectionTheme = EditorView.theme({
     WebkitUserSelect: "none",
     userSelect: "none",
   },
-  ".cm-lama-inspection-button": {
+  ".cm-luma-inspection-button": {
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
@@ -150,16 +150,16 @@ const inspectionTheme = EditorView.theme({
     color: "inherit",
     font: "inherit",
   },
-  ".cm-lama-inspection-button:hover": { backgroundColor: "var(--bg-toolbar-hover)" },
-  ".cm-lama-inspection-button:focus-visible": { outline: "1px solid var(--focus-ring)", outlineOffset: "-1px" },
-  ".cm-lama-inspection-summary": { padding: "0 5px" },
-  ".cm-lama-inspection-count": { display: "inline-flex", alignItems: "center", gap: "3px" },
-  ".cm-lama-icon": { display: "inline-flex", alignItems: "center" },
-  ".cm-lama-inspection-error .cm-lama-icon": { color: "var(--danger)" },
-  ".cm-lama-inspection-warning .cm-lama-icon": { color: "var(--warning)" },
-  ".cm-lama-inspection-weak .cm-lama-icon": { color: "var(--fg-weak-warning, var(--fg-faint))" },
-  ".cm-lama-inspection-typo .cm-lama-icon": { color: "var(--success)" },
-  ".cm-lama-inspection-ok": { color: "var(--success)" },
+  ".cm-luma-inspection-button:hover": { backgroundColor: "var(--bg-toolbar-hover)" },
+  ".cm-luma-inspection-button:focus-visible": { outline: "1px solid var(--focus-ring)", outlineOffset: "-1px" },
+  ".cm-luma-inspection-summary": { padding: "0 5px" },
+  ".cm-luma-inspection-count": { display: "inline-flex", alignItems: "center", gap: "3px" },
+  ".cm-luma-icon": { display: "inline-flex", alignItems: "center" },
+  ".cm-luma-inspection-error .cm-luma-icon": { color: "var(--danger)" },
+  ".cm-luma-inspection-warning .cm-luma-icon": { color: "var(--warning)" },
+  ".cm-luma-inspection-weak .cm-luma-icon": { color: "var(--fg-weak-warning, var(--fg-faint))" },
+  ".cm-luma-inspection-typo .cm-luma-icon": { color: "var(--success)" },
+  ".cm-luma-inspection-ok": { color: "var(--success)" },
 });
 
 export function inspectionWidgetExtension() {

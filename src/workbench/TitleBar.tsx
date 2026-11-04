@@ -60,7 +60,7 @@ function ProjectButton() {
     list.push({ kind: "separator" }, { kind: "action", action: "file.closeProject" });
     return list;
   }, [actions]);
-  const label = name ?? "Lama";
+  const label = name ?? "Luma";
   return (
     <>
       <BarButton

@@ -1,5 +1,5 @@
 /**
- * Shelf: Shelve Changes… (named patch under `.lama/shelf`, changes reverted),
+ * Shelf: Shelve Changes… (named patch under `.luma/shelf`, changes reverted),
  * the Shelf tab of the Commit tool window, Unshelve (3-way, conflicts go to the
  * merge UI), rename and delete.
  */
@@ -178,10 +178,10 @@ function ShelveDialog({
       </div>
       <FileChecklist files={files} selected={selected} onChange={setSelected} label="Files to shelve" />
       <div className={styles.form}>
-        <label className={styles.fieldLabel} htmlFor="lama-shelf-name">
+        <label className={styles.fieldLabel} htmlFor="luma-shelf-name">
           <T>Name:</T>
         </label>
-        <Input id="lama-shelf-name" data-autofocus value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="luma-shelf-name" data-autofocus value={name} onChange={(e) => setName(e.target.value)} />
       </div>
     </Dialog>
   );

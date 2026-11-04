@@ -117,9 +117,9 @@ interface ProjectTreeState {
   outlines: ReadonlyMap<string, readonly OutlineItem[]>;
 }
 
-const OPTIONS_KEY = "lama.projectTree.options";
-const MODE_KEY = "lama.projectTree.mode";
-const expandedKey = (root: string) => `lama.projectTree.expanded:${root}`;
+const OPTIONS_KEY = "luma.projectTree.options";
+const MODE_KEY = "luma.projectTree.mode";
+const expandedKey = (root: string) => `luma.projectTree.expanded:${root}`;
 const MAX_PERSISTED = 3000;
 
 function readJson<T>(key: string): T | null {

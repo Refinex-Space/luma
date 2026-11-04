@@ -40,7 +40,7 @@ beforeEach(() => {
     ],
     sessions: [],
   });
-  localStorage.setItem("lama.services.runTypes:/services", '["spring-boot","npm"]');
+  localStorage.setItem("luma.services.runTypes:/services", '["spring-boot","npm"]');
   useServicesTree.setState({
     roots: {},
     selectedKey: null,
@@ -120,8 +120,8 @@ describe("service reordering integration", () => {
     act(() => project("/other"));
     pointer(window, "pointerup", 26);
     expect(document.querySelector('[aria-hidden="true"][role="treeitem"]')).toBeNull();
-    expect(localStorage.getItem("lama.services.runOrder:/other")).toBeNull();
-    expect(localStorage.getItem("lama.services.runOrder:/services")).toBeNull();
+    expect(localStorage.getItem("luma.services.runOrder:/other")).toBeNull();
+    expect(localStorage.getItem("luma.services.runOrder:/services")).toBeNull();
     vi.restoreAllMocks();
   });
 

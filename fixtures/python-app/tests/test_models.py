@@ -33,7 +33,7 @@ def test_tags():
     assert len(tasks.by_tag("y")) == 2
 
 
-@pytest.mark.skipif(not os.environ.get("LAMA_FAIL"), reason="set LAMA_FAIL=1 to run")
+@pytest.mark.skipif(not os.environ.get("LUMA_FAIL"), reason="set LUMA_FAIL=1 to run")
 def test_intentionally_failing():
     # FIXME: wrong on purpose (QA: failing test in the test tree)
     assert len(TaskList()) == 1

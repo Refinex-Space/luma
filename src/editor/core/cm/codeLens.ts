@@ -84,7 +84,7 @@ class LensWidget extends WidgetType {
 
   override toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement("div");
-    dom.className = "cm-lama-lens";
+    dom.className = "cm-luma-lens";
     this.fill(dom, view);
     return dom;
   }
@@ -102,13 +102,13 @@ class LensWidget extends WidgetType {
     this.lenses.forEach((lens, i) => {
       if (i > 0) {
         const sep = document.createElement("span");
-        sep.className = "cm-lama-lensSep";
+        sep.className = "cm-luma-lensSep";
         sep.textContent = "|";
         sep.setAttribute("aria-hidden", "true");
         dom.appendChild(sep);
       }
       const el = document.createElement(lens.run ? "button" : "span");
-      el.className = lens.run ? "cm-lama-lensItem cm-lama-lensAction" : "cm-lama-lensItem";
+      el.className = lens.run ? "cm-luma-lensItem cm-luma-lensAction" : "cm-luma-lensItem";
       if (lens.tooltip) el.title = lens.tooltip;
       if (lens.icon && ICONS[lens.icon]) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -116,7 +116,7 @@ class LensWidget extends WidgetType {
         svg.setAttribute("width", "10");
         svg.setAttribute("height", "10");
         svg.setAttribute("aria-hidden", "true");
-        svg.classList.add(`cm-lama-lensIcon-${lens.icon}`);
+        svg.classList.add(`cm-luma-lensIcon-${lens.icon}`);
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", ICONS[lens.icon]!);
         path.setAttribute("fill", "currentColor");
@@ -161,7 +161,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 }
 
 const lensTheme = EditorView.theme({
-  ".cm-lama-lens": {
+  ".cm-luma-lens": {
     display: "flex",
     alignItems: "center",
     gap: "6px",
@@ -174,7 +174,7 @@ const lensTheme = EditorView.theme({
     whiteSpace: "nowrap",
     overflow: "hidden",
   },
-  ".cm-lama-lensItem": {
+  ".cm-luma-lensItem": {
     display: "inline-flex",
     alignItems: "center",
     gap: "3px",
@@ -184,10 +184,10 @@ const lensTheme = EditorView.theme({
     font: "inherit",
     color: "inherit",
   },
-  ".cm-lama-lensAction": { cursor: "pointer" },
-  ".cm-lama-lensAction:hover": { color: "var(--accent)", textDecoration: "underline" },
-  ".cm-lama-lensSep": { color: "var(--fg-faint)" },
-  ".cm-lama-lensIcon-run": { color: "var(--success)" },
+  ".cm-luma-lensAction": { cursor: "pointer" },
+  ".cm-luma-lensAction:hover": { color: "var(--accent)", textDecoration: "underline" },
+  ".cm-luma-lensSep": { color: "var(--fg-faint)" },
+  ".cm-luma-lensIcon-run": { color: "var(--success)" },
 });
 
 /** Base extension (always installed): no cost until a provider contributes lenses. */

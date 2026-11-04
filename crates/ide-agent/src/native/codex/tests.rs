@@ -203,7 +203,7 @@ fn failures_are_classified() {
         Some(&limits),
     )
     .unwrap_err();
-    assert_eq!(usage_limit.data, Some(json!({"lama": {"usageLimit": {"resetsAtMs": 1.8e12}}})));
+    assert_eq!(usage_limit.data, Some(json!({"luma": {"usageLimit": {"resetsAtMs": 1.8e12}}})));
     assert_eq!(stop_reason(&json!({"status": "interrupted"}), None, None).unwrap(), json!({"stopReason": "cancelled"}));
 }
 
@@ -377,7 +377,7 @@ async fn drive(scenario: Scenario, acp: &Peer, client: &Client, cwd: &str, threa
             "fork",
             request(acp, "session/fork", json!({ "sessionId": thread, "cwd": cwd, "mcpServers": [] })).await,
         ));
-        out.push(("rollback", request(acp, "_lama/rollback", json!({ "sessionId": thread, "turns": 1 })).await));
+        out.push(("rollback", request(acp, "_luma/rollback", json!({ "sessionId": thread, "turns": 1 })).await));
         out.push(("close", request(acp, "session/close", json!({ "sessionId": thread })).await));
         return out;
     }
@@ -408,7 +408,7 @@ async fn drive(scenario: Scenario, acp: &Peer, client: &Client, cwd: &str, threa
             for _ in 0..200 {
                 steered = request(
                     acp,
-                    "_lama/steer",
+                    "_luma/steer",
                     json!({ "sessionId": session, "prompt": text("Count to three instead.") }),
                 )
                 .await;
@@ -539,7 +539,7 @@ async fn auth_failure_names_auth() {
     let (results, _client, frames, _) = replay(Scenario::AuthFailure).await;
     let init = result(&results, "initialize").as_ref().unwrap();
     assert_eq!(init["agentCapabilities"]["loadSession"], true);
-    assert_eq!(init["agentCapabilities"]["_meta"]["lama"], json!({"rollback": true, "steer": true}));
+    assert_eq!(init["agentCapabilities"]["_meta"]["luma"], json!({"rollback": true, "steer": true}));
     assert!(init["agentCapabilities"]["sessionCapabilities"]["fork"].is_object());
     let new = result(&results, "new").as_ref().unwrap();
     let categories: Vec<&str> =
@@ -612,7 +612,7 @@ async fn rollback_replies(turns: u32, replies: Vec<(&str, Value)>) -> (Result<Va
     .unwrap();
     let (read, write) = tokio::io::split(theirs);
     let player = tokio::spawn(async move { play(&transcript, read, write).await });
-    let result = request(&acp, "_lama/rollback", json!({ "sessionId": "s", "turns": turns })).await;
+    let result = request(&acp, "_luma/rollback", json!({ "sessionId": "s", "turns": turns })).await;
     let (sent, _read, _write) = player.await.unwrap();
     acp.kill();
     (result, sent)
@@ -775,7 +775,7 @@ async fn usage_limits_fail_with_their_reset_time() {
     match result(&results, "prompt") {
         Err(RpcError::Server { message, data, .. }) => {
             assert!(message.contains("usage limit"), "{message}");
-            assert_eq!(data, &Some(json!({"lama": {"usageLimit": {"resetsAtMs": 1_793_200_000_000.0}}})));
+            assert_eq!(data, &Some(json!({"luma": {"usageLimit": {"resetsAtMs": 1_793_200_000_000.0}}})));
         }
         r => panic!("expected a usage limit, got {r:?}"),
     }

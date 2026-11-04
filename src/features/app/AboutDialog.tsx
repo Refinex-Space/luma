@@ -83,7 +83,7 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
       <div className={styles.about}>
         <img className={styles.logo} src={logo} alt="" width={64} height={64} />
         <div className={styles.aboutBody}>
-          <div className={clsx(styles.productName, selectableText)}>Lama {build?.version ?? ""}</div>
+          <div className={clsx(styles.productName, selectableText)}>Luma {build?.version ?? ""}</div>
           {build && (
             <div className={clsx(styles.aboutLine, selectableText)}>
               {t("app.about.build")} #{build.build} ({build.profile})

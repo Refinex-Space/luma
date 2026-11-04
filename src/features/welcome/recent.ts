@@ -33,7 +33,7 @@ const SAMPLE: RecentProject[] = [
     openedAtMs: Date.now() - 3_600_000,
     branch: "feature/order-paging",
   },
-  { path: "/Users/dev/dev/lama", name: "lama", openedAtMs: Date.now() - 86_400_000, branch: "main" },
+  { path: "/Users/dev/dev/luma", name: "luma", openedAtMs: Date.now() - 86_400_000, branch: "main" },
   { path: "/Users/dev/oss/tokio", name: "tokio", openedAtMs: Date.now() - 5 * 86_400_000, branch: "master" },
   { path: "/Users/dev/scratch/py-notes", name: "py-notes", openedAtMs: null, branch: null },
 ];

@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { pushRecent, type ScratchLanguage } from "./model";
 
-const RECENT_KEY = "lama.scratch.recentLanguages";
+const RECENT_KEY = "luma.scratch.recentLanguages";
 
 function readRecent(): string[] {
   try {

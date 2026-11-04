@@ -119,7 +119,7 @@ describe("suspend and logging (IDEA's independent options)", () => {
 
   it("migrates stored log messages to non-suspending breakpoints", () => {
     localStorage.setItem(
-      "lama.debugger.breakpoints:/old",
+      "luma.debugger.breakpoints:/old",
       JSON.stringify({
         files: {
           "/x": [
@@ -174,11 +174,11 @@ describe("breakpoint store", () => {
   });
 
   it("ignores corrupt storage", () => {
-    localStorage.setItem("lama.debugger.breakpoints:/bad", "{nope");
+    localStorage.setItem("luma.debugger.breakpoints:/bad", "{nope");
     loadBreakpoints("/bad");
     expect(useBreakpoints.getState().byFile).toEqual({});
     localStorage.setItem(
-      "lama.debugger.breakpoints:/bad2",
+      "luma.debugger.breakpoints:/bad2",
       JSON.stringify({ files: { "/x": [{ line: "a" }, { line: 3 }] } }),
     );
     loadBreakpoints("/bad2");

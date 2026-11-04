@@ -176,6 +176,6 @@ export const columnModeExtension: Extension = [
     ]),
   ),
   EditorView.editorAttributes.compute([columnModeField], (s): Record<string, string> =>
-    isColumnMode(s) ? { class: "cm-lama-columnMode" } : {},
+    isColumnMode(s) ? { class: "cm-luma-columnMode" } : {},
   ),
 ];

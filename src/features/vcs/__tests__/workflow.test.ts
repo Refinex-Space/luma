@@ -32,9 +32,9 @@ describe("issue navigation", () => {
       { pattern: "#(\\d+)", link: "https://gh/issues/$1" },
       { pattern: "(", link: "broken" },
     ];
-    expect(linkifyIssues("Fix LAMA-12 and #7.", links)).toEqual([
+    expect(linkifyIssues("Fix LUMA-12 and #7.", links)).toEqual([
       "Fix ",
-      { text: "LAMA-12", url: "https://jira/browse/LAMA-12" },
+      { text: "LUMA-12", url: "https://jira/browse/LUMA-12" },
       " and ",
       { text: "#7", url: "https://gh/issues/7" },
       ".",

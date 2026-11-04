@@ -1,14 +1,14 @@
 {
-  "name": "lama-fixture-shop",
+  "name": "luma-fixture-shop",
   "version": "0.1.0",
   "private": true,
-  "description": "Lama QA fixture: a tiny shopping cart library",
+  "description": "Luma QA fixture: a tiny shopping cart library",
   "type": "module",
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
     "build": "tsc -p .",
     "test": "vitest run",
-    "test:failing": "LAMA_FAIL=1 vitest run",
+    "test:failing": "LUMA_FAIL=1 vitest run",
     "lint": "tsc -p . --noEmit"
   },
   "devDependencies": {

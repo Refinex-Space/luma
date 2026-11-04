@@ -45,7 +45,7 @@ const NONE: SlotRecord = {
   "right-split": null,
 };
 const DEFAULT_VISIBLE: SlotRecord = { ...NONE, left: "project" };
-const STORAGE_PREFIX = "lama.layout.v1:";
+const STORAGE_PREFIX = "luma.layout.v1:";
 /** Stored layout format: 1 = one area per side (no `v` field), 2 = primary + split areas. */
 const LAYOUT_VERSION = 2;
 

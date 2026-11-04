@@ -201,7 +201,7 @@ class InheritanceMarker extends GutterMarker {
   }
   override toDOM(): Node {
     const el = document.createElement("div");
-    el.className = `${styles.marker} cm-lama-lineMarker-${this.marker.kind}`;
+    el.className = `${styles.marker} cm-luma-lineMarker-${this.marker.kind}`;
     el.dataset.kind = this.marker.kind;
     el.title = this.marker.tooltip;
     el.setAttribute("role", "button");
@@ -371,7 +371,7 @@ export function implementationGutter(ctx: EditorDocContext): Extension {
     markersField,
     ViewPlugin.fromClass(MarkersPlugin),
     gutter({
-      class: `${styles.gutter} cm-lama-gutter-lineMarkers`,
+      class: `${styles.gutter} cm-luma-gutter-lineMarkers`,
       markers: (view) => markerSet(view.state.field(markersField)),
       domEventHandlers: {
         mousedown: (view, block, event) => {

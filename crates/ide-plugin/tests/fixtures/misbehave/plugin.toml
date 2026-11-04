@@ -2,6 +2,6 @@ id = "misbehave"
 name = "Misbehave"
 version = "0.0.1"
 description = "Test fixture: traps, spins, allocates, probes permissions."
-lama-api = "0.1"
+luma-api = "0.1"
 wasm = "dist/plugin.wasm"
 permissions = ["project-read"]

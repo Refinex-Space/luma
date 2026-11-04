@@ -269,7 +269,7 @@ pub const DEBUGPY_TOOL: &str = "debugpy";
 pub const DEBUGPY_MISSING: &str = "debugpy is not installed";
 
 /// Makes `spec` (`<python> -m debugpy.adapter`) runnable like PyCharm's bundled debugger:
-/// the interpreter's own debugpy when it has one (venvs), else Lama's private copy on
+/// the interpreter's own debugpy when it has one (venvs), else Luma's private copy on
 /// `PYTHONPATH`. Neither: an `unavailable` error naming the interpreter.
 pub async fn prepare_debugpy(spec: &mut AdapterSpec) -> IdeResult<()> {
     let (command, cwd) = (spec.command.clone(), spec.cwd.clone());
@@ -302,7 +302,7 @@ pub async fn prepare_debugpy(spec: &mut AdapterSpec) -> IdeResult<()> {
         return Ok(());
     }
     Err(IdeError::unavailable(format!(
-        "{DEBUGPY_MISSING} for {}. Install Lama's copy (works with every interpreter) or run `{} -m pip install debugpy`",
+        "{DEBUGPY_MISSING} for {}. Install Luma's copy (works with every interpreter) or run `{} -m pip install debugpy`",
         python.display(),
         python.display()
     )))
@@ -326,7 +326,7 @@ pub fn not_standalone(spec: &AdapterSpec) -> IdeError {
 
 pub fn missing(spec: &AdapterSpec) -> IdeError {
     let mut msg = format!(
-        "debug adapter `{}` not found (`{}` is neither installed by Lama nor on PATH)",
+        "debug adapter `{}` not found (`{}` is neither installed by Luma nor on PATH)",
         spec.adapter, spec.command
     );
     if let Some(hint) = &spec.install_hint {
@@ -591,20 +591,20 @@ mod tests {
     #[tokio::test]
     async fn managed_tools_and_private_debugpy() {
         use std::os::unix::fs::PermissionsExt;
-        let root = std::env::temp_dir().join(format!("lama-dap-tools-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("luma-dap-tools-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let exe = |p: &Path, body: &str| {
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
             std::fs::write(p, body).unwrap();
             std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755)).unwrap();
         };
-        let adapter = root.join("js-debug").join("bin").join("lama-test-js-debug-adapter");
+        let adapter = root.join("js-debug").join("bin").join("luma-test-js-debug-adapter");
         exe(&adapter, "#!/bin/sh\n");
         // An interpreter without debugpy.
         let python = root.join("fake-python");
         exe(&python, "#!/bin/sh\nexit 1\n");
         set_tools_root(root.clone());
-        assert_eq!(find_binary("lama-test-js-debug-adapter", &root), Some(adapter));
+        assert_eq!(find_binary("luma-test-js-debug-adapter", &root), Some(adapter));
 
         let mut spec = resolve(&builtin("debugpy").unwrap(), root.clone());
         spec.command = python.to_string_lossy().into_owned();
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn missing_binary_reports_hint() {
         let spec = resolve(&builtin("netcoredbg").unwrap(), std::env::temp_dir());
-        assert!(find_binary("definitely-not-a-real-binary-lama", &spec.cwd).is_none());
+        assert!(find_binary("definitely-not-a-real-binary-luma", &spec.cwd).is_none());
         let err = missing(&spec);
         assert_eq!(err.kind, ide_core::error::ErrorKind::Unavailable);
         assert!(err.message.contains("netcoredbg/releases"));
@@ -656,7 +656,7 @@ mod tests {
     #[tokio::test]
     async fn process_launcher_reports_missing_binary() {
         let mut spec = resolve(&builtin("netcoredbg").unwrap(), std::env::temp_dir());
-        spec.command = "definitely-not-a-real-binary-lama".into();
+        spec.command = "definitely-not-a-real-binary-luma".into();
         let err = ProcessLauncher.launch(spec, None).await.err().unwrap();
         assert_eq!(err.kind, ide_core::error::ErrorKind::Unavailable);
     }
@@ -665,7 +665,7 @@ mod tests {
     /// files run, so the java-debug bundle jar and POSIX shims are never adapter programs.
     #[test]
     fn windows_resolution_only_takes_pathext_files() {
-        let dir = std::env::temp_dir().join(format!("lama-dap-win-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("luma-dap-win-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let java_debug = dir.join("java-debug").join("bin");
         let js_debug = dir.join("js-debug").join("bin");
@@ -696,7 +696,7 @@ mod tests {
     #[test]
     fn unix_resolution_needs_the_executable_bit() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("lama-dap-unix-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("luma-dap-unix-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("plugin.jar"), "PK").unwrap();

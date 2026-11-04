@@ -29,7 +29,7 @@ import { UsageAccessFilter, filterUsageAccess, useUsageAccessOptions } from "./U
 
 const close = dismissUsagesPopup;
 
-const PREVIEW_KEY = "lama.usages.popupPreview.v1";
+const PREVIEW_KEY = "luma.usages.popupPreview.v1";
 
 function loadPreviewOption(): boolean {
   try {

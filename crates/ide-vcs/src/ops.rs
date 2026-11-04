@@ -253,7 +253,7 @@ pub(crate) fn interactive_rebase(
         return Err(IdeError::invalid("the first commit cannot be squashed or fixed up into a previous one"));
     }
 
-    let work = r.git_dir.join("lama-rebase");
+    let work = r.git_dir.join("luma-rebase");
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work)?;
     let quote = |p: &std::path::Path| format!("'{}'", p.to_string_lossy().replace('\\', "/").replace('\'', "'\\''"));

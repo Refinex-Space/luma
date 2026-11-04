@@ -12,13 +12,13 @@ environment from its run configuration.
 
 ## Source paths
 
-The adapter infers JVM class names from source paths. Lama creates a temporary,
+The adapter infers JVM class names from source paths. Luma creates a temporary,
 package-aligned source mirror outside the project and supplies it as the adapter's
 `projectRoot`. For example, `src/main/kotlin/Main.kt` declaring `package org.example`
 gets an external `src/main/kotlin/org/example/Main.kt` alias. Breakpoints go through
 that alias; stack frames and event paths map back to the original editor file.
 Source sets have separate mirror roots. Where file symlinks are unavailable,
-Lama copies sources and refreshes the copies on editor saves.
+Luma copies sources and refreshes the copies on editor saves.
 
 Restart debugging after changing a package or source root. The upstream adapter's
 path-based resolver does not support renamed Kotlin facades (`@file:JvmName`), or
@@ -32,16 +32,16 @@ runtime behavior has not been verified.
 
 ## Startup ordering
 
-Lama starts Kotlin applications with JDWP `suspend=y` and attaches the adapter.
+Luma starts Kotlin applications with JDWP `suspend=y` and attaches the adapter.
 It waits for each `setBreakpoints` response before sending `configurationDone`.
-Adapter 0.4.4 never completes the `configurationDone` response, so Lama sends
+Adapter 0.4.4 never completes the `configurationDone` response, so Luma sends
 that request without awaiting its response.
 
 The official adapter can resume the VMStart event before installing its breakpoint
 hooks and DAP listeners. A session-owned loopback JDWP relay holds VM and thread
 resume commands until the successful DAP attach response, which follows listener
 installation. Other JDWP requests and replies continue during setup. Attach failure
-or session shutdown closes the relay and kills any JVM launched by Lama. No
+or session shutdown closes the relay and kills any JVM launched by Luma. No
 adapter patch or timed startup sleep is used. An already-running external JVM must
 be started with `suspend=y` to preserve its earliest breakpoints.
 

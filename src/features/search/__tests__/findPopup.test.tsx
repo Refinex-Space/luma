@@ -155,7 +155,7 @@ describe("Find in Files popup", () => {
     const pin = screen.getByRole("button", { name: "Pin Window" });
     fireEvent.click(pin);
     expect(pin).toHaveAttribute("aria-pressed", "true");
-    expect(localStorage.getItem("lama.search.findPinned.v1")).toBe("true");
+    expect(localStorage.getItem("luma.search.findPinned.v1")).toBe("true");
     fireEvent.keyDown(field(), { key: "Enter" });
     expect(useFindPopup.getState().open).toBe(true);
     expect(screen.getByRole("button", { name: "Open in Find Window" })).toBeInTheDocument();
