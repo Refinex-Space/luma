@@ -154,6 +154,22 @@ pub async fn load_config(host: &Host, window: &str, provider: String) -> IdeResu
     host.project(window)?.agents.load_config(&provider).await
 }
 
+/// Asks an agent for text only, outside any task (commit messages, pull request descriptions).
+/// Cancel with `cancel_request(request)`.
+pub async fn generate(
+    host: &Host,
+    window: &str,
+    req: ide_agent::AgentGenerate,
+    request: RequestId,
+) -> IdeResult<String> {
+    host.require_trust(window)?;
+    let agents = host.project(window)?.agents.clone();
+    let cancel = host.begin_request(request);
+    let result = agents.generate(req, cancel).await;
+    host.end_request(request);
+    result
+}
+
 /// Stops the task's current turn, or with `subagent` only that subagent's work.
 pub fn cancel(host: &Host, window: &str, task: String, subagent: Option<String>) -> IdeResult<()> {
     host.project(window)?.agents.cancel(&task, subagent)
@@ -216,6 +232,7 @@ pub(crate) fn register(d: &mut Dispatcher) {
     d.add("agent_rollback", |c| async move { rollback(&c.host, &c.window, c.arg("task")?, c.arg("turns")?).await });
     d.add("agent_probe", |c| async move { probe(&c.host, &c.window, c.arg("provider")?, c.arg("refresh")?).await });
     d.add("agent_load_config", |c| async move { load_config(&c.host, &c.window, c.arg("provider")?).await });
+    d.add("agent_generate", |c| async move { generate(&c.host, &c.window, c.arg("request")?, c.arg("id")?).await });
     d.add("agent_cancel", |c| async move { cancel(&c.host, &c.window, c.arg("task")?, c.arg("subagent")?) });
     d.add("agent_respond", |c| async move {
         respond(&c.host, &c.window, c.arg("task")?, c.arg("permission")?, c.arg("option")?)

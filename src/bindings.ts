@@ -137,6 +137,11 @@ export const commands = {
 	 *  message is sent. Remembered afterwards.
 	 */
 	agentLoadConfig: (provider: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_load_config", { provider })),
+	/**
+	 *  Asks an agent for text only, outside any task: a commit message, a pull request
+	 *  description. No tool runs. Cancel with `cancel_request(request)`.
+	 */
+	agentGenerate: (request: AgentGenerate, id: RequestId) => typedError<string, IdeError>(__TAURI_INVOKE("agent_generate", { request, id })),
 	/**  Stops the task's current turn, or with `subagent` only that subagent's work. */
 	agentCancel: (task: string, subagent: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("agent_cancel", { task, subagent })),
 	/**  Answers a permission request; `option: null` cancels it. */
@@ -1246,6 +1251,19 @@ export type AgentEvent =
 { type: "entry"; task: string; subagent: string | null; index: number; entry: AgentEntry } | 
 /**  The installed or configured agent providers changed. */
 { type: "providers" };
+
+/**
+ *  A one-off request to an agent that answers with text only (a commit message, a pull
+ *  request description): no task is made, and no tool may run.
+ */
+export type AgentGenerate = {
+	/**  The agent ([`AgentProvider::id`]). */
+	provider: string,
+	/**  Settings (model, thinking effort) set on the session before the prompt. */
+	config?: AgentConfigChoice[],
+	/**  The whole request, as text. */
+	prompt: string,
+};
 
 export type AgentImage = {
 	mimeType: string,

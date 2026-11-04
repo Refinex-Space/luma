@@ -213,3 +213,28 @@ async fn a_task_runs_on_a_v2_agent_and_resumes_its_session() {
     assert_eq!(resume["sessionId"], SESSION);
     assert!(resume.get("replayFrom").is_none());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_one_off_generation_answers_with_text_and_refuses_settings_the_agent_lacks() {
+    let tmp = tempfile::tempdir().unwrap();
+    let agent = Arc::new(FakeV2Agent::default());
+    let mgr = manager(tmp.path(), agent.clone());
+    let request = |model: &str| AgentGenerate {
+        provider: "claude-acp".into(),
+        config: vec![AgentConfigChoice { id: "model".into(), value: model.into() }],
+        prompt: "again".into(),
+    };
+    let text = mgr.generate(request("haiku"), ide_core::CancellationToken::new()).await.unwrap();
+    assert_eq!(text, "second turn");
+    let methods = agent.methods();
+    assert!(methods.contains(&"session/set_config_option".to_owned()), "{methods:?}");
+    // No task was made.
+    assert!(mgr.subscribe(Arc::new(|_| {})).is_empty());
+    // A model the agent does not offer (any more): said, before anything is sent. (A fresh agent:
+    // the fake one serves a single connection.)
+    let agent = Arc::new(FakeV2Agent::default());
+    let mgr = manager(tmp.path(), agent.clone());
+    let err = mgr.generate(request("gpt-9"), ide_core::CancellationToken::new()).await.unwrap_err();
+    assert!(!agent.methods().contains(&"session/prompt".to_owned()));
+    assert!(err.to_string().contains("does not offer"), "{err}");
+}

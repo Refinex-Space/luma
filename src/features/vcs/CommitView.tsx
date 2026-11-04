@@ -49,6 +49,7 @@ import { CommitOptionsPopup } from "./CommitOptions";
 import { DEFAULT_LIST_NAME, useChangelists, withListDefaults } from "./changelists";
 import { moveToChangelist } from "./changelistsUi";
 import { messageHistory, setAmend, setDiffPreview, setGroupByDir, useCommit, type CommitTab } from "./commitStore";
+import { generateCommitMessage, selfReview, useGenerating } from "@/features/agents/prompts/generate";
 import { pushAfterCommit } from "./commitUi";
 import { stashTabOf, stashTabs, type ContentTab } from "./gitTabs";
 import { diffInput, openDiff, withChain, workingDiffData } from "./diffInput";
@@ -739,6 +740,22 @@ export function CommitMessageField({ included, runner }: { included: number; run
   const historyTick = useCommit((s) => s.historyTick);
   const checkProblems = useCommit((s) => s.checkProblems);
   const { emptyError } = runner;
+  // AI: the message from the changes to commit (Prompt Library › Commit Message Generation), and a review of them.
+  const status = useVcs((s) => s.status);
+  const checks = useCommitChecks();
+  const generating = useGenerating((s) => s.commitMessage !== undefined);
+  const toCommit = () =>
+    planCommit(status, checks).included.map((f) => ({
+      kind: (f.staged ?? f.unstaged ?? "modified").charAt(0).toUpperCase(),
+      path: f.path,
+    }));
+  const generate = async () => {
+    const text = await generateCommitMessage(toCommit());
+    if (text) {
+      useCommit.setState({ message: text });
+      ref.current?.focus();
+    }
+  };
 
   // The failed checks concern what was about to be committed: editing it dismisses them.
   useEffect(() => {
@@ -798,6 +815,21 @@ export function CommitMessageField({ included, runner }: { included: number; run
             {first.length}/{cfg.subjectLimit}
           </span>
         )}
+        <IconButton
+          icon="github-review"
+          title="AI Self-Review"
+          size="small"
+          disabled={!included}
+          onClick={() => void selfReview(toCommit())}
+        />
+        <IconButton
+          icon={generating ? "stop" : "toolwindow-agents"}
+          title={generating ? "Stop Generating" : "Generate Commit Message with AI"}
+          size="small"
+          disabled={!included && !generating}
+          className={clsx(generating && styles.generating)}
+          onClick={() => void generate()}
+        />
       </div>
       <textarea
         ref={ref}

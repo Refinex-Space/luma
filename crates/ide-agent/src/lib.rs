@@ -53,6 +53,8 @@ pub(crate) const RETRY_UPDATE: &str = "luma_retry";
 const MAX_EMBED: u64 = 256 * 1024;
 /// How long a probe waits for the agent to answer `initialize`.
 const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
+/// A one-off generation (`AgentManager::generate`) is given up after this long.
+const GENERATE_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// The agent tasks of one project.
 pub struct AgentManager {
@@ -839,6 +841,86 @@ impl AgentManager {
             .await;
         }
         Ok(result)
+    }
+
+    /// Asks `req.provider` for text only, outside any task: a session in the project root with
+    /// the given settings, one prompt, its reply. Tools are refused (permission requests are
+    /// cancelled, file and terminal requests fail), so the agent can only answer.
+    ///
+    /// # Errors
+    /// The agent is unknown or does not start or answer; a setting it does not offer (`config`
+    /// names an unknown option or value: the user's choice is out of date); `cancel` fired;
+    /// [`GENERATE_TIMEOUT`] passed.
+    pub async fn generate(&self, req: AgentGenerate, cancel: ide_core::CancellationToken) -> IdeResult<String> {
+        let spec = self
+            .shared
+            .spec(&req.provider)
+            .ok_or_else(|| IdeError::invalid(format!("unknown agent {}", req.provider)))?;
+        let stderr: Arc<Mutex<Vec<String>>> = Arc::default();
+        let lines = stderr.clone();
+        let on_stderr: Box<dyn Fn(String) + Send + Sync> = Box::new(move |l| lines.lock().push(l));
+        let reply = Arc::new(Reply::default());
+        let client = acp::Dialect::wrap(reply.clone());
+        let peer = (self.shared.connector)(&spec, &self.shared.paths.project_root, client.clone(), on_stderr)
+            .map(|peer| acp::Conn::new(peer, client))
+            .map_err(|e| IdeError::internal(format!("Couldn't start {} (`{}`): {e}", spec.name, spec.command)))?;
+        let failed = |e: RpcError| match stderr.lock().last() {
+            Some(line) => IdeError::internal(format!("{}: {e}: {line}", spec.name)),
+            None => IdeError::internal(format!("{}: {e}", spec.name)),
+        };
+        let run = async {
+            peer.initialize(&client_info()).await.map_err(failed)?;
+            let cwd = dunce::canonicalize(&self.shared.paths.project_root)
+                .unwrap_or_else(|_| self.shared.paths.project_root.clone());
+            let created: Value = peer
+                .request("session/new", json!({ "cwd": cwd.to_string_lossy(), "mcpServers": [] }), None)
+                .await
+                .map_err(|e| match e {
+                    RpcError::Server { ref message, .. } if message.to_lowercase().contains("auth") => {
+                        IdeError::invalid(format!("{} needs you to sign in. {}", spec.name, spec.login_hint))
+                    }
+                    e => failed(e),
+                })?;
+            let session = created
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| IdeError::internal("no session"))?
+                .to_owned();
+            let mut options = config::options_of(&created);
+            config::add_client_options(&spec.id, &mut options);
+            for choice in &req.config {
+                let option = options.iter().find(|o| o.id == choice.id);
+                let offered = option.is_some_and(|o| o.values.iter().any(|v| v.value == choice.value));
+                // Not offered (any more): the caller asks the user to choose again.
+                let Some(option) = option.filter(|_| offered) else {
+                    return Err(IdeError::invalid(format!(
+                        "{} does not offer {} `{}`",
+                        spec.name, choice.id, choice.value
+                    )));
+                };
+                if option.current.as_deref() == Some(choice.value.as_str()) {
+                    continue;
+                }
+                let (method, mut params) = config::set_request(option, &choice.value);
+                params["sessionId"] = json!(session);
+                peer.request::<_, Value>(method, params, None).await.map_err(failed)?;
+            }
+            *reply.session.lock() = Some(session.clone());
+            let prompt = json!({ "sessionId": session, "prompt": [{ "type": "text", "text": req.prompt }] });
+            peer.request::<_, Value>("session/prompt", prompt, Some(cancel.clone())).await.map_err(|e| match e {
+                RpcError::Cancelled => IdeError::cancelled(),
+                e => failed(e),
+            })?;
+            Ok(reply.text.lock().clone())
+        };
+        let out = tokio::select! {
+            r = tokio::time::timeout(GENERATE_TIMEOUT, run) => {
+                r.unwrap_or_else(|_| Err(IdeError::internal(format!("{} did not answer in time", spec.name))))
+            }
+            _ = cancel.cancelled() => Err(IdeError::cancelled()),
+        };
+        peer.kill();
+        out
     }
 
     /// Stops the current turn (`session/cancel`); pending permission requests are cancelled.
@@ -1856,6 +1938,39 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> IdeResult<T> + Send + 'static) -> IdeResult<T> {
     tokio::task::spawn_blocking(f).await.map_err(|e| IdeError::internal(e.to_string()))?
+}
+
+/// What a one-off generation collects: the agent's message text in its session. Every
+/// request from the agent is refused: it may only answer.
+#[derive(Default)]
+struct Reply {
+    session: Mutex<Option<String>>,
+    text: Mutex<String>,
+}
+
+impl Handler for Reply {
+    fn on_notification(&self, method: &str, params: Value) {
+        if method != "session/update" {
+            return;
+        }
+        let ours = params.get("sessionId").and_then(Value::as_str);
+        if ours.is_none() || ours != self.session.lock().as_deref() {
+            return;
+        }
+        let update = &params["update"];
+        if update["sessionUpdate"] == "agent_message_chunk"
+            && let Some(text) = update["content"]["text"].as_str()
+        {
+            self.text.lock().push_str(text);
+        }
+    }
+
+    fn on_request(&self, method: &str, _params: Value) -> Result<Value, (i64, String)> {
+        match method {
+            "session/request_permission" => Ok(json!({ "outcome": { "outcome": "cancelled" } })),
+            _ => Err((codes::METHOD_NOT_FOUND, "Luma asked for text only".into())),
+        }
+    }
 }
 
 #[cfg(test)]

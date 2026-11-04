@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useVcs } from "@/features/vcs/store";
+import { generatePrDescription, useGenerating } from "@/features/agents/prompts/generate";
 import { tx } from "@/platform/i18n";
 import {
   Button,
@@ -106,6 +107,14 @@ function TextPanel() {
   const title = useCreatePr((s) => s.title);
   const description = useCreatePr((s) => s.description);
   const templateLoading = useCreatePr((s) => s.templateLoading);
+  const commits = useCreatePr((s) => (s.commits?.state === "ok" ? s.commits.value : null));
+  const base = useCreatePr((s) => s.direction?.baseBranch?.name ?? null);
+  const generating = useGenerating((s) => s.prSummary !== undefined);
+  // The description from the pull request's commits (Prompt Library › GitHub Pull Request AI Summary).
+  const generate = async () => {
+    const text = await generatePrDescription([...(commits ?? [])].reverse(), base ?? "");
+    if (text) setDescription(text);
+  };
   return (
     <div className={styles.text}>
       <Input
@@ -124,10 +133,19 @@ function TextPanel() {
           disabled={templateLoading}
           onChange={(e) => setDescription(e.target.value)}
         />
-        {templateLoading && (
+        {templateLoading ? (
           <span className={styles.templateSpinner}>
             <Spinner size={12} />
           </span>
+        ) : (
+          <IconButton
+            icon={generating ? "stop" : "toolwindow-agents"}
+            title={generating ? "Stop Generating" : "Generate Description with AI"}
+            size="small"
+            disabled={!commits?.length && !generating}
+            className={styles.generateDescription}
+            onClick={() => void generate()}
+          />
         )}
       </div>
     </div>

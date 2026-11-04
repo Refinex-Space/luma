@@ -36,6 +36,7 @@ import {
 } from "./composerModel";
 import { composerDraft, updateComposer, useAgents } from "./store";
 import { ContextPicker } from "./ContextPicker";
+import { promptCommands, usePromptLibrary } from "./prompts/store";
 import { commandAt, useCommandHover } from "./CommandHover";
 import { addContext, contextKey, middleEllipsis, rangeLabel, type ContextItem } from "./contextModel";
 import { ImagePreview, imageSrc } from "./ImagePreview";
@@ -76,6 +77,12 @@ export interface ComposerProps {
 
 export function Composer(props: ComposerProps) {
   const { id, root, projectRoot } = props;
+  // The agent's commands, then the Prompt Library's (`/name` sends the prompt); the agent's win a name.
+  const library = usePromptLibrary();
+  const allCommands = useMemo(() => {
+    const own = new Set(props.commands.map((c) => c.name));
+    return [...props.commands, ...promptCommands(library).filter((c) => !own.has(c.name))];
+  }, [props.commands, library]);
   const tx = useTx();
   const draft = useAgents((s) => s.composers.get(id));
   const text = draft?.text ?? "";
@@ -181,15 +188,15 @@ export function Composer(props: ComposerProps) {
   const items: Item[] = useMemo(() => {
     if (!completion) return [];
     if (completion.kind === "file") return files;
-    return matchCommands(props.commands, completion.query)
+    return matchCommands(allCommands, completion.query)
       .slice(0, MAX_ITEMS)
       .map((command) => ({ kind: "command", command }));
-  }, [completion, files, props.commands]);
+  }, [completion, files, allCommands]);
   const open = !!completion && items.length > 0;
 
   // The agent's commands written in the text: drawn as tags, and kept in the draft to be sent
   // first (wherever they were written; set by any change to the text, recalls and quotes too).
-  const known = useMemo(() => new Set(props.commands.map((c) => c.name)), [props.commands]);
+  const known = useMemo(() => new Set(allCommands.map((c) => c.name)), [allCommands]);
   const tokens = useMemo(() => commandTokens(text, known), [text, known]);
   const written = tokens.map((t) => t.name).join(" ");
   useEffect(() => {
@@ -198,7 +205,7 @@ export function Composer(props: ComposerProps) {
   }, [id, written]);
   const highlight = useRef<HTMLDivElement>(null);
   // Hovering a tag shows what the command does; the tags are under the textarea, found by position.
-  const hover = useCommandHover(props.commands);
+  const hover = useCommandHover(allCommands);
   const overlaid = tokens.length > 0;
   // The tags under the text follow its scrolling and its width (a scrollbar takes some).
   useLayoutEffect(() => {
@@ -534,7 +541,7 @@ export function Composer(props: ComposerProps) {
             }}
             root={root}
             projectRoot={projectRoot}
-            commands={props.commands}
+            commands={allCommands}
             onAdd={addItems}
             onImages={addImages}
             onBrowse={() => imageInput.current?.click()}

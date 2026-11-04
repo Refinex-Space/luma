@@ -331,3 +331,22 @@
 .checkProblemLink:hover {
   text-decoration: underline;
 }
+
+/* Generating the commit message with AI: the stop button breathes until the answer comes. */
+.generating {
+  color: var(--accent);
+  animation: generating 1.2s var(--ease) infinite alternate;
+}
+@keyframes generating {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .generating {
+    animation: none;
+  }
+}

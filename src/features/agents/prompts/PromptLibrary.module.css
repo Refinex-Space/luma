@@ -1,0 +1,246 @@
+/* Settings › AI › Prompt Library: the tree of groups and prompts beside the selected prompt. */
+.page {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg-island);
+  overflow: hidden;
+}
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.tree {
+  flex: 1;
+  min-height: 0;
+}
+.groupRow {
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.promptRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.promptName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* An edited built-in prompt: a dot after its name. */
+.edited {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.command {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fg-subtle);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+
+.main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+.title {
+  margin: 0;
+  font-size: calc(var(--fs-ui) + 2px);
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.titleGroup {
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.nameInput {
+  max-width: 320px;
+  font-weight: 600;
+}
+.info {
+  display: inline-grid;
+  place-items: center;
+  color: var(--fg-muted);
+  cursor: help;
+}
+.grow {
+  flex: 1;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 12px;
+}
+.fieldLabel {
+  color: var(--fg-secondary);
+}
+.commandInput {
+  display: flex;
+  align-items: center;
+  max-width: 320px;
+}
+.slash {
+  padding-right: 4px;
+  color: var(--link, var(--accent));
+  font-weight: 600;
+}
+.pickers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.field > .warning {
+  grid-column: 2;
+}
+
+/* The template: a monospace field whose variables are tags drawn by a layer under it. */
+.template {
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.textBox {
+  position: relative;
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--border-button, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--bg-field, var(--bg-island));
+  overflow: hidden;
+}
+.textBox:focus-within {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}
+.text {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-editor, 13px);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  tab-size: 4;
+}
+.layerClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.layer {
+  color: var(--fg-strong);
+}
+.input {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--fg-strong);
+}
+.input::placeholder {
+  color: var(--fg-faint);
+}
+.variable {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow:
+    0 -1px 0 0 color-mix(in srgb, var(--accent) 13%, transparent),
+    0 1px 0 0 color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--link, var(--accent));
+}
+/* A name its action does not fill: kept as written when the prompt is used. */
+.unknownVariable {
+  background: none;
+  box-shadow: none;
+  color: var(--fg-strong);
+  text-decoration: wavy underline var(--danger);
+  text-underline-offset: 3px;
+}
+
+.variables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.variableChip {
+  height: 22px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg-strong) 6%, transparent);
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.variableChip:hover {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--link, var(--accent));
+}
+.variableChip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning);
+  font-size: var(--fs-small);
+}
+.groupEmpty {
+  display: flex;
+}

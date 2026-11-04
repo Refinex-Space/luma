@@ -8,6 +8,7 @@ import type {
   AgentEntry,
   AgentEvent,
   AgentImage,
+  AgentPrompt,
   AgentProvider,
   AgentTask,
   Isolation,
@@ -18,6 +19,8 @@ import { call, commands, isTauri } from "@/platform/ipc";
 import { editorService, notifications, toolWindowService } from "@/workbench/contributions";
 import { bypassDefaults, canSend, emptyDraft, toPrompt, type ComposerDraft, type FileRef } from "./composerModel";
 import { addContext, type ContextItem } from "./contextModel";
+import { expandPromptCommand } from "./prompts/expand";
+import { instructionsNote } from "./prompts/values";
 import { withQuote } from "./conversation";
 import {
   HOME_KEY,
@@ -459,6 +462,38 @@ export function openHome(prompt?: string) {
   void editorService().openInput({ kind: HOME_KIND, key: HOME_KEY, data: {} }, { focus: true });
 }
 
+/** A new conversation's first message: with the Chat Instructions (Prompt Library). */
+function withInstructions(prompt: AgentPrompt): AgentPrompt {
+  const note = instructionsNote();
+  return note ? { ...prompt, context: [note, ...(prompt.context ?? [])] } : prompt;
+}
+
+/**
+ * Starts a task with `prompt` (an AI action: self-review, documentation, unit tests…) with the
+ * agent and settings chosen last, in the project's own checkout, and shows it.
+ *
+ * @param prompt the first message
+ */
+export async function startPromptTask(prompt: AgentPrompt): Promise<void> {
+  const { draft, providers } = useAgents.getState();
+  const config = { ...bypassDefaults(providers.find((p) => p.id === draft.provider)?.config ?? []), ...draft.config };
+  const task = await call(
+    commands.agentCreate({
+      projectRoot: draft.projectRoot ?? null,
+      prompt: withInstructions(prompt),
+      provider: draft.provider,
+      config: Object.entries(config).map(([id, value]) => ({ id, value })),
+      isolation: "local",
+      base: null,
+    }),
+  );
+  useAgents.setState((s) => ({
+    tasks: s.tasks.has(task.id) ? s.tasks : new Map(s.tasks).set(task.id, task),
+    entries: new Map(s.entries).set(task.id, s.entries.get(task.id) ?? []),
+  }));
+  openTask(task.id);
+}
+
 /** `isolation` overrides the draft's (a project without git can only use the local checkout). */
 export async function startTask(
   isolation: Isolation = useAgents.getState().draft.isolation,
@@ -471,7 +506,14 @@ export async function startTask(
   const task = await call(
     commands.agentCreate({
       projectRoot,
-      prompt: toPrompt(composer),
+      prompt: withInstructions(
+        toPrompt(composer, (t) =>
+          expandPromptCommand(
+            t,
+            (providers.find((p) => p.id === draft.provider)?.commands ?? []).map((c) => c.name),
+          ),
+        ),
+      ),
       provider: draft.provider,
       config: Object.entries(config).map(([id, value]) => ({ id, value })),
       isolation,
@@ -500,7 +542,14 @@ function remember(text: string) {
 export async function sendMessage(task: string, now: boolean): Promise<void> {
   const composer = composerDraft(task);
   if (!canSend(composer)) return;
-  await call(commands.agentPrompt(task, toPrompt(composer), now));
+  const own = (useAgents.getState().tasks.get(task)?.commands ?? []).map((c) => c.name);
+  await call(
+    commands.agentPrompt(
+      task,
+      toPrompt(composer, (t) => expandPromptCommand(t, own)),
+      now,
+    ),
+  );
   updateComposer(task, emptyDraft());
 }
 

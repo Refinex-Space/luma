@@ -24,17 +24,25 @@ import { sendPaths, sendSelection } from "./references";
 import { focusedSession } from "./sessionFocus";
 import { connect, disconnect, openHome, useAgents } from "./store";
 import { taskActions } from "./taskActions";
+import { activatePrompts, registerPromptsPage } from "./prompts";
+import { syncPromptLibrary } from "./prompts/store";
 
-/** Settings › AI › Agents (also used by the Settings window). */
+/** Settings › AI › Agents and Prompt Library (also used by the Settings window). */
 export function activateSettingsPages(): () => void {
-  return registerSettingsPage({
-    id: REGISTRY_PAGE,
-    title: "Agents",
-    group: "AI",
-    order: 500,
-    keywords: ["agent", "acp", "registry", "install", "update", "coding agent"],
-    component: lazyComponent(() => import("./AgentRegistryPage").then((m) => m.AgentRegistryPage)),
-  });
+  const disposers = [
+    registerSettingsPage({
+      id: REGISTRY_PAGE,
+      title: "Agents",
+      group: "AI",
+      order: 500,
+      keywords: ["agent", "acp", "registry", "install", "update", "coding agent"],
+      component: lazyComponent(() => import("./AgentRegistryPage").then((m) => m.AgentRegistryPage)),
+    }),
+    registerPromptsPage(),
+    // The Settings window edits the library: keep its copy in step with the main window's.
+    syncPromptLibrary(),
+  ];
+  return () => disposers.reverse().forEach((d) => d());
 }
 
 export function activate(): () => void {
@@ -45,6 +53,7 @@ export function activate(): () => void {
   sync(useProject.getState().project?.root);
   const disposers = [
     activateSettingsPages(),
+    activatePrompts(),
     useProject.subscribe((s, prev) => {
       if (s.project?.root !== prev.project?.root || s.project?.trusted !== prev.project?.trusted) sync(s.project?.root);
     }),

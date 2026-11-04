@@ -203,6 +203,20 @@ pub struct AgentConfigChoice {
     pub value: String,
 }
 
+/// A one-off request to an agent that answers with text only (a commit message, a pull
+/// request description): no task is made, and no tool may run.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentGenerate {
+    /// The agent ([`AgentProvider::id`]).
+    pub provider: String,
+    /// Settings (model, thinking effort) set on the session before the prompt.
+    #[serde(default)]
+    pub config: Vec<AgentConfigChoice>,
+    /// The whole request, as text.
+    pub prompt: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum AgentToolStatus {

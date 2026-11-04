@@ -266,6 +266,11 @@
   top: 8px;
   right: 12px;
 }
+.generateDescription {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
 
 /* Reviewers, assignees, labels */
 .metadata {

@@ -164,8 +164,13 @@ export function mentionOf(rel: string, lines?: { from: number; to: number }): st
 /**
  * The prompt to send: the files still mentioned in the text and the file chips (each once),
  * the images, commits as text notes, and the skills as the commands the text starts with.
+ *
+ * @param draft the composer's draft
+ * @param expand turns the text (its commands moved first) into what is sent: a Prompt
+ *   Library `/command` becomes its prompt
+ * @returns the prompt
  */
-export function toPrompt(draft: ComposerDraft): AgentPrompt {
+export function toPrompt(draft: ComposerDraft, expand: (text: string) => string = (t) => t): AgentPrompt {
   const seen = new Set<string>();
   const context = draft.context ?? [];
   const mentioned = draft.files.filter(
@@ -181,7 +186,7 @@ export function toPrompt(draft: ComposerDraft): AgentPrompt {
   }
   const notes = contextNotes(context);
   return {
-    text: withSkills(hoistCommands(draft.text.trim(), draft.commands ?? []), context),
+    text: withSkills(expand(hoistCommands(draft.text.trim(), draft.commands ?? [])), context),
     files,
     images: draft.images,
     // Only when there are any: a plain message stays as it was.

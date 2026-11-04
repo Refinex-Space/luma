@@ -195,6 +195,19 @@ pub async fn agent_load_config(window: Window, state: State<'_, AppState>, provi
     agent::load_config(&state.host, window.label(), provider).await
 }
 
+/// Asks an agent for text only, outside any task: a commit message, a pull request
+/// description. No tool runs. Cancel with `cancel_request(request)`.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_generate(
+    window: Window,
+    state: State<'_, AppState>,
+    request: ide_agent::AgentGenerate,
+    id: RequestId,
+) -> IdeResult<String> {
+    agent::generate(&state.host, window.label(), request, id).await
+}
+
 /// Stops the task's current turn, or with `subagent` only that subagent's work.
 #[tauri::command]
 #[specta::specta]
