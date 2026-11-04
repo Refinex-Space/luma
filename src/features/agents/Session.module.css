@@ -144,30 +144,56 @@
   contain-intrinsic-block-size: auto 80px;
 }
 
-/* Your message with its actions, shown on hover. */
+/* A message with its actions under it, shown on hover (IDEA's chat): yours on the right in a
+   bubble, the agent's answer full width. The action row keeps its height, so nothing moves. */
 .message {
   position: relative;
+}
+.userMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.bubble {
+  max-width: min(85%, 720px);
+  padding: 7px 12px;
+  border-radius: 12px;
+  /* A light tint of the text colour: a soft grey on light themes, a lifted grey on dark ones. */
+  background: color-mix(in srgb, var(--fg-strong) 7%, var(--bg-island));
+  color: var(--fg-strong);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .messageMeta {
   display: flex;
   align-items: center;
-  min-height: 20px;
-  padding-left: 12px;
-  font-size: var(--fs-small);
-}
-.messageActions {
-  display: inline-flex;
   gap: 2px;
-  margin-left: 6px;
+  min-height: 24px;
+  margin-top: 2px;
+  font-size: var(--fs-small);
   opacity: 0;
   pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease);
   -webkit-user-select: none;
   user-select: none;
 }
-.message:hover .messageActions,
-.messageActions:focus-within {
+.userMessage .messageMeta {
+  justify-content: flex-end;
+}
+.message:hover .messageMeta,
+.messageMeta:focus-within {
   opacity: 1;
   pointer-events: auto;
+}
+.metaTime {
+  padding: 0 4px;
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .messageMeta {
+    transition: none;
+  }
 }
 
 .findBar {

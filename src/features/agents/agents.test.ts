@@ -28,6 +28,7 @@ import {
   groupTasks,
   subagentTitle,
   turnNumbers,
+  turnResponses,
   upsertEntry,
   type SubagentEntry,
 } from "./model";
@@ -290,5 +291,34 @@ describe("typed path references", () => {
     expect(resolveTyped("/r/idea", "/etc/hosts")).toBe("/etc/hosts");
     expect(resolveTyped("C:\\r\\idea", "../kalo/a.ts")).toBe("C:/r/kalo/a.ts");
     expect(resolveTyped("C:\\r", "../../x")).toBe("C:/x");
+  });
+});
+
+describe("turn responses", () => {
+  it("puts each turn's answer on its last agent message, with all it said", () => {
+    const entries: AgentEntry[] = [
+      { type: "agent", text: "Ready." },
+      { type: "user", text: "fix it", attachments: [], sentMs: 1000, doneMs: 9000 },
+      { type: "agent", text: "Looking." },
+      {
+        type: "tool",
+        id: "t",
+        title: "Read",
+        kind: "read",
+        status: "completed",
+        locations: [],
+        output: null,
+        diffs: [],
+      },
+      { type: "user", text: "also tests", attachments: [], steered: true },
+      { type: "agent", text: "Done." },
+      { type: "user", text: "and now?", attachments: [], sentMs: 10000, doneMs: null },
+      { type: "error", message: "boom" },
+    ];
+    const responses = turnResponses(entries);
+    // Before the first turn, the first turn (steered into), and no answer for the last turn.
+    expect([...responses.keys()]).toEqual([0, 5]);
+    expect(responses.get(0)).toEqual({ turn: null, text: "Ready.", sentMs: null, doneMs: null });
+    expect(responses.get(5)).toEqual({ turn: 0, text: "Looking.\n\nDone.", sentMs: 1000, doneMs: 9000 });
   });
 });

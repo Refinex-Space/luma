@@ -44,6 +44,8 @@ import {
   subagentTitle,
   subagentWorking,
   turnNumbers,
+  turnResponses,
+  type TurnResponse,
   type SubagentEntry,
 } from "./model";
 import {
@@ -418,6 +420,12 @@ function Stream({ task, entries, subagent, onOpenSubagent, finding, findFocus, o
   const lastUser = entries?.findLast((e): e is UserEntry => e.type === "user");
   // Forks and undo apply to the task's own turns, not a subagent's conversation.
   const turns = useMemo(() => (entries && !subagent ? turnNumbers(entries) : null), [entries, subagent]);
+  // Each turn's answer gets its actions on its last agent message.
+  const responses = useMemo(() => (entries ? turnResponses(entries) : null), [entries]);
+  const answered = useMemo(
+    () => new Set([...(responses?.values() ?? [])].flatMap((r) => (r.turn === null ? [] : [r.turn]))),
+    [responses],
+  );
   return (
     <div className={styles.streamArea}>
       {finding && <FindBar streamRef={ref} focus={findFocus} onClose={onCloseFind} />}
@@ -453,6 +461,9 @@ function Stream({ task, entries, subagent, onOpenSubagent, finding, findFocus, o
               entry={entry}
               turn={turns?.get(i) ?? null}
               turnCount={turns?.size ?? 0}
+              response={responses?.get(i) ?? null}
+              answered={answered}
+              forkable={!subagent}
               onOpenSubagent={onOpenSubagent}
             />
           ))
@@ -683,6 +694,9 @@ function Entry({
   entry,
   turn,
   turnCount,
+  response,
+  answered,
+  forkable,
   onOpenSubagent,
 }: {
   task: AgentTask;
@@ -690,13 +704,31 @@ function Entry({
   /** Number of the turn this message started (from 0), when it started one. */
   turn: number | null;
   turnCount: number;
+  /** The turn's answer, when this is its last agent message. */
+  response: TurnResponse | null;
+  /** Turns whose answer carries "Open in New Session". */
+  answered: ReadonlySet<number>;
+  /** The task's own conversation (not a subagent's): its turns can be forked. */
+  forkable: boolean;
   onOpenSubagent: (id: string) => void;
 }) {
   switch (entry.type) {
     case "user":
-      return <UserMessage task={task} entry={entry} turn={turn} turnCount={turnCount} />;
+      return (
+        <UserMessage
+          task={task}
+          entry={entry}
+          turn={turn}
+          turnCount={turnCount}
+          forkHere={turn !== null && !answered.has(turn)}
+        />
+      );
     case "agent":
-      return <Markdown text={entry.text} cwd={task.cwd} />;
+      return response ? (
+        <AgentAnswer task={task} text={entry.text} response={response} turnCount={turnCount} forkable={forkable} />
+      ) : (
+        <Markdown text={entry.text} cwd={task.cwd} />
+      );
     case "thought":
       return (
         <details className={styles.thought}>
@@ -760,11 +792,14 @@ function UserMessage({
   entry,
   turn,
   turnCount,
+  forkHere,
 }: {
   task: AgentTask;
   entry: UserEntry;
   turn: number | null;
   turnCount: number;
+  /** The turn has no answer to carry "Open in New Session": the message does. */
+  forkHere: boolean;
 }) {
   const tx = useTx();
   const [editing, setEditing] = useState(false);
@@ -776,7 +811,7 @@ function UserMessage({
   // Editing and running again from a message need an agent that can drop turns.
   const inPlace = !archived && rollback && turn !== null;
   // A copy up to an earlier turn drops the later ones from the copied session.
-  const canFork = idle && fork && (rollback || turn === turnCount - 1);
+  const canFork = forkHere && idle && fork && (rollback || turn === turnCount - 1);
   if (editing && turn !== null) {
     return (
       <MessageEditor
@@ -795,8 +830,8 @@ function UserMessage({
   // Images are listed after the files in `attachments` and shown as thumbnails instead.
   const files = entry.attachments.slice(0, entry.attachments.length - images.length);
   return (
-    <div className={styles.message}>
-      <div className={styles.user}>
+    <div className={clsx(styles.message, styles.userMessage)}>
+      <div className={styles.bubble}>
         {entry.text}
         <ImageStrip images={images} />
         {files.length > 0 && (
@@ -812,42 +847,103 @@ function UserMessage({
       </div>
       <div className={styles.messageMeta}>
         {entry.sentMs != null && (
-          <span className={styles.muted} title={new Date(entry.sentMs).toLocaleString()}>
+          <span
+            className={styles.metaTime}
+            title={
+              new Date(entry.sentMs).toLocaleString() +
+              (entry.doneMs != null
+                ? ` · ${tx("Time the agent took to answer")}: ${formatDuration(entry.doneMs - entry.sentMs)}`
+                : "")
+            }
+          >
             {formatSentAt(entry.sentMs)}
           </span>
         )}
-        {entry.sentMs != null && entry.doneMs != null && (
-          <span className={styles.muted} title={tx("Time the agent took to answer")}>
-            {` · ${formatDuration(entry.doneMs - entry.sentMs)}`}
-          </span>
+        {inPlace && entry.text && (
+          <IconButton icon="edit" title="Edit Message" size="small" onClick={() => setEditing(true)} />
         )}
-        <span className={styles.messageActions}>
-          <IconButton icon="copy" title="Copy" size="small" onClick={() => void copyText(entry.text)} />
-          {inPlace && entry.text && (
-            <IconButton icon="edit" title="Edit" size="small" onClick={() => setEditing(true)} />
-          )}
-          {!archived && entry.text && entry.attachments.length === 0 && (
-            <IconButton
-              icon="refresh"
-              title={inPlace ? "Run Again From Here" : "Send Again"}
-              size="small"
-              onClick={() =>
-                void (
-                  inPlace ? rerunFrom(task.id, turn, entry.text, images) : resendMessage(task.id, entry.text)
-                ).catch(fail)
-              }
-            />
-          )}
+        <IconButton icon="copy" title="Copy" size="small" onClick={() => void copyText(entry.text)} />
+        {!archived && entry.text && entry.attachments.length === 0 && (
+          <IconButton
+            icon="refresh"
+            title={inPlace ? "Run Again From Here" : "Send Again"}
+            size="small"
+            onClick={() =>
+              void (inPlace ? rerunFrom(task.id, turn, entry.text, images) : resendMessage(task.id, entry.text)).catch(
+                fail,
+              )
+            }
+          />
+        )}
+        {canFork && (
+          <IconButton
+            icon="branch"
+            title="Open in New Session"
+            size="small"
+            onClick={() => void forkTask(task.id, turn + 1).catch(failed("Couldn't copy the task"))}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A turn's answer (its last agent message): on hover, copy what the agent said in the turn,
+ * open a new session from here, and when it answered.
+ */
+function AgentAnswer({
+  task,
+  text,
+  response,
+  turnCount,
+  forkable,
+}: {
+  task: AgentTask;
+  text: string;
+  response: TurnResponse;
+  turnCount: number;
+  forkable: boolean;
+}) {
+  const tx = useTx();
+  const { turn, doneMs, sentMs } = response;
+  const archived = task.status === "archived";
+  const idle = !archived && !isBusy(task.status);
+  // Still being written: no actions until the turn ends.
+  const running = doneMs == null && !idle && turn === turnCount - 1;
+  const { fork = false, rollback = false } = task.capabilities ?? {};
+  const canFork = forkable && idle && fork && turn !== null && (rollback || turn === turnCount - 1);
+  return (
+    <div className={clsx(styles.message, styles.answer)}>
+      <Markdown text={text} cwd={task.cwd} />
+      {!running && (
+        <div className={styles.messageMeta}>
+          <IconButton icon="copy" title="Copy" size="small" onClick={() => void copyText(response.text)} />
           {canFork && (
             <IconButton
               icon="branch"
-              title="Copy to a New Task From Here"
+              title="Open in New Session"
               size="small"
-              onClick={() => void forkTask(task.id, turn + 1).catch(failed("Couldn't copy the task"))}
+              onClick={() =>
+                void forkTask(task.id, turn + 1).catch((e: unknown) =>
+                  notifications().notify({ level: "error", title: "Couldn't copy the task", body: String(e) }),
+                )
+              }
             />
           )}
-        </span>
-      </div>
+          {doneMs != null && (
+            <span
+              className={styles.metaTime}
+              title={
+                new Date(doneMs).toLocaleString() +
+                (sentMs != null ? ` · ${tx("Time the agent took to answer")}: ${formatDuration(doneMs - sentMs)}` : "")
+              }
+            >
+              {formatSentAt(doneMs)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

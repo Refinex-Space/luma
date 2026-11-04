@@ -169,6 +169,45 @@ export function turnNumbers(entries: AgentEntry[]): Map<number, number> {
   return out;
 }
 
+/** A turn's answer: what the agent said in it, shown with its last agent message. */
+export interface TurnResponse {
+  /** The turn (from 0), or `null` for messages before the first one. */
+  turn: number | null;
+  /** Everything the agent said in the turn, in order. */
+  text: string;
+  sentMs: number | null;
+  /** When the turn ended; `null` while it runs or when it was cut off. */
+  doneMs: number | null;
+}
+
+/** The answer of each turn, keyed by the index of its last agent message. */
+export function turnResponses(entries: AgentEntry[]): Map<number, TurnResponse> {
+  const out = new Map<number, TurnResponse>();
+  let turn: number | null = null;
+  let start: Extract<AgentEntry, { type: "user" }> | null = null;
+  let texts: string[] = [];
+  let last = -1;
+  let count = 0;
+  const close = () => {
+    if (last >= 0)
+      out.set(last, { turn, text: texts.join("\n\n"), sentMs: start?.sentMs ?? null, doneMs: start?.doneMs ?? null });
+    texts = [];
+    last = -1;
+  };
+  entries.forEach((e, i) => {
+    if (e.type === "user" && !e.steered) {
+      close();
+      turn = count++;
+      start = e;
+    } else if (e.type === "agent" && e.text.trim()) {
+      texts.push(e.text);
+      last = i;
+    }
+  });
+  close();
+  return out;
+}
+
 /** "3m", "2h", "5d" since `ms`. */
 export function age(ms: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ms) / 1000));

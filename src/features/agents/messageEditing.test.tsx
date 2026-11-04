@@ -58,7 +58,7 @@ beforeEach(() => {
 async function edit() {
   render(<SessionEditor input={{ kind: "agent-session", key: task.id, data: { task: task.id } }} />);
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Edit" }));
+  await user.click(await screen.findByRole("button", { name: "Edit Message" }));
   const box = screen.getAllByRole("textbox", { name: "Message" })[0]!;
   fireEvent.change(box, { target: { value: "Edited message" } });
   return { user, box, send: screen.getAllByRole("button", { name: "Send" })[0]! };
@@ -106,7 +106,7 @@ describe("a sent message with images", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getAllByRole("img", { name: "a.png" })).toHaveLength(2);
     await user.click(screen.getAllByRole("button", { name: "Close" })[0]!);
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Edit Message" }));
     expect(screen.getAllByRole("button", { name: "Remove Image" })).toHaveLength(2);
     await user.click(screen.getAllByRole("button", { name: "Remove Image" })[0]!);
     expect(screen.getAllByRole("button", { name: "Remove Image" })).toHaveLength(1);
@@ -230,7 +230,7 @@ describe("editing a sent agent message", () => {
       expect(screen.getByText("Original answer")).toBeInTheDocument();
       expect(ipc.rollback).not.toHaveBeenCalled();
       expect(ipc.prompt).not.toHaveBeenCalled();
-      await user.click(screen.getByRole("button", { name: "Edit" }));
+      await user.click(screen.getByRole("button", { name: "Edit Message" }));
       expect(screen.getAllByRole("textbox", { name: "Message" })[0]).toHaveValue("Original message");
     },
   );
