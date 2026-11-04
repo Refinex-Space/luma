@@ -527,3 +527,77 @@ async fn v1_requests_are_sent_in_v2() {
         .collect();
     assert_eq!(commands, [&json!("28846a4c-c3e8-4a45-a3d0-c19f10d19d1a"), &json!("s1")]);
 }
+
+/// What `pi-acp` 0.0.34 announces after `session/new`: the same text in the answer's
+/// `_meta.piAcp.startupInfo` and, on the next tick, as an agent message outside any turn.
+const NOTE: &str = "pi v1.4.0\n---\n\n## Skills\n- /Users/me/.pi/agent/skills/pdf/SKILL.md\n";
+
+fn v1_dialect() -> (Arc<Dialect>, Arc<Recorder>) {
+    let recorder = Arc::new(Recorder::default());
+    let dialect = Dialect::wrap(recorder.clone());
+    dialect.generation.store(1, Ordering::Release);
+    (dialect, recorder)
+}
+
+fn message(session: &str, text: &str) -> Value {
+    json!({ "sessionId": session, "update": { "sessionUpdate": "agent_message_chunk",
+        "content": { "type": "text", "text": text } } })
+}
+
+fn seen_texts(recorder: &Recorder) -> Vec<String> {
+    recorder
+        .seen
+        .lock()
+        .iter()
+        .map(|(_, p)| {
+            p["update"]["content"]["text"]
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| p["update"]["sessionUpdate"].as_str().unwrap_or_default().to_owned())
+        })
+        .collect()
+}
+
+#[test]
+fn a_startup_note_read_before_the_setup_answer_is_dropped_and_the_rest_keeps_its_order() {
+    let (dialect, recorder) = v1_dialect();
+    dialect.begin_setup();
+    dialect.on_notification("session/update", message("s1", NOTE));
+    let commands = json!({ "sessionId": "s1", "update": { "sessionUpdate": "available_commands_update",
+        "availableCommands": [] } });
+    dialect.on_notification("session/update", commands);
+    // Nothing reaches the task before the answer says which session and note these are.
+    assert!(recorder.seen.lock().is_empty());
+    dialect.end_setup(Some(&json!({ "sessionId": "s1", "_meta": { "piAcp": { "startupInfo": NOTE } } })));
+    assert_eq!(seen_texts(&recorder), ["available_commands_update"]);
+    dialect.on_notification("session/update", message("s1", "Hi, what can I do?"));
+    assert_eq!(seen_texts(&recorder), ["available_commands_update", "Hi, what can I do?"]);
+}
+
+#[test]
+fn a_startup_note_read_after_the_setup_answer_is_dropped_once() {
+    let (dialect, recorder) = v1_dialect();
+    dialect.begin_setup();
+    dialect.end_setup(Some(&json!({ "sessionId": "s1", "_meta": { "piAcp": { "startupInfo": NOTE } } })));
+    dialect.on_notification("session/update", message("s1", NOTE));
+    assert!(recorder.seen.lock().is_empty());
+    // The agent saying the same later is a real message.
+    dialect.on_notification("session/update", message("s1", NOTE));
+    assert_eq!(seen_texts(&recorder), [NOTE]);
+}
+
+#[test]
+fn only_unknown_sessions_wait_for_a_setup_and_a_failed_one_lets_them_go() {
+    let (dialect, recorder) = v1_dialect();
+    dialect.know("old");
+    dialect.begin_setup();
+    dialect.on_notification("session/update", message("old", "still running"));
+    dialect.on_notification("session/update", message("other", "early"));
+    assert_eq!(seen_texts(&recorder), ["still running"]);
+    // No answer (failed or cancelled): what waited goes on as it came.
+    dialect.end_setup(None);
+    assert_eq!(seen_texts(&recorder), ["still running", "early"]);
+    // Without a setup under way nothing waits, and an agent without a note keeps its messages.
+    dialect.on_notification("session/update", message("new", NOTE));
+    assert_eq!(seen_texts(&recorder), ["still running", "early", NOTE]);
+}

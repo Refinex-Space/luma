@@ -249,6 +249,8 @@ export function AgentsView() {
       <Tree<Node>
         aria-label="Agent tasks"
         roots={roots}
+        // Tasks hang their status in the chevron column: titles line up with the group's.
+        indent={0}
         getKey={nodeKey}
         getLabel={(n) => (n.kind === "group" ? n.group.label : n.task.title)}
         getChildren={(n) =>
@@ -295,7 +297,9 @@ export function AgentsView() {
                 if (inline && !e.metaKey && !e.ctrlKey && !e.shiftKey) showTask(n.task.id);
               }}
             >
-              <TaskStatusIcon status={n.task.status} />
+              <span className={styles.statusSlot}>
+                <TaskStatusIcon status={n.task.status} />
+              </span>
               <span className={styles.title} data-unread={unread.has(n.task.id) || undefined}>
                 {n.task.title}
               </span>

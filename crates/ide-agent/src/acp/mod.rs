@@ -13,6 +13,10 @@
 //!   with the v1 response (`stopReason`) or the turn's error.
 //! - Agent → client ([`Dialect`]): `session/update`s are normalized ([`normalize`]) and
 //!   permission requests get the v1 `toolCall`.
+//! - Startup notes: an agent may announce what it loaded (its version, skills, prompts,
+//!   extensions) as an agent message right after `session/new`, outside any turn (`pi-acp`
+//!   does, and names the text in the answer's `_meta.piAcp.startupInfo`). That message
+//!   is dropped, so it does not read as the reply to the first prompt; see [`Setups`].
 
 mod normalize;
 
@@ -22,7 +26,7 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::sync::oneshot;
@@ -156,6 +160,40 @@ pub(crate) struct Dialect {
     normalizer: Mutex<Normalizer>,
     /// Running v2 prompts, by session id.
     turns: Mutex<HashMap<String, Turn>>,
+    setups: Mutex<Setups>,
+}
+
+/// Session setups under way, and what waits for them.
+///
+/// An agent can send its startup note right after answering `session/new` (`pi-acp` does,
+/// on the next tick), so the note may be read before the request's caller sees the
+/// answer and learns the text to drop. While a `session/new` is under way, updates for
+/// sessions this connection does not know yet wait here, in order, until it is answered.
+#[derive(Default)]
+struct Setups {
+    /// `session/new` requests not answered yet.
+    running: usize,
+    /// Sessions set up on this connection or named in a request.
+    known: HashSet<String>,
+    /// Waiting `session/update` params, in arrival order.
+    held: Vec<(String, Value)>,
+    /// The startup note each session's agent announced and has not sent yet.
+    notes: HashMap<String, String>,
+}
+
+/// The startup note an agent names in a setup answer: `_meta.<agent>.startupInfo`.
+fn startup_note(response: &Value) -> Option<String> {
+    let meta = response.get("_meta")?.as_object()?;
+    let text = meta.values().find_map(|v| v.get("startupInfo")?.as_str())?;
+    (!text.trim().is_empty()).then(|| text.to_owned())
+}
+
+/// Whether `params` is the agent message `note`, whole.
+fn is_note(params: &Value, note: &str) -> bool {
+    let update = &params["update"];
+    update["sessionUpdate"] == "agent_message_chunk"
+        && update["content"]["type"] == "text"
+        && update["content"]["text"].as_str().is_some_and(|t| t.trim() == note.trim())
 }
 
 struct Turn {
@@ -172,6 +210,7 @@ impl Dialect {
             generation: AtomicU8::new(0),
             normalizer: Mutex::new(Normalizer::default()),
             turns: Mutex::new(HashMap::new()),
+            setups: Mutex::new(Setups::default()),
         })
     }
 
@@ -225,6 +264,45 @@ impl Dialect {
         let _ = turn.done.send(result);
     }
 
+    /// A session named in a request (`session/load`, `session/prompt`…): known from now on.
+    fn know(&self, session: &str) {
+        let mut setups = self.setups.lock();
+        if !setups.known.contains(session) {
+            setups.known.insert(session.to_owned());
+        }
+    }
+
+    /// A `session/new` is about to be sent.
+    fn begin_setup(&self) {
+        self.setups.lock().running += 1;
+    }
+
+    /// A `session/new` was answered (`response`, or `None` when it failed): its session is
+    /// known, its startup note is expected, and the updates that waited for it go on, in
+    /// order (the note among them dropped). The lock stays held meanwhile, so updates
+    /// read now queue behind them.
+    fn end_setup(&self, response: Option<&Value>) {
+        let mut setups = self.setups.lock();
+        setups.running = setups.running.saturating_sub(1);
+        if let Some(id) = response.and_then(|r| r.get("sessionId")).and_then(Value::as_str) {
+            setups.known.insert(id.to_owned());
+            if let Some(note) = response.and_then(startup_note) {
+                setups.notes.insert(id.to_owned(), note);
+            }
+        }
+        let held = std::mem::take(&mut setups.held);
+        let (go, wait): (Vec<_>, Vec<_>) =
+            held.into_iter().partition(|(s, _)| setups.running == 0 || setups.known.contains(s));
+        setups.held = wait;
+        for (session, params) in go {
+            if setups.notes.get(&session).is_some_and(|note| is_note(&params, note)) {
+                setups.notes.remove(&session);
+                continue;
+            }
+            self.forward("session/update", params);
+        }
+    }
+
     /// A v2 setup response (`session/new`, `resume`, `fork`): its commands become the
     /// `available_commands_update` a v1 agent sends after it.
     fn on_setup(&self, session: Option<&str>, response: &Value) {
@@ -242,6 +320,33 @@ impl Dialect {
 
 impl Handler for Dialect {
     fn on_notification(&self, method: &str, params: Value) {
+        if method == "session/update"
+            && let Some(session) = params.get("sessionId").and_then(Value::as_str)
+        {
+            let mut setups = self.setups.lock();
+            if setups.running > 0 && !setups.known.contains(session) {
+                setups.held.push((session.to_owned(), params));
+                return;
+            }
+            if setups.notes.get(session).is_some_and(|note| is_note(&params, note)) {
+                setups.notes.remove(session);
+                return;
+            }
+        }
+        self.forward(method, params);
+    }
+
+    fn on_request(&self, method: &str, params: Value) -> Result<Value, (i64, String)> {
+        if self.v2() && method == "session/request_permission" {
+            return self.inner.on_request(method, v1_permission_request(params));
+        }
+        self.inner.on_request(method, params)
+    }
+}
+
+impl Dialect {
+    /// What the agent sent, on to the task: v2 updates normalized first.
+    fn forward(&self, method: &str, params: Value) {
         if !self.v2() || method != "session/update" {
             return self.inner.on_notification(method, params);
         }
@@ -264,13 +369,6 @@ impl Handler for Dialect {
             p["update"] = u;
             self.inner.on_notification(method, p);
         }
-    }
-
-    fn on_request(&self, method: &str, params: Value) -> Result<Value, (i64, String)> {
-        if self.v2() && method == "session/request_permission" {
-            return self.inner.on_request(method, v1_permission_request(params));
-        }
-        self.inner.on_request(method, params)
     }
 }
 
@@ -332,12 +430,24 @@ impl Conn {
         cancel: Option<ide_core::CancellationToken>,
     ) -> Result<R, RpcError> {
         let params = serde_json::to_value(params).map_err(|e| RpcError::Protocol(e.to_string()))?;
+        if let Some(session) = params.get("sessionId").and_then(Value::as_str) {
+            self.dialect.know(session);
+        }
+        // Settled however the request ends, cancelled (dropped) too.
+        let mut setup = (method == "session/new").then(|| {
+            self.dialect.begin_setup();
+            Setup { dialect: &self.dialect, answer: None }
+        });
         let value = if self.dialect.v2() {
-            self.request_v2(method, params, cancel).await?
+            self.request_v2(method, params, cancel).await
         } else {
-            self.peer.request(method, params, cancel).await?
+            self.peer.request(method, params, cancel).await
         };
-        serde_json::from_value(value).map_err(|e| RpcError::Protocol(format!("{method}: {e}")))
+        if let (Some(setup), Ok(answer)) = (setup.as_mut(), &value) {
+            setup.answer = Some(answer.clone());
+        }
+        drop(setup);
+        serde_json::from_value(value?).map_err(|e| RpcError::Protocol(format!("{method}: {e}")))
     }
 
     async fn request_v2(
@@ -407,6 +517,18 @@ impl Conn {
             _ = self.peer.closed() => Err(RpcError::Closed),
             _ = cancelled => Err(RpcError::Cancelled),
         }
+    }
+}
+
+/// A `session/new` under way: ends the setup when dropped, with the answer if one came.
+struct Setup<'a> {
+    dialect: &'a Dialect,
+    answer: Option<Value>,
+}
+
+impl Drop for Setup<'_> {
+    fn drop(&mut self) {
+        self.dialect.end_setup(self.answer.as_ref());
     }
 }
 

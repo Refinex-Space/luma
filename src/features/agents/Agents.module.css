@@ -35,6 +35,17 @@
   min-width: 0;
   flex: 1;
 }
+/* A task's status sits in the tree's (empty) chevron column, so its title starts where its
+   group's label does: back by the chevron (16px) and the tree's gap (4px), and the row's 6px
+   gap after it trimmed to the tree's 4px. */
+.statusSlot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  margin: 0 -2px 0 -20px;
+}
 .groupLabel {
   color: var(--fg-strong);
   font-weight: 600;
