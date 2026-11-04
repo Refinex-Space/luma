@@ -36,7 +36,6 @@ import { composerDraft, updateComposer, useAgents } from "./store";
 import { ContextPicker } from "./ContextPicker";
 import { addContext, contextKey, middleEllipsis, rangeLabel, type ContextItem } from "./contextModel";
 import { ImagePreview, imageSrc } from "./ImagePreview";
-import { useCompletionAnchor } from "./useCompletionAnchor";
 import styles from "./Composer.module.css";
 import { isImeKey } from "@/platform/ime";
 
@@ -176,7 +175,6 @@ export function Composer(props: ComposerProps) {
       .map((command) => ({ kind: "command", command }));
   }, [completion, files, props.commands]);
   const open = !!completion && items.length > 0;
-  const completionAnchor = useCompletionAnchor(ref, open ? completion.to : null, text);
 
   const setText = (value: string, caret?: number, restoreSelection = true) => {
     updateComposer(id, { text: value });
@@ -351,11 +349,15 @@ export function Composer(props: ComposerProps) {
       {...OWNS_FILE_DROP}
       onClick={() => ref.current?.focus()}
     >
-      {open && completionAnchor && (
+      {open && (
+        // Above the box, as wide as it, growing upwards: it stays put while the text changes.
         <Popup
           open
-          anchor={completionAnchor}
-          placement="bottom-start"
+          anchor={boxRef}
+          placement="top-start"
+          offset={6}
+          flip={false}
+          matchWidth
           autoFocus={false}
           restoreFocus={false}
           closeOnOutsideClick={false}

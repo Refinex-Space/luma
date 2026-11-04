@@ -51,6 +51,11 @@ export interface PopupProps {
   closeOnDeactivate?: boolean;
   /** Match the anchor's width (dropdowns). */
   matchWidth?: boolean;
+  /**
+   * Turn to the other side when `placement` has too little room (default true). `false` keeps
+   * the side, the popup shrinking to the room there instead: a list that must not jump around.
+   */
+  flip?: boolean;
   /** Plain surface without border/shadow styling. */
   unstyled?: boolean;
 }
@@ -85,6 +90,7 @@ function PopupInner({
   closeOnOutsideClick = true,
   closeOnDeactivate = true,
   matchWidth = false,
+  flip: flips = true,
   unstyled = false,
   ...aria
 }: PopupProps) {
@@ -92,7 +98,7 @@ function PopupInner({
   const middleware = useMemo(
     () => [
       offsetMw(offset),
-      flip({ padding: 6 }),
+      ...(flips ? [flip({ padding: 6 })] : []),
       shift({ padding: 6 }),
       sizeMw({
         padding: 6,
@@ -102,7 +108,7 @@ function PopupInner({
         },
       }),
     ],
-    [offset, matchWidth],
+    [offset, matchWidth, flips],
   );
   const { refs, floatingStyles, isPositioned } = useFloating({
     placement,
