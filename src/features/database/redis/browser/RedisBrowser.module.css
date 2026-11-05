@@ -1,0 +1,441 @@
+/* The Redis Browser: toolbar, key list | value, collapsible command line. */
+
+.browser {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  background: var(--bg-editor);
+}
+.dragging {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- toolbar ---------------------------------------------------------------------------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.dbPicker {
+  flex: none;
+  min-width: 84px;
+}
+.filter {
+  flex: 1 1 360px;
+  min-width: 180px;
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--h-control);
+  margin: 0 4px;
+  padding-left: 8px;
+  border: 1px solid var(--border-input, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--bg-input);
+  color: var(--fg-muted);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.filter:focus-within {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}
+.filter > input {
+  flex: 1;
+  min-width: 0;
+}
+.filterSep {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  margin: 5px 0;
+  background: var(--border);
+}
+.typePicker {
+  flex: none;
+  min-width: 96px;
+}
+.barSep {
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--border);
+}
+.spacer {
+  flex: 1;
+}
+
+/* ---- key list | value ---------------------------------------------------------------------- */
+
+/* The divider is a column of its own: nothing beside it (sticky grid headers, row numbers) can paint over it. */
+.main {
+  display: grid;
+  grid-template-columns: var(--keys-w) 1px minmax(0, 1fr);
+  min-height: 0;
+}
+.vResize {
+  position: relative;
+  z-index: 3;
+  background: var(--border);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.vResize::before {
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+  cursor: col-resize;
+}
+.vResize:hover,
+.vResize:active {
+  background: var(--accent);
+}
+
+.keys {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.keysHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.colName {
+  flex: 1;
+  min-width: 0;
+}
+.colTtl,
+.colSize {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.colTtl {
+  width: 44px;
+}
+.colSize {
+  width: 58px;
+}
+.keyRow .colTtl,
+.keyRow .colSize {
+  color: var(--fg-muted);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-small);
+}
+.keyRow .soon {
+  color: var(--warning);
+}
+.keysTree {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.keysTree > * {
+  flex: 1;
+  min-height: 0;
+}
+.keyRow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.keyRow > :first-child {
+  margin-right: 0;
+}
+.keyName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mono {
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+}
+.folderCount {
+  margin-left: 6px;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+.expired {
+  opacity: 0.55;
+}
+.expired .keyName {
+  text-decoration: line-through;
+}
+.listError {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  white-space: pre-wrap;
+}
+.keysFoot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px 0 12px;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+}
+.footText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.footError {
+  color: var(--danger);
+}
+.progress {
+  flex: 1;
+  min-width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-progress-track, var(--border));
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  transition: width var(--dur) var(--ease);
+}
+.link {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.progress + .link {
+  margin-left: 0;
+}
+.link:hover {
+  color: var(--link-hover, var(--link));
+  text-decoration: underline;
+}
+.link:disabled {
+  color: var(--fg-muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.detail > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- command line ------------------------------------------------------------------------ */
+
+.cli {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: var(--cli-h);
+  border-top: 1px solid var(--border);
+  background: var(--bg-editor);
+  overflow: hidden;
+  transition: height var(--dur) var(--ease);
+}
+.cliClosed {
+  height: 30px;
+}
+.dragging .cli {
+  transition: none;
+}
+.hResize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  z-index: 3;
+  cursor: row-resize;
+}
+.hResize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: transparent;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.hResize:hover::after,
+.hResize:active::after {
+  background: var(--accent);
+}
+.cliHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 29px;
+  padding: 0 6px 0 4px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cliClosed .cliHead {
+  cursor: pointer;
+}
+.cliClosed .cliHead:hover {
+  background: var(--bg-hover);
+}
+.cliChevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease);
+}
+.cliChevron:hover {
+  background: var(--bg-toolbar-hover);
+  color: var(--fg);
+}
+.cliClosed .cliChevron {
+  transform: rotate(-90deg);
+}
+.cliTitle {
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.cliTarget {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-small);
+}
+.cliSpacer {
+  flex: 1;
+}
+.cliOut {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 12px 10px;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  line-height: 20px;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* Folded: hidden once the fold has played (visibility switches after it), shown at once on unfolding. */
+.cliClosed .cliOut {
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur);
+}
+.cliEntry + .cliEntry,
+.cliEntry + .cliPrompt {
+  margin-top: 6px;
+}
+.cliEcho,
+.cliPrompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+.promptLabel {
+  flex: none;
+  color: var(--accent);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cliCommand {
+  min-width: 0;
+  color: var(--fg-strong);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.cliMs {
+  flex: none;
+  color: var(--fg-faint, var(--fg-muted));
+  font-family: var(--font-ui);
+  font-size: var(--fs-tiny, var(--fs-small));
+  font-variant-numeric: tabular-nums;
+}
+.cliReply {
+  margin: 0;
+  color: var(--fg);
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cliError {
+  color: var(--danger);
+}
+.cliMore {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+.cliInput {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.hint {
+  color: var(--fg-faint, var(--fg-muted));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cli,
+  .cliChevron,
+  .progress > i {
+    transition: none;
+  }
+}

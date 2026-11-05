@@ -269,6 +269,8 @@ const TYPES: Record<DbDriver, string[]> = {
     "bit",
     "varbinary(max)",
   ],
+  // Redis is no SQL dialect.
+  redis: [],
 };
 
 interface ModifyProps {

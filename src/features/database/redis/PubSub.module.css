@@ -1,0 +1,151 @@
+/* Redis › Pub/Sub (editor tab). */
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-editor);
+}
+.bar,
+.publish,
+.channels {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.publish {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+.channels {
+  flex-wrap: wrap;
+  font-size: var(--fs-small);
+}
+.subscriptions {
+  flex: 0 1 360px;
+  min-width: 200px;
+}
+.filter {
+  flex: 0 1 220px;
+}
+.spacer {
+  flex: 1;
+}
+.count,
+.muted,
+.label {
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+/* Listening: a calm pulse next to Unsubscribe. */
+.live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live {
+    animation: none;
+  }
+}
+.error {
+  padding: 4px 10px;
+  color: var(--danger);
+  font-size: var(--fs-small);
+  overflow-wrap: anywhere;
+}
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.list {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-small);
+}
+.row {
+  display: grid;
+  grid-template-columns: 76px minmax(80px, 200px) 1fr;
+  gap: 10px;
+  padding: 2px 10px;
+  cursor: default;
+}
+.row:hover {
+  background: var(--bg-hover);
+}
+.selected,
+.selected:hover {
+  background: var(--bg-editor-selection);
+}
+.time {
+  color: var(--fg-muted);
+}
+.channel {
+  color: var(--redis-hash);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.payload {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+.detail {
+  flex: none;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+}
+.detailHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-small);
+}
+.detailText {
+  flex: 1;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.channelChip {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.channelChip:hover {
+  background: var(--bg-hover);
+}
+.publishChannel {
+  flex: 0 1 200px;
+}
+.publishMessage {
+  flex: 1;
+}

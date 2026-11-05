@@ -1,0 +1,63 @@
+/* Redis parts of the Database tool window: type chips, dialogs, server info. */
+
+/* Redis value types (tree, key editor, Pub/Sub): mid-tone hues readable on every theme. */
+:global(:root) {
+  --redis-string: #2f9e6f;
+  --redis-hash: #3d7fe0;
+  --redis-list: #d0761f;
+  --redis-set: #8b5fd8;
+  --redis-zset: #d3517f;
+  --redis-stream: #1a98a8;
+  --redis-json: #b08d1c;
+  --redis-other: #7d8590;
+}
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 15px;
+  padding: 0 4px;
+  margin-right: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--chip) 16%, transparent);
+  color: var(--chip);
+  font: 600 9px/1 var(--font-ui);
+  letter-spacing: 0.02em;
+}
+.chipWide {
+  height: 18px;
+  padding: 0 7px;
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+}
+.valueInput {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 5px 7px;
+  border: 1px solid var(--border-input, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--bg-input);
+  color: var(--fg);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+}
+.valueInput:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+.error {
+  color: var(--danger);
+  font-size: var(--fs-small);
+  overflow-wrap: anywhere;
+}
+.warning {
+  color: var(--warning);
+  font-size: var(--fs-small);
+}
+.mono {
+  font-family: var(--luma-editor-font, var(--font-mono));
+  overflow-wrap: anywhere;
+}

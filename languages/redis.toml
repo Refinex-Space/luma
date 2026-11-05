@@ -1,0 +1,7 @@
+id = "redis"
+name = "Redis"
+extensions = ["redis"]
+line-comment = "#"
+indent = { tab-size = 2, insert-spaces = true }
+# Highlighted by the Database feature's Redis mode (command names, strings, numbers, comments).
+ui-mode = "Redis"

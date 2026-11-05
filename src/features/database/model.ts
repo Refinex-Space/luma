@@ -358,6 +358,8 @@ export function parseSourceUrl(raw: string): { source: Partial<DataSource>; pass
     database: dec(m[6]).replace(/\/$/, ""),
   };
   if (vendor.id !== vendor.driver) source.vendor = vendor.id;
+  // Redis: `rediss://` is TLS; plain `redis://` never negotiates it.
+  if (vendor.driver === "redis") source.ssl = /^(rediss|valkeys)$/i.test(m[1]!) ? "require" : "disable";
   const properties: DbProperty[] = [];
   for (const [k, v] of new URLSearchParams(m[7] ?? "")) {
     switch (k.toLowerCase()) {

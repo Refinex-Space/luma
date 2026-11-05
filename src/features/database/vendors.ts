@@ -1,6 +1,7 @@
 /**
- * Data source types of New ▸ Data Source: the three drivers the backend speaks,
- * and products that speak their wire protocol (a preset of port, icon and URL scheme).
+ * Data source types of New ▸ Data Source: the drivers the backend speaks (SQLite,
+ * PostgreSQL, MySQL, SQL Server, Redis) and products that speak their wire protocol
+ * (a preset of port, icon and URL scheme).
  */
 import type { DataSource, DbDriver, DbSslMode } from "@/platform/ipc";
 
@@ -57,6 +58,7 @@ export const VENDORS: readonly DbVendor[] = [
     scheme: "oceanbase",
   },
   { id: "postgres", label: "PostgreSQL", driver: "postgres", port: 5432, icon: "db-postgres", scheme: "postgresql" },
+  { id: "redis", label: "Redis", driver: "redis", port: 6379, icon: "db-redis", scheme: "redis", ssl: "disable" },
   {
     id: "singlestore",
     label: "SingleStore",
@@ -84,6 +86,7 @@ export const VENDORS: readonly DbVendor[] = [
     icon: "db-timescale",
     scheme: "postgresql",
   },
+  { id: "valkey", label: "Valkey", driver: "redis", port: 6379, icon: "db-redis", scheme: "redis", ssl: "disable" },
   { id: "yugabytedb", label: "YugabyteDB", driver: "postgres", port: 5433, icon: "db-yugabyte", scheme: "postgresql" },
 ];
 
@@ -123,6 +126,10 @@ const SCHEMES: Record<string, string> = {
   oceanbase: "oceanbase",
   sqlserver: "sqlServer",
   mssql: "sqlServer",
+  redis: "redis",
+  rediss: "redis",
+  valkey: "valkey",
+  valkeys: "valkey",
 };
 
 export const vendorOfScheme = (scheme: string): DbVendor | undefined => BY_ID.get(SCHEMES[scheme.toLowerCase()] ?? "");
@@ -133,6 +140,13 @@ const bracketed = (host: string) => (host.includes(":") && !host.startsWith("[")
 export function sourceUrl(s: DataSource): string {
   const v = vendorOf(s);
   if (v.driver === "sqlite") return `jdbc:sqlite:${s.file ?? ""}`;
+  if (v.driver === "redis") {
+    // Redis URLs (no JDBC): `redis://host:6379/0`, `rediss://` over TLS.
+    const tls = s.ssl && s.ssl !== "disable" && s.ssl !== "prefer";
+    const host = bracketed(s.host?.trim() || "localhost");
+    const user = s.user?.trim() ? `${encodeURIComponent(s.user.trim())}@` : "";
+    return `${tls ? "rediss" : "redis"}://${user}${host}:${s.port ?? 6379}/${s.database?.trim() || "0"}`;
+  }
   const host = bracketed(s.host?.trim() || "localhost");
   const port = s.port ?? v.port;
   const db = s.database ? `/${encodeURIComponent(s.database)}` : "";

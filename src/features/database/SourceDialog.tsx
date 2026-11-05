@@ -72,6 +72,8 @@ const SSH_AUTH: Array<SelectOption<SshAuth>> = [
 ];
 
 /** Driver property names the Advanced tab suggests, and what the backend does with them. */
+const NO_PROPERTIES = { names: [] as string[], hint: "" };
+
 const PROPERTIES: Record<string, { names: string[]; hint: string }> = {
   postgres: {
     names: [
@@ -376,13 +378,19 @@ export function SourceDialog({
   const vendor = vendorOf(s);
   const sqlite = s.driver === "sqlite";
   const postgres = s.driver === "postgres";
+  const redis = s.driver === "redis";
   const urlOnly = !sqlite && !!s.urlOnly;
   const parsedUrl = urlOnly ? parseSourceUrl(s.url ?? "") : null;
   const urlValid = !!parsedUrl && parsedUrl.source.driver === s.driver;
   const host = urlOnly ? (parsedUrl?.source.host ?? "") : (s.host ?? "");
   const database = urlOnly ? (parsedUrl?.source.database ?? "") : (s.database ?? "");
   const name =
-    s.name?.trim() || (sqlite ? fileSourceName(s.file ?? "") : `${database || s.user || "db"}@${host || "localhost"}`);
+    s.name?.trim() ||
+    (sqlite
+      ? fileSourceName(s.file ?? "")
+      : redis
+        ? `${host || "localhost"}:${(urlOnly ? parsedUrl?.source.port : s.port) ?? vendor.port ?? 6379}`
+        : `${database || s.user || "db"}@${host || "localhost"}`);
   const sshOn = !sqlite && !!ssh.enabled;
   const valid = sqlite
     ? !!s.file?.trim()
@@ -474,12 +482,14 @@ export function SourceDialog({
       ? []
       : [
           { id: "ssh" as const, label: "SSH/SSL" },
-          { id: "schemas" as const, label: "Schemas" },
+          // Redis has no schemas to pick nor driver properties.
+          ...(redis ? [] : [{ id: "schemas" as const, label: "Schemas" }]),
         ]),
-    { id: "advanced", label: "Advanced" },
+    ...(redis ? [] : [{ id: "advanced" as const, label: "Advanced" }]),
   ];
   const current = tabs.some((t) => t.id === tab) ? tab : "general";
-  const props = PROPERTIES[s.driver ?? "sqlite"]!;
+  // Drivers without properties (Redis has no Advanced tab) get none.
+  const props = PROPERTIES[s.driver ?? "sqlite"] ?? NO_PROPERTIES;
 
   const general = (
     <>
@@ -547,7 +557,7 @@ export function SourceDialog({
           <Input
             id="db-user"
             value={s.user ?? ""}
-            placeholder={urlOnly ? "from the URL" : ""}
+            placeholder={urlOnly ? "from the URL" : redis ? "default" : ""}
             onChange={(e) => set({ user: e.target.value })}
           />
           <label className={styles.formLabel} htmlFor="db-password">
@@ -573,7 +583,19 @@ export function SourceDialog({
               <label className={styles.formLabel} htmlFor="db-database">
                 <T>Database:</T>
               </label>
-              <Input id="db-database" value={s.database ?? ""} onChange={(e) => set({ database: e.target.value })} />
+              {redis ? (
+                <Input
+                  id="db-database"
+                  className={styles.portInput}
+                  inputMode="numeric"
+                  value={s.database ?? ""}
+                  placeholder="0"
+                  invalid={!!s.database?.trim() && !/^\d+$/.test(s.database.trim())}
+                  onChange={(e) => set({ database: e.target.value })}
+                />
+              ) : (
+                <Input id="db-database" value={s.database ?? ""} onChange={(e) => set({ database: e.target.value })} />
+              )}
             </>
           )}
           <label className={styles.formLabel} htmlFor="db-url">
@@ -608,87 +630,118 @@ export function SourceDialog({
       <Section title="Connection" />
       <span />
       <Checkbox checked={!!s.readOnly} onChange={(readOnly) => set({ readOnly })} label="Read-only" />
-      <span className={styles.formLabel}>
-        <T>Transaction control:</T>
-      </span>
-      <Select
-        aria-label="Transaction control"
-        className={styles.narrowSelect}
-        value={options.transaction ?? "auto"}
-        options={TX}
-        onChange={(transaction) => setOptions({ transaction })}
-      />
-      {postgres && (
+      {redis && (
         <>
-          <label className={styles.formLabel} htmlFor="db-default-schema">
-            <T>Default schema:</T>
+          <label className={styles.formLabel} htmlFor="db-key-separator">
+            <T>Key separator:</T>
           </label>
           <Input
-            id="db-default-schema"
-            value={options.defaultSchema ?? ""}
-            placeholder="public (search_path, e.g. app, public)"
-            onChange={(e) => setOptions({ defaultSchema: e.target.value })}
+            id="db-key-separator"
+            className={styles.portInput}
+            mono
+            value={options.keySeparator ?? ""}
+            placeholder=":"
+            onChange={(e) => setOptions({ keySeparator: e.target.value })}
           />
-        </>
-      )}
-      {!sqlite && (
-        <>
-          <label className={styles.formLabel} htmlFor="db-time-zone">
-            <T>Time zone:</T>
-          </label>
-          <Input
-            id="db-time-zone"
-            value={options.timeZone ?? ""}
-            placeholder={
-              postgres ? "Server default, e.g. UTC or Europe/Berlin" : "UTC (+00:00), e.g. Europe/Berlin or +08:00"
-            }
-            onChange={(e) => setOptions({ timeZone: e.target.value })}
-          />
-          <SecondsOption
-            label="Run keep-alive query each"
-            value={options.keepAliveSecs}
-            fallback={60}
-            onChange={(keepAliveSecs) => setOptions({ keepAliveSecs })}
-          />
-        </>
-      )}
-      <SecondsOption
-        label="Auto-disconnect after"
-        value={options.autoDisconnectSecs}
-        fallback={300}
-        onChange={(autoDisconnectSecs) => setOptions({ autoDisconnectSecs })}
-      />
-      {postgres && (
-        <>
           <span />
           <Checkbox
-            checked={!!options.singleDatabase}
-            onChange={(singleDatabase) => setOptions({ singleDatabase })}
-            label="Single database mode (show only the configured database)"
+            checked={!!options.showEmptyDatabases}
+            onChange={(showEmptyDatabases) => setOptions({ showEmptyDatabases })}
+            label="Show empty databases"
+          />
+          <SecondsOption
+            label="Auto-disconnect after"
+            value={options.autoDisconnectSecs}
+            fallback={300}
+            onChange={(autoDisconnectSecs) => setOptions({ autoDisconnectSecs })}
           />
         </>
       )}
-      <label className={styles.formLabel} htmlFor="db-startup">
-        <T>Startup script:</T>
-      </label>
-      <textarea
-        id="db-startup"
-        className={styles.textArea}
-        spellCheck={false}
-        value={options.startupScript ?? ""}
-        placeholder={
-          postgres
-            ? "SET statement_timeout = '30s';"
-            : sqlite
-              ? "PRAGMA foreign_keys = ON;"
-              : "SET SESSION sql_mode = 'ANSI';"
-        }
-        onChange={(e) => setOptions({ startupScript: e.target.value })}
-      />
-      <span />
-      <span className={styles.formHint}>
-        <T>Runs on every new connection, before any other statement.</T>
-      </span>
+      {!redis && (
+        <>
+          <span className={styles.formLabel}>
+            <T>Transaction control:</T>
+          </span>
+          <Select
+            aria-label="Transaction control"
+            className={styles.narrowSelect}
+            value={options.transaction ?? "auto"}
+            options={TX}
+            onChange={(transaction) => setOptions({ transaction })}
+          />
+          {postgres && (
+            <>
+              <label className={styles.formLabel} htmlFor="db-default-schema">
+                <T>Default schema:</T>
+              </label>
+              <Input
+                id="db-default-schema"
+                value={options.defaultSchema ?? ""}
+                placeholder="public (search_path, e.g. app, public)"
+                onChange={(e) => setOptions({ defaultSchema: e.target.value })}
+              />
+            </>
+          )}
+          {!sqlite && (
+            <>
+              <label className={styles.formLabel} htmlFor="db-time-zone">
+                <T>Time zone:</T>
+              </label>
+              <Input
+                id="db-time-zone"
+                value={options.timeZone ?? ""}
+                placeholder={
+                  postgres ? "Server default, e.g. UTC or Europe/Berlin" : "UTC (+00:00), e.g. Europe/Berlin or +08:00"
+                }
+                onChange={(e) => setOptions({ timeZone: e.target.value })}
+              />
+              <SecondsOption
+                label="Run keep-alive query each"
+                value={options.keepAliveSecs}
+                fallback={60}
+                onChange={(keepAliveSecs) => setOptions({ keepAliveSecs })}
+              />
+            </>
+          )}
+          <SecondsOption
+            label="Auto-disconnect after"
+            value={options.autoDisconnectSecs}
+            fallback={300}
+            onChange={(autoDisconnectSecs) => setOptions({ autoDisconnectSecs })}
+          />
+          {postgres && (
+            <>
+              <span />
+              <Checkbox
+                checked={!!options.singleDatabase}
+                onChange={(singleDatabase) => setOptions({ singleDatabase })}
+                label="Single database mode (show only the configured database)"
+              />
+            </>
+          )}
+          <label className={styles.formLabel} htmlFor="db-startup">
+            <T>Startup script:</T>
+          </label>
+          <textarea
+            id="db-startup"
+            className={styles.textArea}
+            spellCheck={false}
+            value={options.startupScript ?? ""}
+            placeholder={
+              postgres
+                ? "SET statement_timeout = '30s';"
+                : sqlite
+                  ? "PRAGMA foreign_keys = ON;"
+                  : "SET SESSION sql_mode = 'ANSI';"
+            }
+            onChange={(e) => setOptions({ startupScript: e.target.value })}
+          />
+          <span />
+          <span className={styles.formHint}>
+            <T>Runs on every new connection, before any other statement.</T>
+          </span>
+        </>
+      )}
     </>
   );
 
@@ -833,8 +886,9 @@ export function SourceDialog({
       <Select
         aria-label="SSL mode"
         className={styles.narrowSelect}
-        value={s.ssl ?? "prefer"}
-        options={SSL}
+        value={redis && s.ssl === "prefer" ? "disable" : (s.ssl ?? "prefer")}
+        // Redis cannot negotiate TLS: off, or on from the first byte.
+        options={redis ? SSL.filter((o) => o.value !== "prefer") : SSL}
         onChange={(ssl) => set({ ssl })}
       />
       <FileField

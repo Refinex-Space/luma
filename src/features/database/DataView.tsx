@@ -26,7 +26,16 @@ import { copyText } from "@/ui/selectableText";
 import { ConsoleFindBar } from "@/features/run/FindBar";
 import { DEFAULT_FIND_OPTIONS, type FindOptions } from "@/features/run/find";
 import { registerKeyClaim } from "@/platform/keymap";
-import { exportData, extractorOf, extractorOptions, selectionData, type ExportData, type ExportFormat } from "./export";
+import type { DbDriver } from "@/platform/ipc";
+import {
+  effectiveExtractor,
+  exportData,
+  extractorOf,
+  extractorOptions,
+  selectionData,
+  type ExportData,
+  type ExportFormat,
+} from "./export";
 import { Grid, isNumericColumn, type GridColumn, type GridPanel, type GridProps, type GridRange } from "./Grid";
 import { setAggregate, setColoring, setExtractor, useGridPrefs, type GridAggregate } from "./gridPrefs";
 import type { Cell } from "./model";
@@ -107,7 +116,7 @@ export function shownData(data: ExportData, view: GridView): ExportData {
 
 /** The Export button's menu: the Export Data dialog (with the current extractor), then quick Copy As. */
 export function exportMenu(data: ExportData, source: string, loadAll?: () => Promise<ExportData | null>): MenuItem[] {
-  const format = useGridPrefs.getState().extractor;
+  const format = effectiveExtractor(useGridPrefs.getState().extractor, data.driver);
   const copyAs = (id: ExportFormat): MenuItem => ({
     label: extractorOf(id).label,
     run: () => void navigator.clipboard?.writeText(exportData(id, data)),
@@ -118,7 +127,7 @@ export function exportMenu(data: ExportData, source: string, loadAll?: () => Pro
     {
       label: "Copy All As",
       icon: "copy",
-      submenu: extractorOptions()
+      submenu: extractorOptions(data.driver)
         .filter((o) => !o.section)
         .map((o) => copyAs(o.value as ExportFormat)),
     },
@@ -126,13 +135,16 @@ export function exportMenu(data: ExportData, source: string, loadAll?: () => Pro
 }
 
 /** IDEA's data extractor drop-down at the right of a data toolbar ("CSV ▾"): what Copy writes. */
-export function ExtractorSelect() {
-  const value = useGridPrefs((s) => s.extractor);
+export function ExtractorSelect({ driver }: { driver?: DbDriver | null }) {
+  const value = effectiveExtractor(
+    useGridPrefs((s) => s.extractor),
+    driver,
+  );
   return (
     <Select
       aria-label="Data extractor"
       value={value}
-      options={extractorOptions()}
+      options={extractorOptions(driver)}
       onChange={(v) => setExtractor(v as ExportFormat)}
     />
   );
@@ -214,6 +226,8 @@ export interface DataViewProps extends Pick<
   /** The side panel shown (`null`: hidden). */
   panel: DataPanel | null;
   onPanelChange: (panel: DataPanel | null) => void;
+  /** The cell selected when the view mounts (e.g. the value the Value panel opened for). */
+  initialCell?: { row: number; col: number } | null;
   "aria-label"?: string;
 }
 
@@ -229,12 +243,17 @@ export function DataView(props: DataViewProps) {
   const { columns, rowCount, value, fixedRows = rowCount, panel, onPanelChange, view } = props;
   const firstRow = props.firstRowNumber ?? 1;
   const { filter, hidden, transposed } = view;
-  const extractor = useGridPrefs((s) => s.extractor);
+  const extractor = effectiveExtractor(
+    useGridPrefs((s) => s.extractor),
+    props.target.driver,
+  );
   const copyHeader = useGridPrefs((s) => s.copyHeader);
   const hostRef = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<GridRange | null>(null);
   const [filterAt, setFilterAt] = useState<{ col: number; anchor: HTMLElement } | null>(null);
-  const [reveal, setReveal] = useState<{ row: number; col: number; seq: number } | null>(null);
+  const [reveal, setReveal] = useState<{ row: number; col: number; seq: number } | null>(() =>
+    props.initialCell ? { ...props.initialCell, seq: 0 } : null,
+  );
 
   const local = !props.onSortChange;
   // Pinned columns first, as IDEA moves them.
@@ -459,6 +478,13 @@ export function DataView(props: DataViewProps) {
               })
             }
             editable={props.editable}
+            cellEditable={
+              props.cellEditable &&
+              ((r, c) => {
+                const m = toModel(r, c);
+                return props.cellEditable!(m.row, m.col);
+              })
+            }
             onEdit={
               props.onEdit &&
               ((r, c, v) => {
@@ -474,6 +500,7 @@ export function DataView(props: DataViewProps) {
             onFilter={transposed ? undefined : (col, anchor) => setFilterAt({ col: shownCols[col]!, anchor })}
             filtered={(col) => !transposed && filter.has(shownCols[col]!)}
             extract={extract}
+            driver={props.target.driver}
             onFilterBySelection={
               transposed
                 ? undefined
@@ -836,23 +863,39 @@ function formatted(v: string): string | null {
 }
 
 function ValueView(props: { column: string; cell: Cell; editable: boolean; onCommit: (v: Cell) => void }) {
-  const [text, setText] = useState(props.cell ?? "");
-  const [wrap, setWrap] = useState(true);
   const pretty = props.cell !== null ? formatted(props.cell) : null;
+  // JSON opens formatted; formatting alone is no change, and a value stored on one line
+  // is written back on one line.
+  const [text, setText] = useState(pretty ?? props.cell ?? "");
+  const [wrap, setWrap] = useState(true);
   const image = useMemo(() => imageUrl(props.cell), [props.cell]);
-  const dirty = text !== (props.cell ?? "") || (props.cell === null && text !== "");
+  const oneLine = pretty !== null && !props.cell!.includes("\n");
+  const written = (t: string) => {
+    if (!oneLine) return t;
+    try {
+      return JSON.stringify(JSON.parse(t));
+    } catch {
+      return t;
+    }
+  };
+  const dirty =
+    props.cell === null ? text !== "" : text !== props.cell && text !== pretty && written(text) !== props.cell;
   return (
     <div className={styles.valueView}>
       <div className={styles.valueTools}>
         <span className={styles.treeType}>{props.column}</span>
         <span className={styles.spacer} />
-        {pretty !== null && !props.editable && (
+        {pretty !== null && (
           <IconButton
             icon="md-code-block"
             title="Format JSON"
             size="small"
             aria-pressed={text === pretty}
-            onClick={() => setText(text === pretty ? (props.cell ?? "") : pretty)}
+            onClick={() => {
+              if (text === pretty) setText(props.cell ?? "");
+              else if (text === props.cell) setText(pretty);
+              else setText(formatted(text) ?? text);
+            }}
           />
         )}
         <IconButton
@@ -877,12 +920,12 @@ function ValueView(props: { column: string; cell: Cell; editable: boolean; onCom
         spellCheck={false}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && dirty) props.onCommit(text);
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && dirty) props.onCommit(written(text));
         }}
       />
       {props.editable && (
         <div className={styles.filterButtons}>
-          <Button size="small" disabled={!dirty} onClick={() => props.onCommit(text)}>
+          <Button size="small" disabled={!dirty} onClick={() => props.onCommit(written(text))}>
             <T>Apply</T>
           </Button>
           <Button size="small" onClick={() => props.onCommit(null)}>

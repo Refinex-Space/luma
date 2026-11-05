@@ -22,6 +22,7 @@ import {
 import type { ExportData } from "./export";
 import { emptyEdits, hasEdits, type Cell, type PendingEdits } from "./model";
 import { addRow, deleteRows, editedValue, isModified, revertCells, rowState, setCell } from "./rowEdits";
+import { RedisReplyView } from "./redis/console/ReplyView";
 
 const NO_EDITS = emptyEdits();
 const NO_ROWS: ReadonlyArray<readonly Cell[]> = [];
@@ -470,7 +471,7 @@ export function ResultTabs() {
         ...results.map((r) => ({
           id: String(r.id),
           label: r.title,
-          icon: r.plan ? "db-plan" : "db-table",
+          icon: r.plan ? "db-plan" : r.redis ? "db-redis" : "db-table",
           closable: true,
           tooltip: r.outcome.statement.text,
         })),
@@ -490,5 +491,6 @@ export function ResultsView() {
       </EmptyState>
     );
   const tab = results.find((r) => r.id === active);
+  if (tab?.redis) return <RedisReplyView key={tab.id} outcome={tab.redis.outcome} target={tab.sourceId} />;
   return !tab ? <Output /> : tab.plan ? <PlanResult key={tab.id} tab={tab} /> : <Result key={tab.id} tab={tab} />;
 }

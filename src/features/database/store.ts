@@ -20,6 +20,7 @@ import {
   type DbTableDetails,
   type DbTableInfo,
   type DbTableKind,
+  type RedisCommandOutcome,
   type RequestId,
   type SqlStatement,
 } from "@/platform/ipc";
@@ -49,6 +50,8 @@ import type { DbObjectRef } from "./objects";
 import { formatted } from "./sql/format";
 import { currentSqlStyle } from "./sqlStyle";
 import { bindParams, findParams } from "./sql/params";
+import { splitRedisTarget } from "./redis/model";
+import { isTrivialReply, replySummary } from "./redis/console/reply";
 import { tx } from "@/platform/i18n";
 
 export const DB_TOOL_WINDOW = "database";
@@ -75,6 +78,8 @@ export interface ResultTab {
   edit?: ResultEditTarget | null;
   /** Pending cell edits, added and deleted rows (Submit applies them). */
   edits?: PendingEdits;
+  /** A Redis console reply (`outcome` then only names the command; `sourceId` is the Redis target). */
+  redis?: { outcome: RedisCommandOutcome };
 }
 
 /** An editable result's table and how its columns map to the table's. */
@@ -878,6 +883,41 @@ export async function executeConsole(
       return { running };
     });
   }
+}
+
+/**
+ * Shows what Redis console `path` ran on `target` (`<id>:<db>`): every command and its
+ * reply in Output (`redis-cli`'s text for simple replies), a `Result N` tab per
+ * collection or long string reply.
+ */
+export function showRedisResults(path: string, target: string, outcomes: readonly RedisCommandOutcome[]) {
+  const { id, db } = splitRedisTarget(target);
+  const label = `${sourceById(id)?.name ?? id}: db${db}`;
+  const tabs: ResultTab[] = [];
+  for (const o of outcomes) {
+    log("statement", o.text, `db${db}>`);
+    if (o.error !== null || !o.reply) {
+      log("error", `[${label}] ${o.error ?? ""}`);
+      continue;
+    }
+    log("result", replySummary(o.reply, o.elapsedMs));
+    if (isTrivialReply(o.reply)) continue;
+    const n = nextTab++;
+    tabs.push({
+      id: n,
+      title: tx`Result ${n}`,
+      path,
+      sourceId: target,
+      outcome: { statement: { from: o.from, to: o.to, text: o.text }, result: null, error: null },
+      redis: { outcome: o },
+    });
+  }
+  const failed = outcomes.some((o) => o.error !== null);
+  useDatabase.setState((s) => ({
+    results: [...s.results, ...tabs].slice(-MAX_TABS),
+    activeResult: failed || !tabs.length ? OUTPUT_TAB : tabs.at(-1)!.id,
+  }));
+  toolWindowService().show(RESULTS_WINDOW, false);
 }
 
 /** The statements of console `path` to run or explain: the selection's, else the one at `from`, parameters bound. */

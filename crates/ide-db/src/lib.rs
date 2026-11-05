@@ -5,6 +5,7 @@
 pub mod conn;
 pub mod history;
 pub mod plan;
+pub mod redis;
 pub mod secrets;
 pub mod source;
 pub mod split;
@@ -13,6 +14,10 @@ pub mod sql;
 pub use conn::{Held, Pool, QueryResult, ResultColumn};
 pub use history::HistoryEntry;
 pub use plan::{PlanNode, PlanProperty};
+pub use redis::{
+    RedisBytes, RedisCommandInput, RedisCommandOutcome, RedisDatabase, RedisEntry, RedisKeyEntry, RedisKeyInfo,
+    RedisKeyspace, RedisMessage, RedisPageRequest, RedisReply, RedisScanPage, RedisValuePage,
+};
 pub use source::{
     DataSource, DbColor, DbDriver, DbIntrospection, DbOptions, DbProperty, DbSsh, DbSshAuth, DbSslMode, DbTxMode,
 };
@@ -220,6 +225,10 @@ pub struct DbManager {
     /// Manual-commit data sources, each with the connection of its open
     /// transaction (taken by the first statement after a commit / rollback).
     sessions: Mutex<HashMap<String, Session>>,
+    /// Redis browsing connections by target (`<id>:<db>`), multiplexed.
+    redis_conns: Mutex<HashMap<String, ::redis::aio::MultiplexedConnection>>,
+    /// Redis console connections by target: their own, blocking commands and MULTI stay there.
+    redis_consoles: Mutex<HashMap<String, ::redis::aio::MultiplexedConnection>>,
 }
 
 type Session = Arc<tokio::sync::Mutex<Option<Held>>>;
@@ -347,6 +356,8 @@ impl DbManager {
             ssh,
             session_passwords: Mutex::default(),
             sessions: Mutex::default(),
+            redis_conns: Mutex::default(),
+            redis_consoles: Mutex::default(),
         }
     }
 
@@ -537,6 +548,9 @@ impl DbManager {
             Some(p) => Some(p),
             None => self.password(source).await,
         };
+        if source.driver == DbDriver::Redis {
+            return self.redis_test(source, password, ssh_secret).await;
+        }
         let (target, tunnel) = self.endpoint(source, ssh_secret, false).await?;
         let pool = Pool::connect(&target, password.as_deref(), Some(&self.root)).await.map_err(|e| {
             through_tunnel(
@@ -546,6 +560,7 @@ impl DbManager {
             )
         })?;
         let version = match source.driver {
+            DbDriver::Redis => unreachable!("Redis data sources are tested above"),
             DbDriver::Sqlite => "SELECT 'SQLite ' || sqlite_version()",
             DbDriver::Postgres => "SELECT version()",
             DbDriver::Mysql => "SELECT CONCAT(@@version_comment, ' ', VERSION())",
@@ -557,17 +572,22 @@ impl DbManager {
     }
 
     pub fn is_connected(&self, id: &str) -> bool {
-        self.pools.lock().contains_key(id)
+        self.pools.lock().contains_key(id) || self.redis_conns.lock().contains_key(id)
     }
 
     /// Connected targets (data source ids, `<id>:<database>`).
     pub fn connected(&self) -> Vec<String> {
-        self.pools.lock().keys().cloned().collect()
+        let mut out: Vec<String> = self.pools.lock().keys().cloned().collect();
+        out.extend(self.redis_conns.lock().keys().cloned());
+        out
     }
 
     /// The pool of target `id`, connecting first if needed.
     pub async fn pool(&self, id: &str) -> IdeResult<Arc<Pool>> {
         let (source_id, _) = split_target(id);
+        if self.sources()?.iter().any(|s| s.id == source_id && s.driver == DbDriver::Redis) {
+            return Err(IdeError::invalid("Redis data sources have no SQL connection"));
+        }
         // A dropped SSH session leaves every pool through it unusable: start over.
         if self.tunnels.lock().get(source_id).is_some_and(|t| t.is_closed()) {
             self.disconnect_source(source_id).await;
@@ -601,7 +621,9 @@ impl DbManager {
 
     /// Closes the tunnel of `source_id` once none of its targets is connected.
     fn drop_unused_tunnel(&self, source_id: &str) {
-        let in_use = self.pools.lock().keys().any(|k| split_target(k).0 == source_id);
+        let in_use = self.pools.lock().keys().any(|k| split_target(k).0 == source_id)
+            || self.redis_conns.lock().keys().any(|k| split_target(k).0 == source_id)
+            || self.redis_consoles.lock().keys().any(|k| split_target(k).0 == source_id);
         if !in_use {
             self.tunnels.lock().remove(source_id);
         }
@@ -618,6 +640,7 @@ impl DbManager {
         if let Some(p) = pool {
             p.close().await;
         }
+        self.redis_disconnect(id);
         self.drop_unused_tunnel(split_target(id).0);
     }
 
@@ -806,6 +829,7 @@ impl DbManager {
             rows.into_iter().filter_map(|r| r.into_iter().nth(i).flatten()).collect()
         };
         match driver {
+            DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
             DbDriver::Sqlite => {
                 let stmts = cells(pool.rows(&sql::sqlite_ddl(schema, name), MAX_META_ROWS).await?, 0);
                 if stmts.is_empty() {

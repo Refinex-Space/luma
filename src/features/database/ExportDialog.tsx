@@ -153,7 +153,7 @@ export function ExportDialog({
           <Select
             aria-label="Extractor"
             value={format}
-            options={extractorOptions()}
+            options={extractorOptions(data.driver)}
             onChange={(v) => changeFormat(v as ExportFormat)}
           />
           {loadAll && (

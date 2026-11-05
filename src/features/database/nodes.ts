@@ -10,6 +10,7 @@ import type {
   DbTableInfo,
   DbTableKind,
   DbTriggerInfo,
+  RedisKeyEntry,
 } from "@/platform/ipc";
 import type { DbObjectRef } from "./objects";
 
@@ -45,6 +46,13 @@ export type DbNode =
   | ({ kind: "foreignKey"; key: string; fk: DbForeignKey } & InTable)
   | ({ kind: "index"; key: string; index: DbIndexInfo } & InTable)
   | ({ kind: "trigger"; key: string; trigger: DbTriggerInfo } & InTable)
+  /** A Redis database; `id` is its target (`<source>:<index>`). */
+  | { kind: "redisDb"; key: string; id: string; db: number; keys: number }
+  /** A Redis key namespace: keys starting with `prefix` (separator included). */
+  | { kind: "redisFolder"; key: string; id: string; name: string; prefix: string; count: number }
+  | { kind: "redisKey"; key: string; id: string; entry: RedisKeyEntry; name: string }
+  /** “Load more keys”: the database's scan has not reached its end. */
+  | { kind: "redisMore"; key: string; id: string }
   | { kind: "message"; key: string; text: string; error?: boolean };
 
 /** The connection target a node belongs to. */

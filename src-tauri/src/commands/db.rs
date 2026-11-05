@@ -85,6 +85,9 @@ pub fn db_connected(window: Window, state: State<'_, AppState>) -> IdeResult<Vec
 #[specta::specta]
 pub async fn db_connect(window: Window, state: State<'_, AppState>, id: String) -> IdeResult<()> {
     let db = state.project(window.label())?.db.clone();
+    if db.source(&id)?.driver == ide_db::DbDriver::Redis {
+        return db.redis(&id).await.map(|_| ());
+    }
     db.pool(&id).await.map(|_| ())
 }
 

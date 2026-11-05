@@ -552,6 +552,7 @@ impl Pool {
             }};
         }
         match source.driver {
+            DbDriver::Redis => Err(IdeError::invalid("Redis data sources have no SQL connection")),
             DbDriver::Sqlite => {
                 let file = source.file.as_deref().ok_or_else(|| IdeError::invalid("no database file"))?;
                 let file = match root {
@@ -905,6 +906,7 @@ impl Held {
 /// The statement opening a transaction.
 pub fn begin_statement(driver: DbDriver) -> &'static str {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Mysql => "START TRANSACTION",
         DbDriver::SqlServer => "BEGIN TRAN",
         DbDriver::Sqlite | DbDriver::Postgres => "BEGIN",

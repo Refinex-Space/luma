@@ -177,3 +177,25 @@ test("Code Style › SQL: three choices over a live preview", async ({ workbench
   await expect(preview).toContainText("select\n    o.id,");
   if (SHOTS) await dialog.screenshot({ path: `${SHOTS}/sql-style-indented.png`, animations: "disabled" });
 });
+
+test("New ▸ Data Source: the submenu stays while the pointer heads for it diagonally", async ({ workbench: page }) => {
+  await page.evaluate(async () => {
+    const storePath = "/src/features/database/store.ts";
+    const contributionsPath = "/src/workbench/contributions.ts";
+    const { useDatabase, DB_TOOL_WINDOW } = await import(storePath);
+    const { toolWindowService } = await import(contributionsPath);
+    useDatabase.setState({ loaded: true, sources: [] });
+    toolWindowService().show(DB_TOOL_WINDOW, true);
+  });
+  await page.locator('section[data-toolwindow="database"]').getByRole("button", { name: /^New/ }).first().click();
+  const parent = page.getByRole("menuitem", { name: "Data Source", exact: true });
+  const pb = (await parent.boundingBox())!;
+  await page.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2);
+  const redis = page.getByRole("menuitem", { name: "Redis", exact: true });
+  await expect(redis).toBeVisible();
+  // Down and right, across “From File…”, to an entry far down the submenu.
+  const rb = (await redis.boundingBox())!;
+  await page.mouse.move(rb.x + 20, rb.y + rb.height / 2, { steps: 12 });
+  await expect(redis).toBeVisible();
+  await expect(parent).toHaveAttribute("aria-expanded", "true");
+});

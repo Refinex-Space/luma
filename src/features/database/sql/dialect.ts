@@ -177,6 +177,8 @@ export const DATA_TYPES: Record<DbDriver, string[]> = {
     "VARBINARY",
     "XML",
   ],
+  // Redis is no SQL dialect.
+  redis: [],
 };
 
 const f = (name: string, params: string, returns?: string, aggregate?: boolean): SqlFunction => ({
@@ -297,6 +299,8 @@ const FUNCTIONS: Record<DbDriver, SqlFunction[]> = {
     f("row_number", "", "bigint"),
     f("rank", "", "bigint"),
   ],
+  // Redis is no SQL dialect.
+  redis: [],
 };
 
 export function functions(driver: DbDriver): SqlFunction[] {

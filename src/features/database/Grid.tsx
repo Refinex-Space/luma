@@ -21,7 +21,8 @@ import clsx from "clsx";
 import { registerKeyClaim } from "@/platform/keymap";
 import { Icon, showContextMenu, type MenuItem } from "@/ui";
 import { copyText } from "@/ui/selectableText";
-import { EXPORT_FORMATS, extractorOf } from "./export";
+import type { DbDriver } from "@/platform/ipc";
+import { effectiveExtractor, extractorOf, formatsFor } from "./export";
 import { setCopyHeader, setExtractor, useGridPrefs } from "./gridPrefs";
 import { parseDelimited, toTsv, type Cell } from "./model";
 import { nextSort, type SortKey } from "./resultView";
@@ -72,6 +73,8 @@ export interface GridProps {
   filtered?: (col: number) => boolean;
   /** Text Copy puts on the clipboard for a block of cells (the current extractor). */
   extract?: (rows: number[], cols: number[]) => string;
+  /** Whose data it is: the extractors offered (Redis commands for Redis, SQL for the others). */
+  driver?: DbDriver;
   /** Local Filter by the selected values of a column. */
   onFilterBySelection?: (col: number, values: Cell[]) => void;
   onHideColumns?: (cols: number[]) => void;
@@ -157,7 +160,11 @@ export function Grid(props: GridProps) {
   const { columns, rowCount, value, editable, onEdit, sort = [], onSortChange, rowMenu } = props;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [sel, setSel] = useState<Sel | null>(null);
-  const extractor = useGridPrefs((s) => s.extractor);
+  const extractor = effectiveExtractor(
+    useGridPrefs((s) => s.extractor),
+    props.driver,
+  );
+  const formats = formatsFor(props.driver);
   const copyHeader = useGridPrefs((s) => s.copyHeader);
   const dragging = useRef<"cells" | "rows" | "columns" | null>(null);
   useEffect(() => {
@@ -433,17 +440,21 @@ export function Grid(props: GridProps) {
 
   const extractorMenu = (): MenuItem[] => [
     { kind: "header", label: "Built-in" },
-    ...EXPORT_FORMATS.filter((f) => f.group === "builtin").map((f): MenuItem => ({
-      label: f.label,
-      checked: f.id === extractor,
-      run: () => setExtractor(f.id),
-    })),
+    ...formats
+      .filter((f) => f.group === "builtin")
+      .map((f): MenuItem => ({
+        label: f.label,
+        checked: f.id === extractor,
+        run: () => setExtractor(f.id),
+      })),
     { kind: "header", label: "CSV" },
-    ...EXPORT_FORMATS.filter((f) => f.group === "csv").map((f): MenuItem => ({
-      label: f.label,
-      checked: f.id === extractor,
-      run: () => setExtractor(f.id),
-    })),
+    ...formats
+      .filter((f) => f.group === "csv")
+      .map((f): MenuItem => ({
+        label: f.label,
+        checked: f.id === extractor,
+        run: () => setExtractor(f.id),
+      })),
     { kind: "separator" },
     { label: "Copy Column Names with CSV Formats", checked: copyHeader, run: () => setCopyHeader(!copyHeader) },
   ];
@@ -650,7 +661,17 @@ export function Grid(props: GridProps) {
       <div className={styles.gridInner} style={{ width: totalWidth, height: virtualizer.getTotalSize() + ROW_H }}>
         <div className={clsx(styles.gridRow, styles.gridHeader)} style={{ gridTemplateColumns: template }} role="row">
           <div
-            className={clsx(styles.rowNumber, styles.cornerCell)}
+            // Highlighted with everything selected, where the selected header and row numbers meet.
+            className={clsx(
+              styles.rowNumber,
+              styles.cornerCell,
+              !!sel &&
+                rowCount > 0 &&
+                columns.length > 0 &&
+                selected(0, 0) &&
+                selected(rowCount - 1, columns.length - 1) &&
+                styles.rowNumberSelected,
+            )}
             title={tx("Select All")}
             onMouseDown={(e) => {
               e.preventDefault();

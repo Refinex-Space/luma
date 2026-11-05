@@ -2,7 +2,9 @@
  * Data extractors (IDEA's, of the grid's Copy and Export Data): SQL INSERT / multi-row
  * INSERT / UPDATE statements, One-row literals, JSON, Markdown, HTML, XML, a pretty text
  * table and the CSV formats (comma, tab, pipe, semicolon). Values arrive as text; the
- * column types say which are written as numbers, booleans or binary literals.
+ * column types say which are written as numbers, booleans or binary literals. Redis data
+ * has no SQL: its grids offer Redis commands (`HSET`, `RPUSH`, `SADD`, `ZADD`, `XADD`)
+ * in place of the SQL extractors.
  */
 import type { DbDriver } from "@/platform/ipc";
 import { isNumericColumn } from "./Grid";
@@ -10,6 +12,7 @@ import type { Cell } from "./model";
 import { quoteIdent } from "./sql/complete";
 
 export type ExportFormat =
+  | "redis"
   | "sql"
   | "sqlMultirow"
   | "sqlUpdate"
@@ -35,6 +38,7 @@ export interface Extractor {
 }
 
 export const EXPORT_FORMATS: readonly Extractor[] = [
+  { id: "redis", label: "Redis Commands", extension: "redis", group: "builtin", tabular: false },
   { id: "sql", label: "SQL Inserts", extension: "sql", group: "builtin", tabular: false },
   { id: "sqlMultirow", label: "SQL Insert Multirow", extension: "sql", group: "builtin", tabular: false },
   { id: "sqlUpdate", label: "SQL Updates", extension: "sql", group: "builtin", tabular: false },
@@ -54,15 +58,33 @@ export function extractorOf(id: string | null | undefined): Extractor {
   return EXPORT_FORMATS.find((f) => f.id === id) ?? EXPORT_FORMATS.find((f) => f.id === "csv")!;
 }
 
+const SQL_ONLY: ReadonlySet<ExportFormat> = new Set(["sql", "sqlMultirow", "sqlUpdate", "oneRow"]);
+
+/** The extractors of a data source's data: Redis commands for Redis, SQL for the others. */
+export function formatsFor(driver: DbDriver | null | undefined): readonly Extractor[] {
+  return driver === "redis"
+    ? EXPORT_FORMATS.filter((f) => !SQL_ONLY.has(f.id))
+    : EXPORT_FORMATS.filter((f) => f.id !== "redis");
+}
+
+/** The chosen extractor (one preference for every grid), or its counterpart where it doesn't apply. */
+export function effectiveExtractor(id: ExportFormat, driver: DbDriver | null | undefined): ExportFormat {
+  if (formatsFor(driver).some((f) => f.id === id)) return id;
+  return driver === "redis" ? "redis" : "sql";
+}
+
 /** The chooser's options, IDEA's sections first ("Built-in", "CSV"). */
-export function extractorOptions(): Array<{ value: string; label: string; section?: boolean; disabled?: boolean }> {
+export function extractorOptions(
+  driver?: DbDriver | null,
+): Array<{ value: string; label: string; section?: boolean; disabled?: boolean }> {
   const out: Array<{ value: string; label: string; section?: boolean; disabled?: boolean }> = [];
+  const formats = formatsFor(driver);
   for (const [group, title] of [
     ["builtin", "Built-in"],
     ["csv", "CSV"],
   ] as const) {
     out.push({ value: `#${group}`, label: title, section: true, disabled: true });
-    for (const f of EXPORT_FORMATS.filter((x) => x.group === group)) out.push({ value: f.id, label: f.label });
+    for (const f of formats.filter((x) => x.group === group)) out.push({ value: f.id, label: f.label });
   }
   return out;
 }
@@ -81,6 +103,8 @@ export interface ExportData {
   /** Schema qualifying `table`, when known (the table editor's). */
   schema?: string;
   driver: DbDriver;
+  /** Redis: the value's type (`hash`, `list`, …); `table` is then the key. */
+  redisKind?: string;
 }
 
 /** The Export Data dialog's options (the tabular formats). */
@@ -225,6 +249,8 @@ export function exportData(
   const literal = (v: Cell, i: number) => sqlLiteral(v, kinds[i]!, d.driver);
   const idents = names.map((n) => quoteIdent(n, d.driver));
   switch (format) {
+    case "redis":
+      return redisCommands(d);
     case "sql": {
       const head = `INSERT INTO ${qualifiedTable(d)} (${idents.join(", ")}) VALUES`;
       return d.rows.map((r) => `${head} (${r.map(literal).join(", ")});`).join("\n");
@@ -314,6 +340,61 @@ export function exportData(
       return delimited(sep, false)(t.head, t.rows);
     }
   }
+}
+
+/** A word as `redis-cli` reads it: bare when plain, else double-quoted with escapes. */
+export function redisArg(v: string): string {
+  if (v && !/[\s"'\\]/.test(v)) return v;
+  const escaped = v.replace(
+    /[\\"\n\r\t]/g,
+    (c) => ({ "\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\t": "\\t" })[c]!,
+  );
+  return `"${escaped}"`;
+}
+
+/**
+ * Commands writing rows back into the key `table` (by its `redisKind`): a hash's fields
+ * with `HSET`, a list's values with `RPUSH`, members with `SADD` / `ZADD`, stream entries
+ * with `XADD`; anything else as one command line per row.
+ */
+function redisCommands(d: ExportData): string {
+  const at = (name: string) => d.columns.findIndex((c) => c.name === name);
+  const key = redisArg(d.table);
+  const word = (v: Cell) => redisArg(v ?? "");
+  const line = (words: string[]) => words.join(" ");
+  const [field, value, member, score, id] = ["field", "value", "member", "score", "id"].map(at) as number[];
+  const has = (...cols: number[]) => cols.every((c) => c >= 0);
+  const rows = d.rows;
+  switch (d.redisKind) {
+    case "hash":
+      if (has(field!, value!))
+        return rows.map((r) => line(["HSET", key, word(r[field!]!), word(r[value!]!)])).join("\n");
+      break;
+    case "list":
+      if (has(value!)) return rows.map((r) => line(["RPUSH", key, word(r[value!]!)])).join("\n");
+      break;
+    case "set":
+      if (has(member!)) return rows.map((r) => line(["SADD", key, word(r[member!]!)])).join("\n");
+      break;
+    case "zset":
+      if (has(member!, score!))
+        return rows.map((r) => line(["ZADD", key, word(r[score!]!), word(r[member!]!)])).join("\n");
+      break;
+    case "stream":
+      if (has(id!))
+        return rows
+          .map((r) =>
+            line([
+              "XADD",
+              key,
+              word(r[id!]!),
+              ...d.columns.flatMap((c, i) => (i === id || r[i] === null ? [] : [redisArg(c.name), word(r[i]!)])),
+            ]),
+          )
+          .join("\n");
+      break;
+  }
+  return rows.map((r) => r.map(word).join(" ")).join("\n");
 }
 
 /** The rows × columns of a selection as extractor input (IDEA extracts only the selected columns). */

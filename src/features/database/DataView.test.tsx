@@ -154,3 +154,77 @@ it("tints numbers by their place in the column (heatmap)", () => {
   expect(screen.getAllByRole("gridcell")[1]!.style.getPropertyValue("--cell-tint")).toBe("");
   useGridPrefs.setState({ coloring: "off" });
 });
+
+it("keeps read-only cells closed to editing (expression columns, list indexes)", () => {
+  const onEdit = vi.fn();
+  function Editable() {
+    const view = useGridView(columns);
+    return (
+      <DataView
+        columns={columns}
+        rowCount={rows.length}
+        value={value}
+        target={target}
+        view={view}
+        panel={null}
+        onPanelChange={() => {}}
+        editable
+        cellEditable={(_, c) => c !== 0}
+        onEdit={onEdit}
+        aria-label="Result"
+      />
+    );
+  }
+  render(<Editable />);
+  const cells = screen.getAllByRole("gridcell");
+  fireEvent.doubleClick(cells[0]!);
+  expect(screen.queryByRole("textbox", { name: /^Edit / })).toBeNull();
+  fireEvent.doubleClick(cells[1]!);
+  expect(screen.getByRole("textbox", { name: "Edit status" })).toBeTruthy();
+});
+
+it("shows a JSON value formatted in the Value panel and writes it back as stored", () => {
+  const json = '{"theme":"dark","n":1}';
+  const onEdit = vi.fn();
+  function JsonHarness() {
+    const cols = [
+      { name: "field", type: "" },
+      { name: "value", type: "" },
+    ];
+    const view = useGridView(cols);
+    return (
+      <DataView
+        columns={cols}
+        rowCount={1}
+        value={(_, c) => (c === 0 ? "settings" : json)}
+        target={target}
+        view={view}
+        panel="value"
+        onPanelChange={() => {}}
+        initialCell={{ row: 0, col: 1 }}
+        editable
+        onEdit={onEdit}
+        aria-label="Result"
+      />
+    );
+  }
+  render(<JsonHarness />);
+  const text = screen.getByRole("textbox", { name: "Value of value" });
+  expect((text as HTMLTextAreaElement).value).toBe('{\n  "theme": "dark",\n  "n": 1\n}');
+  // Formatting alone is no change.
+  const apply = screen.getByRole("button", { name: "Apply" });
+  expect(apply).toHaveProperty("disabled", true);
+  fireEvent.change(text, { target: { value: '{\n  "theme": "light",\n  "n": 1\n}' } });
+  fireEvent.click(apply);
+  expect(onEdit).toHaveBeenCalledWith(0, 1, '{"theme":"light","n":1}');
+});
+
+it("highlights the header corner with everything selected, where the header and row numbers meet", () => {
+  render(<Harness />);
+  const corner = screen.getByTitle("Select All");
+  expect(corner.className).not.toMatch(/rowNumberSelected/);
+  fireEvent.mouseDown(rowHeader("2"), { button: 0 });
+  expect(corner.className).not.toMatch(/rowNumberSelected/);
+  fireEvent.mouseDown(corner, { button: 0 });
+  expect(corner.className).toMatch(/rowNumberSelected/);
+});

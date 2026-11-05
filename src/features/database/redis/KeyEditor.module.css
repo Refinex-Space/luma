@@ -1,0 +1,225 @@
+/* The Redis key editor: key header, string editor, collection toolbar extras. */
+.header {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 6px 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 24px;
+}
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  font-weight: 600;
+  color: var(--fg-strong, var(--fg));
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.renameInput {
+  flex: 1;
+  min-width: 120px;
+  max-width: 520px;
+}
+.metaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 18px;
+  row-gap: 2px;
+  min-height: 20px;
+  font-size: var(--fs-small);
+}
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.metaLabel {
+  color: var(--fg-muted);
+}
+.metaValue {
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.ttlButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  margin: 0 -5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.ttlButton:hover {
+  background: var(--bg-toolbar-hover);
+  color: var(--fg);
+}
+.ttlButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.ttlPopup {
+  padding: 10px;
+}
+.ttlForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ttlField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.ttlField > input {
+  width: 110px;
+}
+.ttlButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.body > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* String editor. */
+.segmented {
+  display: inline-flex;
+  gap: 1px;
+  padding: 1px;
+  margin-right: 4px;
+  border-radius: var(--radius-control);
+  background: var(--bg-control, var(--bg-hover));
+}
+.segment {
+  height: 20px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.segment:hover:not(:disabled) {
+  color: var(--fg);
+}
+.segment[aria-checked="true"] {
+  background: var(--bg-elev, var(--bg-editor));
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.segment:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.segment:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.jsonError {
+  flex: none;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--border-feedback-error, var(--border));
+  background: var(--bg-feedback-error, transparent);
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: var(--bg-editor);
+  color: var(--fg-editor, var(--fg));
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  line-height: var(--lh-code, 1.5);
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+}
+.editor[readonly] {
+  color: var(--fg-secondary);
+}
+.noWrap {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* Collections. */
+.pattern {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 220px;
+  height: 22px;
+  margin: 0 2px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg-input, var(--bg-field));
+  color: var(--fg-muted);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.pattern:focus-within {
+  border-color: var(--focus-ring);
+}
+.pattern > input {
+  flex: 1;
+  min-width: 0;
+}
+.count {
+  padding: 0 6px;
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

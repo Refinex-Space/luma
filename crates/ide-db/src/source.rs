@@ -18,6 +18,8 @@ pub enum DbDriver {
     Mysql,
     /// Microsoft SQL Server.
     SqlServer,
+    /// Redis (and compatible servers: Valkey, KeyDB, Dragonfly): a key-value store, not SQL.
+    Redis,
 }
 
 impl DbDriver {
@@ -27,6 +29,7 @@ impl DbDriver {
             DbDriver::Postgres => Some(5432),
             DbDriver::Mysql => Some(3306),
             DbDriver::SqlServer => Some(1433),
+            DbDriver::Redis => Some(6379),
         }
     }
 }
@@ -82,6 +85,10 @@ pub struct DbOptions {
     pub auto_disconnect_secs: Option<u32>,
     /// PostgreSQL: show only the configured database, its schemas right under the data source.
     pub single_database: bool,
+    /// Redis: what splits key names into the tree's folders (`user:42:profile`); empty: `:`.
+    pub key_separator: String,
+    /// Redis: list databases without keys too (else only those with keys and the configured one).
+    pub show_empty_databases: bool,
 }
 
 /// Schemas tab: the databases / schemas the tree shows. Names may use `*` and `?`.
@@ -253,6 +260,7 @@ pub fn scheme_driver(scheme: &str) -> Option<DbDriver> {
         "mysql" | "mariadb" | "tidb" | "singlestore" | "memsql" | "oceanbase" => Some(DbDriver::Mysql),
         "sqlserver" | "mssql" | "mssqlserver" => Some(DbDriver::SqlServer),
         "sqlite" | "sqlite3" => Some(DbDriver::Sqlite),
+        "redis" | "rediss" | "valkey" | "valkeys" => Some(DbDriver::Redis),
         _ => None,
     }
 }
@@ -309,6 +317,10 @@ pub fn parse_url(raw: &str) -> IdeResult<ParsedUrl> {
         };
         parsed.user = percent_decode(user);
         parsed.password = password;
+    }
+    // `rediss://`: Redis over TLS.
+    if matches!(scheme.to_ascii_lowercase().as_str(), "rediss" | "valkeys") {
+        parsed.params.push(("sslmode".into(), "require".into()));
     }
     for pair in query.split('&').filter(|p| !p.is_empty()) {
         let (k, v) = pair.split_once('=').unwrap_or((pair, ""));

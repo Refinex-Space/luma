@@ -88,8 +88,11 @@
 .headerCell.headerSelected {
   background: var(--bg-tree-selected-inactive, var(--bg-hover));
 }
-.cornerCell {
+/* The header's top-left corner: part of the header strip (not the row-number gutter), above pinned headers. */
+.gridHeader .cornerCell {
+  z-index: 2;
   cursor: cell;
+  background: var(--bg-island);
 }
 .rowNumber.rowNumberSelected {
   color: var(--fg);
@@ -1078,10 +1081,13 @@
   min-height: 0;
   border-left: 1px solid var(--border);
 }
+/* Room around the Record / Value / Aggregates pills: they never touch the edges. */
 .sidePanelHead {
+  flex: none;
   display: flex;
   align-items: center;
-  padding-right: 4px;
+  height: 34px;
+  padding: 0 4px 0 6px;
   border-bottom: 1px solid var(--border);
 }
 .sidePanelBody {

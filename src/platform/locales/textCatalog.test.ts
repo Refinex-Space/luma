@@ -168,6 +168,12 @@ const UNTRANSLATED = new Set<string>([
   // SQL keyword case choices show the case itself.
   "UPPER",
   "lower",
+  // Redis products and a key pattern / database name shown as typed.
+  "Redis",
+  "Valkey",
+  "user:*",
+  "db{db}",
+  "db{index}",
   "ty",
   "TypeScript",
   "Vim",

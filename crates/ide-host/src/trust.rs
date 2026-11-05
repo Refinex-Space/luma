@@ -198,6 +198,7 @@ pub fn restricted_command_allowed(cmd: &str) -> bool {
             | "docker_set_registry_password"
             | "docker_run_env"
             | "db_console_path"
+            | "redis_console_path"
             | "db_export_file"
             | "vcs_write_patch"
             | "app_metrics"

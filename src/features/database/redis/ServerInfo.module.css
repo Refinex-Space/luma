@@ -1,0 +1,191 @@
+/* Redis › Server Information (editor tab). */
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-editor);
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+}
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.name {
+  color: var(--fg-strong);
+  font-size: var(--fs-ui-large, 15px);
+  font-weight: 600;
+}
+.meta {
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+.spacer {
+  flex: 1;
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 16px;
+}
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg-island, var(--bg-editor));
+}
+.metricLabel {
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+}
+.metricValue {
+  color: var(--fg-strong);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.metricSub {
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  line-height: 1.35;
+}
+.warn {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}
+.warn .metricValue {
+  color: var(--warning);
+}
+.bad {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+.bad .metricValue {
+  color: var(--danger);
+}
+/* The tab row lines up with the content below (the active pill stays inside it). */
+.tabs {
+  padding: 0 14px;
+}
+/* Panels fill the width: as many columns of at least 340px as fit. */
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+.panel {
+  min-width: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.panel h3 {
+  margin: 0 0 8px;
+  color: var(--fg-strong);
+  font-size: var(--fs-ui);
+  font-weight: 600;
+}
+.panel dl + h3,
+.panel table + h3 {
+  margin-top: 14px;
+}
+/* A command's share of the calls: a quiet fill behind its name. */
+.share {
+  background: linear-gradient(
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      color-mix(in srgb, var(--accent) 16%, transparent)
+    )
+    no-repeat 0 0 / var(--share) 100%;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+.table th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-secondary);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--fg);
+  vertical-align: top;
+}
+.table tbody tr:hover td {
+  background: var(--bg-hover);
+}
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+.code {
+  font-family: var(--luma-editor-font, var(--font-mono));
+  overflow-wrap: anywhere;
+}
+.fieldName {
+  width: 50%;
+  color: var(--fg-secondary);
+  font-family: var(--luma-editor-font, var(--font-mono));
+}
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: var(--fs-small);
+}
+.facts dt {
+  color: var(--fg-secondary);
+}
+.facts dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Every INFO section in columns across the width, none split between two. */
+.allInfo {
+  columns: 440px;
+  column-gap: 12px;
+}
+.allInfo > .filter {
+  column-span: all;
+  max-width: 420px;
+  margin-bottom: 12px;
+}
+.allInfo > .panel {
+  break-inside: avoid;
+  margin-bottom: 12px;
+}
+.error {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}

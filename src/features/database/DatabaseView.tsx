@@ -16,6 +16,7 @@ import {
   Icon,
   IconButton,
   Menu,
+  Spinner,
   Tree,
   showContextMenu,
   tooltipAttrs,
@@ -40,6 +41,20 @@ import {
   type Loaded,
 } from "./store";
 import { DB_VIEW_FOCUS, openTableData } from "./treeActions";
+import { KindChip } from "./redis/KindChip";
+import { bytesLabel, keyId, redisTarget, splitRedisTarget } from "./redis/model";
+import {
+  loadKeys,
+  loadKeyspace,
+  openBrowser,
+  openKey,
+  openRedisConsoleOf,
+  separatorOf,
+  shownDatabases as redisDatabases,
+  useRedis,
+  type DbKeys,
+} from "./redis/store";
+import { indexKeys, type KeyIndex } from "./redis/tree";
 import { newMenu, nodeMenu } from "./treeMenu";
 import styles from "./Database.module.css";
 import { tx } from "@/platform/i18n";
@@ -90,8 +105,21 @@ function groupSize(d: DbTableDetails, g: Group): number {
   return d.indexes.length;
 }
 
+const count = (n: number) => n.toLocaleString("en");
+
+/** Grouped keys of a database, rebuilt only when its key list changes. */
+const keyIndexes = new WeakMap<object, { separator: string; index: KeyIndex }>();
+function keyIndexOf(keys: DbKeys, separator: string): KeyIndex {
+  const cached = keyIndexes.get(keys.keys);
+  if (cached && cached.separator === separator) return cached.index;
+  const index = indexKeys(keys.keys, separator);
+  keyIndexes.set(keys.keys, { separator, index });
+  return index;
+}
+
 export function DatabaseView() {
   const st = useDatabase();
+  const redis = useRedis();
   const tree = useRef<TreeHandle>(null);
   useEffect(() => {
     if (!st.loaded) void loadSources();
@@ -152,10 +180,58 @@ export function DatabaseView() {
       shownSchemas(id, v).map((schema) => ({ kind: "schema", key: `${id}/${schema}`, id, schema }) as Node),
     );
 
+  /** Folders, keys and “Load more” under a Redis database or folder. */
+  const redisChildren = (n: Extract<Node, { kind: "redisDb" | "redisFolder" }>): Node[] | undefined => {
+    const target = n.id;
+    const k = redis.keys[target];
+    if (!k || (k.loading && !k.keys.length)) return undefined;
+    if (k.error && !k.keys.length) return [{ kind: "message", key: `${n.key}/err`, text: k.error, error: true }];
+    const level = keyIndexOf(k, separatorOf(splitRedisTarget(target).id)).levels.get(
+      n.kind === "redisDb" ? "" : n.prefix,
+    );
+    const nodes: Node[] = [
+      ...(level?.folders ?? []).map((f): Node => ({
+        kind: "redisFolder",
+        key: `${target}/f:${f.prefix}`,
+        id: target,
+        name: f.name,
+        prefix: f.prefix,
+        count: f.count,
+      })),
+      ...(level?.keys ?? []).map((x): Node => ({
+        kind: "redisKey",
+        key: `${target}/k:${keyId(x.entry.key)}`,
+        id: target,
+        entry: x.entry,
+        name: x.name,
+      })),
+    ];
+    if (n.kind === "redisDb" && !k.done) nodes.push({ kind: "redisMore", key: `${target}/more`, id: target });
+    if (n.kind === "redisDb" && !nodes.length)
+      return [
+        {
+          kind: "message",
+          key: `${n.key}/empty`,
+          text: k.pattern === "*" ? tx("No keys") : tx`No keys match ${k.pattern}`,
+        },
+      ];
+    return nodes;
+  };
+
   const children = (n: Node): readonly Node[] | undefined => {
     switch (n.kind) {
       case "source": {
         const id = n.source.id ?? "";
+        if (n.source.driver === "redis")
+          return status(n.key, redis.keyspace[id], (v) =>
+            redisDatabases(id, v).map((d): Node => ({
+              kind: "redisDb",
+              key: `${id}/db${d.index}`,
+              id: redisTarget(id, d.index),
+              db: d.index,
+              keys: d.keys ?? 0,
+            })),
+          );
         if (listsDatabases(n.source))
           return status(n.key, st.databases[id], (v) =>
             shownDatabases(id, v).map((name) => ({
@@ -170,6 +246,9 @@ export function DatabaseView() {
       }
       case "database":
         return schemasOf(n.key, n.id);
+      case "redisDb":
+      case "redisFolder":
+        return redisChildren(n);
       case "schema":
         return status(n.key, st.tables[tablesKey(n.id, n.schema)], () =>
           FOLDERS.filter((f) => folderSize(n.id, n.schema, f) > 0).map((folder): Node => ({
@@ -245,6 +324,15 @@ export function DatabaseView() {
   };
 
   const load = async (n: Node) => {
+    if (n.kind === "source" && n.source.driver === "redis") {
+      const id = n.source.id ?? "";
+      if (await connect(id)) await loadKeyspace(id);
+      return;
+    }
+    if (n.kind === "redisDb") {
+      if (!redis.keys[n.id]) await loadKeys(n.id);
+      return;
+    }
     if (n.kind === "source") {
       const id = n.source.id ?? "";
       if (!(await connect(id))) return;
@@ -285,6 +373,14 @@ export function DatabaseView() {
         return `foreign-key #${Number(n.key.slice(n.key.lastIndexOf("/") + 1)) + 1}`;
       case "index":
         return n.index.name;
+      case "redisDb":
+        return `db${n.db}`;
+      case "redisFolder":
+        return n.name;
+      case "redisKey":
+        return n.name;
+      case "redisMore":
+        return tx("Load more keys…");
       case "message":
         return n.text;
     }
@@ -326,6 +422,13 @@ export function DatabaseView() {
         return `(${n.fk.columns.join(", ")}) → ${n.fk.refTable} (${n.fk.refColumns.join(", ")})`;
       case "index":
         return `${n.index.unique ? "unique " : ""}(${n.index.columns.join(", ")})`;
+      case "redisDb": {
+        const k = redis.keys[n.id];
+        // Loaded keys of a filtered or partly scanned database: `120 / 5,300`.
+        return k && (k.pattern !== "*" || !k.done) ? `${k.keys.length} / ${count(n.keys)}` : count(n.keys);
+      }
+      case "redisFolder":
+        return count(n.count);
       default:
         return undefined;
     }
@@ -358,6 +461,14 @@ export function DatabaseView() {
         return "db-foreign-key";
       case "index":
         return "db-index";
+      case "redisDb":
+        return "database";
+      case "redisFolder":
+        return "db-folder";
+      case "redisKey":
+        return undefined;
+      case "redisMore":
+        return redis.keys[n.id]?.loading ? undefined : "more-horizontal";
       case "message":
         return n.error ? "error" : undefined;
     }
@@ -398,7 +509,9 @@ export function DatabaseView() {
             n.kind === "schema" ||
             n.kind === "folder" ||
             n.kind === "table" ||
-            n.kind === "group"
+            n.kind === "group" ||
+            n.kind === "redisDb" ||
+            n.kind === "redisFolder"
           }
           loadChildren={load}
           getIcon={(n) => icon(n)}
@@ -407,7 +520,13 @@ export function DatabaseView() {
           renderNode={(n: Node) => {
             const i = icon(n);
             const d = detail(n);
-            const counted = n.kind === "source" || n.kind === "database" || n.kind === "folder" || n.kind === "group";
+            const counted =
+              n.kind === "source" ||
+              n.kind === "database" ||
+              n.kind === "folder" ||
+              n.kind === "group" ||
+              n.kind === "redisDb" ||
+              n.kind === "redisFolder";
             const labelClass =
               n.kind === "message" && n.error
                 ? styles.treeError
@@ -431,7 +550,11 @@ export function DatabaseView() {
                     {live && <span className={styles.connectedDot} title={tx("Connected")} />}
                   </span>
                 )}
-                <span className={labelClass}>{label(n)}</span>
+                {n.kind === "redisKey" && <KindChip kind={n.entry.kind} />}
+                {n.kind === "redisMore" && redis.keys[n.id]?.loading && <Spinner size={12} />}
+                <span className={labelClass} title={n.kind === "redisKey" ? bytesLabel(n.entry.key) : undefined}>
+                  {label(n)}
+                </span>
                 {d && (
                   <span
                     className={
@@ -454,6 +577,10 @@ export function DatabaseView() {
             useDatabase.setState({ selectedSource: lead ? nodeTarget(lead) : null, selectedNode: lead })
           }
           onActivate={(n) => {
+            if (n.kind === "redisKey") return openKey(n.id, n.entry.key);
+            if (n.kind === "redisDb") return openBrowser(n.id);
+            if (n.kind === "redisMore") return void loadKeys(n.id, { more: true });
+            if (n.kind === "source" && n.source.driver === "redis") return void openRedisConsoleOf(n.source.id ?? "");
             if (n.kind === "table") openTableData(n.id, n.schema, n.table.name);
             else if (n.kind === "source") void openConsole(n.source.id ?? "");
             else if (n.kind === "database") void openConsole(n.id);
@@ -462,7 +589,7 @@ export function DatabaseView() {
               if (o) void openObjectDdl(o.id, o.schema, o.kind, o.name);
             }
           }}
-          activateExpandable={(n) => n.kind === "table"}
+          activateExpandable={(n) => n.kind === "table" || n.kind === "redisDb"}
           onContextMenu={(n, _sel, e) => {
             const items = nodeMenu(n);
             if (items.length) showContextMenu(e, items);

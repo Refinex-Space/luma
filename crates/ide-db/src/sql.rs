@@ -47,6 +47,7 @@ pub const INTERNAL_DATABASES: &[&str] = &["rdsadmin", "azure_maintenance", "azur
 
 pub fn schemas(driver: DbDriver, system: bool) -> &'static str {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => "SELECT name FROM pragma_database_list WHERE name <> 'temp' ORDER BY seq",
         DbDriver::Postgres if system => {
             "SELECT schema_name FROM information_schema.schemata \
@@ -73,6 +74,7 @@ pub fn schemas(driver: DbDriver, system: bool) -> &'static str {
 /// Rows: `name, kind` where kind is `table`, `view` or `materialized view`.
 pub fn tables(driver: DbDriver, schema: &str) -> String {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => format!(
             "SELECT name, type FROM {}.sqlite_master WHERE type IN ('table', 'view') \
              AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name",
@@ -101,6 +103,7 @@ pub fn tables(driver: DbDriver, schema: &str) -> String {
 pub fn columns(driver: DbDriver, schema: &str, table: &str) -> String {
     let (s, t) = (quote_literal(driver, schema), quote_literal(driver, table));
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => format!(
             "SELECT name, type, CASE WHEN \"notnull\" = 0 THEN 'YES' ELSE 'NO' END, dflt_value, \
              CASE WHEN pk > 0 THEN 1 ELSE 0 END FROM pragma_table_info({t}, {s}) ORDER BY cid"
@@ -138,6 +141,7 @@ pub fn columns(driver: DbDriver, schema: &str, table: &str) -> String {
 pub fn indexes(driver: DbDriver, schema: &str, table: &str) -> String {
     let (s, t) = (quote_literal(driver, schema), quote_literal(driver, table));
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => format!(
             "SELECT il.name, il.\"unique\", ii.name FROM pragma_index_list({t}, {s}) il \
              JOIN pragma_index_info(il.name, {s}) ii ORDER BY il.name, ii.seqno"
@@ -169,6 +173,7 @@ pub fn indexes(driver: DbDriver, schema: &str, table: &str) -> String {
 /// for SQL completion, grouped by table in column order.
 pub fn completion_columns(driver: DbDriver) -> &'static str {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => {
             "SELECT 'main', m.name, m.type, p.name, p.type, CASE WHEN p.\"notnull\" = 0 THEN 'YES' ELSE 'NO' END, \
              CASE WHEN p.pk > 0 THEN 1 ELSE 0 END, \
@@ -221,6 +226,7 @@ pub fn completion_columns(driver: DbDriver) -> &'static str {
 /// when the key references the primary key implicitly.
 pub fn foreign_keys(driver: DbDriver) -> &'static str {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => {
             "SELECT 'main', m.name, f.id, f.\"from\", 'main', f.\"table\", f.\"to\" \
              FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f \
@@ -258,6 +264,7 @@ pub fn foreign_keys(driver: DbDriver) -> &'static str {
 pub fn table_foreign_keys(driver: DbDriver, schema: &str, table: &str) -> String {
     let (s, t) = (quote_literal(driver, schema), quote_literal(driver, table));
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => format!(
             "SELECT {s}, {t}, f.id, f.\"from\", {s}, f.\"table\", f.\"to\"              FROM pragma_foreign_key_list({t}, {s}) f ORDER BY f.id, f.seq"
         ),
@@ -276,6 +283,7 @@ pub fn table_foreign_keys(driver: DbDriver, schema: &str, table: &str) -> String
 /// The schema unqualified names resolve to (`None`: always `main`).
 pub fn current_schema(driver: DbDriver) -> Option<&'static str> {
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => None,
         DbDriver::Postgres => Some("SELECT current_schema()"),
         DbDriver::Mysql => Some("SELECT DATABASE()"),
@@ -450,6 +458,7 @@ pub fn postgres_ddl_indexes(oid: u32) -> String {
 pub fn triggers(driver: DbDriver, schema: &str, table: &str) -> String {
     let (s, t) = (quote_literal(driver, schema), quote_literal(driver, table));
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => format!(
             "SELECT name, sql FROM {}.sqlite_master WHERE type = 'trigger' AND tbl_name = {t} ORDER BY name",
             quote_ident(driver, schema)
@@ -492,6 +501,7 @@ pub fn sqlite_trigger_event(sql: &str) -> (String, String) {
 pub fn routines(driver: DbDriver, schema: &str) -> Option<String> {
     let s = quote_literal(driver, schema);
     match driver {
+        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
         DbDriver::Sqlite => None,
         // Functions of extensions are left out, as in IDEA.
         DbDriver::Postgres => Some(format!(

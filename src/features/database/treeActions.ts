@@ -7,6 +7,10 @@ import { call, commands, type DataSource, type DbDriver, type DbTableInfo } from
 import { registerActions, type Action } from "@/platform/actions";
 import { editorService, notifications, toolWindowService } from "@/workbench/contributions";
 import { splitTarget } from "./model";
+import { redisTargetOf } from "./redis/actions";
+import { bytesLabel } from "./redis/model";
+import { isRedisSource, loadKeys, openRedisConsoleOf, refreshRedis } from "./redis/store";
+import { folderPattern } from "./redis/tree";
 import { nodeTarget, objectOf, schemaObjectOf, tableFolder, tableOf, type DbNode } from "./nodes";
 import { canDrop, canRename, reference, scriptSql, type ScriptKind } from "./objects";
 import {
@@ -174,11 +178,16 @@ async function runScriptFile(id: string) {
 function refreshNode(n: DbNode | null) {
   if (!n) {
     void loadSources();
-    for (const c of useDatabase.getState().connected) void refresh(c);
+    for (const c of useDatabase.getState().connected) void (isRedisSource(c) ? refreshRedis(c) : refresh(c));
     return;
   }
   const id = nodeTarget(n);
   if (!id) return;
+  if (isRedisSource(id)) {
+    if (n.kind === "redisDb" || n.kind === "redisFolder" || n.kind === "redisKey") void loadKeys(id);
+    else void refreshRedis(id);
+    return;
+  }
   if (n.kind === "schema" || n.kind === "folder") void loadTables(id, n.schema);
   else if (tableOf(n)) {
     const t = tableOf(n)!;
@@ -237,7 +246,8 @@ export function registerDatabaseTreeActions(): () => void {
         const id = n ? nodeTarget(n) : null;
         const { sources } = useDatabase.getState();
         const target = id ?? (sources.length === 1 ? (sources[0]!.id ?? null) : null);
-        if (target) void openConsole(target);
+        if (target && isRedisSource(target)) void openRedisConsoleOf(redisTargetOf(n) ?? target);
+        else if (target) void openConsole(target);
         else toolWindowService().show(DB_TOOL_WINDOW, true);
       },
     }),
@@ -377,6 +387,9 @@ export function registerDatabaseTreeActions(): () => void {
         const id = nodeTarget(n);
         if (n.kind === "source") return void copy(n.source.name ?? "", tx("Cannot copy the name"));
         if (n.kind === "database") return void copy(n.name, tx("Cannot copy the name"));
+        if (n.kind === "redisDb") return void copy(`db${n.db}`, tx("Cannot copy the name"));
+        if (n.kind === "redisKey") return void copy(bytesLabel(n.entry.key), tx("Cannot copy the name"));
+        if (n.kind === "redisFolder") return void copy(folderPattern(n.prefix), tx("Cannot copy the name"));
         const o = objectOf(n);
         if (id && o) void copy(reference(driverOf(id), o), tx("Cannot copy the reference"));
       },

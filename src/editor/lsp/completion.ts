@@ -684,7 +684,8 @@ export function explicitCompletion(view: EditorView): boolean {
 // ---------------------------------------------------------------------------
 // Rendering
 
-function kindBadge(c: Completion): Node | null {
+/** The completion list's kind icon column (also used by lists outside editors). */
+export function kindBadge(c: Completion): Node | null {
   if (!isLsp(c) && "icon" in c) {
     const icon = (c as RichCompletion).icon;
     if (icon) return iconNode(icon, 16, "cm-lsp-kind");
@@ -698,7 +699,8 @@ function kindBadge(c: Completion): Node | null {
   return span;
 }
 
-function typeColumn(c: Completion): Node | null {
+/** The completion list's right-aligned type column. */
+export function typeColumn(c: Completion): Node | null {
   const detail = isLsp(c) ? typeColumnText(c.lsp) : (c as RichCompletion).typeText?.replace(/\s+/g, " ");
   if (!detail) return null;
   const span = document.createElement("span");

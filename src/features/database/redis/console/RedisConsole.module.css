@@ -1,0 +1,95 @@
+/* Redis console replies in the Database Console tool window. */
+
+/* A string reply: text or pretty JSON, selectable, in the editor font. */
+.text {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 10px;
+  overflow: auto;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-weight: var(--fw-code);
+  font-size: var(--fs-code);
+  line-height: 1.5;
+  color: var(--fg-editor, var(--fg-strong));
+  background: var(--bg-editor);
+  white-space: pre;
+  tab-size: 4;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+  outline: none;
+}
+.wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.text :global(.tok-propertyName) {
+  color: var(--syn-property);
+}
+.text :global(.tok-string) {
+  color: var(--syn-string);
+}
+.text :global(.tok-number) {
+  color: var(--syn-number);
+}
+.text :global(.tok-bool),
+.text :global(.tok-null),
+.text :global(.tok-keyword) {
+  color: var(--syn-keyword);
+}
+.text :global(.tok-punctuation) {
+  color: var(--syn-punct);
+}
+
+.size {
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Nested replies: `1) "value"` rows like redis-cli, collections expandable. */
+.tree {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-editor);
+}
+.node {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-weight: var(--fw-code);
+  font-size: var(--fs-code);
+  white-space: pre;
+}
+.mark {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.arrow {
+  color: var(--fg-muted);
+}
+.kind {
+  color: var(--fg-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+}
+.string {
+  color: var(--syn-string);
+}
+.number {
+  color: var(--syn-number);
+}
+.keyword {
+  color: var(--syn-keyword);
+}
+.nil {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+.error {
+  color: var(--danger);
+}

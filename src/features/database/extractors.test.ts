@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { exportData, extractorOptions, selectionData, sqlLiteral, type ExportData } from "./export";
+import {
+  effectiveExtractor,
+  exportData,
+  extractorOptions,
+  redisArg,
+  selectionData,
+  sqlLiteral,
+  type ExportData,
+} from "./export";
 import { cellMatcher, heat, imageUrl, nextSort, numberRange, parseGoTo, visibleRows } from "./resultView";
 import { canReshape, countQuery, reshapeQuery } from "./sql/reshape";
 
@@ -101,6 +109,82 @@ describe("data extractors", () => {
     const options = extractorOptions();
     expect(options.filter((o) => o.section).map((o) => o.label)).toEqual(["Built-in", "CSV"]);
     expect(options.findIndex((o) => o.value === "csv")).toBeGreaterThan(options.findIndex((o) => o.label === "CSV"));
+  });
+});
+
+describe("Redis data", () => {
+  const redis = (redisKind: string, columns: string[], rows: Array<Array<string | null>>): ExportData => ({
+    columns: columns.map((name) => ({ name, type: "" })),
+    rows,
+    table: "user:1",
+    driver: "redis",
+    redisKind,
+  });
+
+  it("offers Redis commands, not SQL, and SQL grids no Redis commands", () => {
+    const redisFormats = extractorOptions("redis").map((o) => o.value);
+    expect(redisFormats).toContain("redis");
+    expect(redisFormats).not.toContain("sql");
+    expect(redisFormats).not.toContain("sqlUpdate");
+    expect(redisFormats).toContain("csv");
+    expect(extractorOptions("mysql").map((o) => o.value)).not.toContain("redis");
+    // One preference for every grid: each reads its counterpart.
+    expect(effectiveExtractor("sql", "redis")).toBe("redis");
+    expect(effectiveExtractor("redis", "postgres")).toBe("sql");
+    expect(effectiveExtractor("json", "redis")).toBe("json");
+  });
+
+  it("writes rows back as the commands of their type", () => {
+    expect(
+      exportData(
+        "redis",
+        redis(
+          "hash",
+          ["field", "value"],
+          [
+            ["name", "Ada Lovelace"],
+            ["plan", "pro"],
+          ],
+        ),
+      ),
+    ).toBe('HSET user:1 name "Ada Lovelace"\nHSET user:1 plan pro');
+    expect(
+      exportData(
+        "redis",
+        redis(
+          "list",
+          ["index", "value"],
+          [
+            ["0", "a"],
+            ["1", ""],
+          ],
+        ),
+      ),
+    ).toBe('RPUSH user:1 a\nRPUSH user:1 ""');
+    expect(exportData("redis", redis("set", ["member"], [["x"]]))).toBe("SADD user:1 x");
+    expect(exportData("redis", redis("zset", ["member", "score"], [["ada", "3820"]]))).toBe("ZADD user:1 3820 ada");
+    expect(
+      exportData(
+        "redis",
+        redis(
+          "stream",
+          ["id", "order", "carrier"],
+          [
+            ["1-0", "A-1", null],
+            ["2-0", "A-2", "SF"],
+          ],
+        ),
+      ),
+    ).toBe("XADD user:1 1-0 order A-1\nXADD user:1 2-0 order A-2 carrier SF");
+    // Columns a command needs left out of the selection: the values, one row per line.
+    expect(exportData("redis", redis("hash", ["value"], [["a b"], ["c"]]))).toBe('"a b"\nc');
+  });
+
+  it("quotes words as redis-cli reads them", () => {
+    expect(redisArg("plain:key")).toBe("plain:key");
+    expect(redisArg("")).toBe('""');
+    expect(redisArg('say "hi"\n')).toBe('"say \\"hi\\"\\n"');
+    expect(redisArg("a\\b")).toBe('"a\\\\b"');
   });
 });
 

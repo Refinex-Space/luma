@@ -1126,6 +1126,32 @@ export const commands = {
 	dbApplyEdits: (id: string, schema: string, table: string, edits: DbRowEdit[]) => typedError<number | null, IdeError>(__TAURI_INVOKE("db_apply_edits", { id, schema, table, edits })),
 	/**  The query console file of data source `id` (`<appData>/consoles/db/<id>/console.sql`), created on first use. */
 	dbConsolePath: (id: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("db_console_path", { id })),
+	/**  Databases of the server of data source `id` with their key counts, its version and mode. */
+	redisKeyspace: (id: string) => typedError<RedisKeyspace, IdeError>(__TAURI_INVOKE("redis_keyspace", { id })),
+	/**  Keys of `target` matching `pattern` (of type `kind`), continuing from `cursor` (`0`: the start). */
+	redisScan: (target: string, pattern: string, kind: string | null, cursor: string, limit: number) => typedError<RedisScanPage, IdeError>(__TAURI_INVOKE("redis_scan", { target, pattern, kind, cursor, limit })),
+	redisKeyInfo: (target: string, key: RedisBytes) => typedError<RedisKeyInfo, IdeError>(__TAURI_INVOKE("redis_key_info", { target, key })),
+	redisValue: (target: string, key: RedisBytes, kind: string, page: RedisPageRequest) => typedError<RedisValuePage, IdeError>(__TAURI_INVOKE("redis_value", { target, key, kind, page })),
+	/**  One command on `target` (the key editor's and the tree's writes; read-only sources refuse writes). */
+	redisCommand: (target: string, args: RedisBytes[]) => typedError<RedisReply, IdeError>(__TAURI_INVOKE("redis_command", { target, args })),
+	/**  `commands` in one MULTI / EXEC. */
+	redisTransaction: (target: string, commands: RedisBytes[][]) => typedError<RedisReply[], IdeError>(__TAURI_INVOKE("redis_transaction", { target, commands })),
+	/**  Console command lines, in order, stopping at the first error. Cancel with `cancel_request(request)`. */
+	redisExecute: (request: RequestId, target: string, commands: RedisCommandInput[]) => typedError<RedisCommandOutcome[], IdeError>(__TAURI_INVOKE("redis_execute", { request, target, commands })),
+	/**  Deletes the keys of `target` matching `pattern`; how many. Cancel with `cancel_request(request)`. */
+	redisDeleteMatching: (request: RequestId, target: string, pattern: string) => typedError<number | null, IdeError>(__TAURI_INVOKE("redis_delete_matching", { request, target, pattern })),
+	/**  `INFO` of the server of `id` (every section, or `section`). */
+	redisInfo: (id: string, section: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("redis_info", { id, section })),
+	/**
+	 *  The console file of Redis data source `id` (`<appData>/consoles/db/<id>/console.redis`),
+	 *  one per data source: the console's toolbar picks the database.
+	 */
+	redisConsolePath: (id: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("redis_console_path", { id })),
+	/**
+	 *  Subscribes to `channels` and `patterns` of `target`'s server; messages stream through
+	 *  `on_message` until `cancel_request(request)`.
+	 */
+	redisSubscribe: (request: RequestId, target: string, channels: string[], patterns: string[], onMessage: Channel<RedisMessage>) => typedError<null, IdeError>(__TAURI_INVOKE("redis_subscribe", { request, target, channels, patterns, onMessage })),
 };
 
 /* Types */
@@ -2287,7 +2313,9 @@ export type DbDriver = "sqlite" | "postgres" |
 /**  MySQL and MariaDB. */
 "mysql" | 
 /**  Microsoft SQL Server. */
-"sqlServer";
+"sqlServer" | 
+/**  Redis (and compatible servers: Valkey, KeyDB, Dragonfly): a key-value store, not SQL. */
+"redis";
 
 /**  `schema.table (columns) REFERENCES ref_schema.ref_table (ref_columns)`. */
 export type DbForeignKey = {
@@ -2346,6 +2374,10 @@ export type DbOptions = {
 	autoDisconnectSecs?: number | null,
 	/**  PostgreSQL: show only the configured database, its schemas right under the data source. */
 	singleDatabase?: boolean,
+	/**  Redis: what splits key names into the tree's folders (`user:42:profile`); empty: `:`. */
+	keySeparator?: string,
+	/**  Redis: list databases without keys too (else only those with keys and the configured one). */
+	showEmptyDatabases?: boolean,
 };
 
 /**  One operation of a plan; `parent` indexes the plan's node list (roots: `None`). */
@@ -5234,6 +5266,137 @@ export type RecentProject = {
 	openedAtMs: number | null,
 	/**  Current git branch when last opened, shown on the welcome screen. */
 	branch: string | null,
+};
+
+/**  A binary-safe string: UTF-8 text, else (`binary`) its bytes in hex. */
+export type RedisBytes = {
+	text: string,
+	binary?: boolean,
+};
+
+/**  A command line of a console, with its place in the text. */
+export type RedisCommandInput = {
+	from: number,
+	to: number,
+	args: RedisBytes[],
+};
+
+export type RedisCommandOutcome = {
+	from: number,
+	to: number,
+	/**  The command as `redis-cli` would echo it. */
+	text: string,
+	reply: RedisReply | null,
+	error: string | null,
+	elapsedMs: number | null,
+	/**  `SELECT n` ran: the console now works on database `n`. */
+	select: number | null,
+	/**  The command may change data (not on the read-only list): views of keys reload. */
+	writes: boolean,
+};
+
+/**  A database of the server and its key counts (`INFO keyspace`). */
+export type RedisDatabase = {
+	index: number,
+	keys: number | null,
+	expires: number | null,
+};
+
+export type RedisEntry = {
+	key: RedisReply,
+	value: RedisReply,
+};
+
+export type RedisKeyEntry = {
+	key: RedisBytes,
+	/**  `string`, `hash`, `list`, `set`, `zset`, `stream`, `ReJSON-RL`, … (`none`: gone meanwhile). */
+	kind: string,
+	/**  `PTTL` when scanned: milliseconds left, `-1` without expiry. */
+	ttlMs: number | null,
+	/**  `MEMORY USAGE` in bytes; `None` where the server refuses the command. */
+	memory: number | null,
+};
+
+export type RedisKeyInfo = {
+	key: RedisBytes,
+	kind: string,
+	/**  Milliseconds to live; -1 without expiry, -2 when the key is gone. */
+	ttlMs: number | null,
+	/**  Bytes of a string, entries of a collection. */
+	length: number | null,
+	/**  `MEMORY USAGE` (may be refused by ACLs). */
+	memory: number | null,
+	/**  `OBJECT ENCODING`: `listpack`, `hashtable`, `embstr`… */
+	encoding: string | null,
+};
+
+export type RedisKeyspace = {
+	/**  Every database, empty ones included (`CONFIG GET databases`, else 16). */
+	databases: RedisDatabase[],
+	/**  `redis_version` (or the compatible server's). */
+	version: string,
+	/**  `standalone`, `cluster` or `sentinel`. */
+	mode: string,
+};
+
+/**  A Pub/Sub message (`SUBSCRIBE` / `PSUBSCRIBE`). */
+export type RedisMessage = {
+	channel: RedisBytes,
+	/**  The pattern that matched, for pattern subscriptions. */
+	pattern: string | null,
+	payload: RedisBytes,
+	/**  Received at (milliseconds since the epoch). */
+	time: number | null,
+};
+
+/**  Which part of a value to read. */
+export type RedisPageRequest = {
+	/**  `SCAN`-style cursor (hash, set, zset with a pattern) or stream id to continue after. */
+	cursor?: string | null,
+	/**  List / sorted set position. */
+	offset?: number,
+	count?: number,
+	/**  `MATCH` pattern of hash fields, set or sorted set members. */
+	pattern?: string | null,
+	/**  Sorted sets by descending score, streams newest first. */
+	descending?: boolean,
+};
+
+/**  A server reply, as `redis-cli` shows it. */
+export type RedisReply = { kind: "nil" } | 
+/**  `+OK`, `+PONG`. */
+{ kind: "status"; text: string } | 
+/**  `-ERR …` inside an array (EXEC); a failed command is an outcome error instead. */
+{ kind: "error"; text: string } | 
+/**  Integers as text: they may not fit a JavaScript number. */
+{ kind: "int"; text: string } | { kind: "double"; text: string } | { kind: "bool"; value: boolean } | { kind: "bulk"; value: RedisBytes } | { kind: "array"; items: RedisReply[] } | { kind: "set"; items: RedisReply[] } | { kind: "map"; entries: RedisEntry[] } | 
+/**  RESP3 verbatim text (`txt`, `mkd`). */
+{ kind: "verbatim"; format: string; text: string };
+
+/**  One `redis_scan` call: keys found, and the cursor to continue from (`0`: the end). */
+export type RedisScanPage = {
+	cursor: string,
+	keys: RedisKeyEntry[],
+	done: boolean,
+};
+
+/**
+ *  A page of a value as a table (hash: field, value; list: index, value; set: member;
+ *  zset: member, score; stream: id and the fields), or a whole string / JSON value.
+ */
+export type RedisValuePage = {
+	kind: string,
+	columns: string[],
+	rows: ((RedisBytes | null)[])[],
+	/**  Where the next page starts (`None`: this was the last). */
+	cursor: string | null,
+	offset: number | null,
+	/**  Entries of the whole value, when cheap to know. */
+	total: number | null,
+	/**  String and JSON values. */
+	value: RedisBytes | null,
+	/**  The string is longer than [`MAX_STRING_BYTES`]: `value` is its beginning. */
+	truncated: boolean,
 };
 
 export type ReferenceAccess = "read" | "write" | "readWrite" | "unknown";

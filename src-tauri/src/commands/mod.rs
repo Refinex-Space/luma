@@ -33,6 +33,7 @@ pub mod notebook;
 pub mod perf;
 pub mod plugin;
 pub mod profiler;
+pub mod redis;
 pub mod refactor;
 pub mod run;
 pub mod screen;
@@ -531,5 +532,16 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         db::db_table_page,
         db::db_apply_edits,
         db::db_console_path,
+        redis::redis_keyspace,
+        redis::redis_scan,
+        redis::redis_key_info,
+        redis::redis_value,
+        redis::redis_command,
+        redis::redis_transaction,
+        redis::redis_execute,
+        redis::redis_delete_matching,
+        redis::redis_info,
+        redis::redis_console_path,
+        redis::redis_subscribe,
     ])
 }

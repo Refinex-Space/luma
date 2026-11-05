@@ -2,6 +2,7 @@
 import type { MenuItem } from "@/ui";
 import { notifications } from "@/workbench/contributions";
 import { fileSourceName, parseSourceUrl } from "./model";
+import { redisNodeMenu } from "./redis/actions";
 import { VENDORS, vendorPreset } from "./vendors";
 import { nodeTarget, objectOf, tableOf, type DbNode } from "./nodes";
 import { SCRIPT_LABELS, canDrop, canRename, type ScriptKind } from "./objects";
@@ -19,6 +20,7 @@ const act = (
 });
 
 const sep: MenuItem = { kind: "separator" };
+// Redis nodes have menus of their own (`redis/actions`).
 
 async function sqliteFromFile() {
   const { open } = await import("@tauri-apps/plugin-dialog");
@@ -98,6 +100,25 @@ export function nodeMenu(n: DbNode | null): MenuItem[] {
     submenu: [...extra, act("db.jumpToConsole", n)],
   });
 
+  if (driver === "redis") {
+    const readOnly = !!sourceById(id)?.readOnly;
+    if (n.kind !== "source") return redisNodeMenu(n, readOnly);
+    const connected = connectedTargets(n.source.id ?? "").length > 0;
+    return [
+      act("db.properties", n, { label: "Properties" }),
+      sep,
+      ...redisNodeMenu(n, readOnly),
+      sep,
+      { label: "New", icon: "plus", submenu: dataSourceItems() },
+      { label: "Copy/Paste", submenu: [copyRef, act("db.duplicateSource", n)] },
+      refresh,
+      act("db.disconnect", n, { disabled: !connected }),
+      sep,
+      rename,
+      sep,
+      act("db.drop", n, { label: "Remove Data Source…" }),
+    ];
+  }
   switch (n.kind) {
     case "source": {
       const connected = connectedTargets(n.source.id ?? "").length > 0;

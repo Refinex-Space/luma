@@ -3,6 +3,7 @@ import { Fragment, useState } from "react";
 import { call, commands, type DataSource } from "@/platform/ipc";
 import { Checkbox, Dialog, Input, lazyComponent, T } from "@/ui";
 import { sshLabel } from "./model";
+import { ErrorBoundary } from "@/workbench/ErrorBoundary";
 import { SourceDialog } from "./SourceDialog";
 import { closeDialog, useDatabase } from "./store";
 import styles from "./Database.module.css";
@@ -169,10 +170,27 @@ function ParamsDialog({
   );
 }
 
+/** Each dialog opened gets a boundary of its own: one failing never keeps the next from opening. */
+const instances = new WeakMap<object, number>();
+let nextInstance = 1;
+function instanceOf(dialog: object): number {
+  let n = instances.get(dialog);
+  if (n === undefined) instances.set(dialog, (n = nextInstance++));
+  return n;
+}
+
 /** Overlay host: whichever dialog the store asks for. */
 export function DatabaseDialogs() {
   const dialog = useDatabase((s) => s.dialog);
   if (!dialog) return null;
+  return (
+    <ErrorBoundary key={instanceOf(dialog)} name={`database dialog ${dialog.kind}`}>
+      <DialogOf dialog={dialog} />
+    </ErrorBoundary>
+  );
+}
+
+function DialogOf({ dialog }: { dialog: NonNullable<ReturnType<typeof useDatabase.getState>["dialog"]> }) {
   if (dialog.kind === "source")
     return (
       <SourceDialog
