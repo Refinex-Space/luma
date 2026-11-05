@@ -26,8 +26,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 28px;
+  min-height: 34px;
   padding: 0 8px;
+}
+/* One width for the colour select, so the delete buttons line up. */
+.color {
+  width: 104px;
+  min-width: 0;
 }
 .keyword {
   width: 120px;

@@ -118,7 +118,7 @@ function GitExecutableRow() {
           setResult(null);
         }}
       />
-      <Button size="small" disabled={testing || !isTauri()} onClick={() => void test()}>
+      <Button disabled={testing || !isTauri()} onClick={() => void test()}>
         <T>Test</T>
       </Button>
     </Row>

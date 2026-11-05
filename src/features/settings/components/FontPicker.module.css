@@ -9,11 +9,13 @@
   display: flex;
   gap: 6px;
 }
+/* The standard settings field width whatever the status line under it says. */
 .controls input {
   min-width: 0;
-  flex: 1;
+  flex: 0 0 220px;
 }
 .hint {
+  max-width: 220px;
   color: var(--fg-muted);
   font-size: 11px;
 }
@@ -32,4 +34,12 @@
 }
 .option[aria-selected="true"] {
   background: var(--bg-tree-selected);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

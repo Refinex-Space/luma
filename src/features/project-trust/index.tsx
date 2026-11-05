@@ -8,6 +8,7 @@ import { provideProjectTrustPrompt, type ProjectTrustScope } from "@/platform/pr
 import { invokeLocal } from "@/platform/tauriCore";
 import { registerOverlay, registerSettingsPage, registerWorkbenchBanner } from "@/workbench/contributions";
 import { Button, Checkbox, Dialog, T } from "@/ui";
+import { Section } from "../settings/components/Form";
 import styles from "./trust.module.css";
 
 const usePrompt = create<{
@@ -121,28 +122,38 @@ function TrustSettings() {
         <T>Trust decisions are saved in your user data and take effect immediately.</T>
       </p>
       {error && <p role="alert">{error}</p>}
-      <h3>
-        <T>Trusted projects</T>
-      </h3>
-      {decisions?.projects.map((path) => (
-        <div className={styles.row} key={path}>
-          <span className={styles.path}>{path}</span>
-          <Button onClick={() => void revoke("project.revokeTrust", path)}>
-            <T>Revoke Trust</T>
-          </Button>
-        </div>
-      ))}
-      <h3>
-        <T>Trusted locations</T>
-      </h3>
-      {decisions?.locations.map((path) => (
-        <div className={styles.row} key={path}>
-          <span className={styles.path}>{path}</span>
-          <Button onClick={() => void revoke("project.removeTrustedLocation", path)}>
-            <T>Remove</T>
-          </Button>
-        </div>
-      ))}
+      <Section title="Trusted projects">
+        {decisions?.projects.length ? (
+          decisions.projects.map((path) => (
+            <div className={styles.row} key={path}>
+              <span className={styles.path}>{path}</span>
+              <Button onClick={() => void revoke("project.revokeTrust", path)}>
+                <T>Revoke Trust</T>
+              </Button>
+            </div>
+          ))
+        ) : (
+          <div className={styles.empty}>
+            <T>No trusted projects</T>
+          </div>
+        )}
+      </Section>
+      <Section title="Trusted locations">
+        {decisions?.locations.length ? (
+          decisions.locations.map((path) => (
+            <div className={styles.row} key={path}>
+              <span className={styles.path}>{path}</span>
+              <Button onClick={() => void revoke("project.removeTrustedLocation", path)}>
+                <T>Remove</T>
+              </Button>
+            </div>
+          ))
+        ) : (
+          <div className={styles.empty}>
+            <T>No trusted locations</T>
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

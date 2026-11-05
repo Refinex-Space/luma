@@ -1,7 +1,6 @@
 .options {
   display: flex;
   flex-direction: column;
-  max-width: 680px;
 }
 .fontInput {
   width: 240px;

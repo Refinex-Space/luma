@@ -5,9 +5,9 @@
 
 import { FontPicker } from "../../components/FontPicker";
 import { useState } from "react";
-import { Checkbox, type SelectOption, T } from "@/ui";
+import { Checkbox, type SelectOption } from "@/ui";
 import { monoFontFamily } from "@/platform/fonts";
-import { NumberInput, Row, SearchLabel, Select } from "../../components/Form";
+import { NumberInput, Row, SearchLabel, Section, Select } from "../../components/Form";
 import { useLabelMatch, usePageContext, useSetting } from "../../components/context";
 import { FONT_WEIGHTS, fontWeightOf, fontWeightVars } from "@/platform/editorSettings";
 import { LIMITS } from "../../model/schema";
@@ -154,11 +154,9 @@ function Preview() {
   const [boldWeight] = useSetting<number>("editor.boldFontWeight");
   const [text, setText] = useState(SAMPLE);
   const fam = monoFontFamily(family, fallback, "var(--font-mono)");
+  // A titled section like the options above: same rule, same indent.
   return (
-    <>
-      <div className={styles.previewTitle}>
-        <T>Preview</T>
-      </div>
+    <Section title="Preview" className={styles.previewSection}>
       <textarea
         className={styles.previewArea}
         aria-label={tx("Font preview")}
@@ -173,7 +171,7 @@ function Preview() {
           fontVariantLigatures: ligatures ? "normal" : "none",
         }}
       />
-    </>
+    </Section>
   );
 }
 

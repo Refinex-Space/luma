@@ -10,8 +10,13 @@
 .radio {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  /* Like a checkbox: 16px mark, 8px to its text. */
+  gap: 8px;
   min-height: 28px;
+}
+.radio input {
+  width: 16px;
+  height: 16px;
 }
 .radio input {
   margin: 0;
@@ -20,16 +25,33 @@
 .disabled {
   color: var(--fg-subtle);
 }
+/* Under the radio's label text. */
 .hint {
-  padding-left: 20px;
+  padding-left: 24px;
   color: var(--fg-subtle);
 }
 
-/* Manual configuration, indented under its radio button. */
-.manual {
-  display: flex;
-  flex-direction: column;
-  padding-left: 20px;
+/* Manual configuration, under its radio's label text; one label column for its fields. */
+.manual,
+.auth {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  padding-left: 24px;
+}
+.manual > *,
+.auth > * {
+  grid-column: 1 / -1;
+}
+.subRow {
+  grid-template-columns: subgrid;
+}
+/* Login / Password: labels under the authentication checkbox's text, fields with the others. */
+.authRow > label {
+  padding-left: 24px;
+}
+.inlineLabel {
+  margin-left: 16px;
+  white-space: nowrap;
 }
 .kinds {
   display: flex;
@@ -47,19 +69,25 @@
 .port {
   width: 64px;
 }
+/* Host + port and "No proxy for" end at one right edge. */
 .wide {
-  width: 360px;
+  width: 100%;
+  max-width: 420px;
+}
+.hostLine > :nth-child(2) {
+  flex-wrap: nowrap;
+  max-width: 420px;
+}
+.hostField {
+  flex: 1 1 auto;
+  min-width: 120px;
 }
 .toggle {
   display: flex;
   align-items: center;
   min-height: 28px;
 }
-.auth {
-  display: flex;
-  flex-direction: column;
-  padding-left: 20px;
-}
+
 .error {
   color: var(--danger);
 }

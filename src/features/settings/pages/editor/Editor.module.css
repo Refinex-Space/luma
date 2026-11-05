@@ -18,7 +18,8 @@
   background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 .checkHint {
-  padding: 0 0 4px 20px;
+  /* Under the checkbox label text: 16px box + 8px gap. */
+  padding: 0 0 4px 24px;
   color: var(--fg-subtle);
   font-size: var(--fs-small);
   line-height: 1.4;
@@ -26,7 +27,8 @@
 .children {
   display: flex;
   flex-direction: column;
-  padding-left: 20px;
+  /* Child options start under their parent checkbox's label text. */
+  padding-left: 24px;
 }
 .inline {
   display: inline-flex;
@@ -47,7 +49,7 @@
   color: var(--fg-subtle);
 }
 .text {
-  width: 240px;
+  width: 220px;
 }
 .wideText {
   width: 360px;
@@ -86,12 +88,37 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: 0 16px;
+  min-height: var(--h-field, 28px);
+}
+.radiosColumn {
+  flex-direction: column;
+  align-items: flex-start;
+}
+/* Each option a 28px line: the first centres on the label beside it, wrapped ones stack evenly. */
+.radios > .radio {
+  min-height: var(--h-field, 28px);
+}
+/* Options one per line (Show tabs in), nested choices under their parent's text. */
+.radioColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.radioLine {
+  min-height: 28px;
+}
+.radioChildren {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-left: 24px;
 }
 .radio {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  /* Like a checkbox: 16px mark, 8px to its text. */
+  gap: 8px;
   cursor: default;
 }
 .radio input {
@@ -128,6 +155,9 @@
 .previewTitle {
   margin: 18px 0 6px;
   color: var(--fg-strong);
+}
+.previewSection {
+  margin-top: 22px;
 }
 .previewArea {
   font-weight: var(--fw-code);
@@ -244,5 +274,9 @@
 
 /* Code Style tables */
 .guides {
-  width: 160px;
+  width: 220px;
+}
+/* A unit after a value (as Form's NumberInput shows it). */
+.unit {
+  color: var(--fg-subtle);
 }

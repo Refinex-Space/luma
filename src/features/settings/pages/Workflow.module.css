@@ -1,7 +1,8 @@
 .indented {
   display: flex;
   flex-direction: column;
-  padding-left: 20px;
+  /* Under the parent checkbox's label text. */
+  padding-left: 24px;
 }
 .matched {
   background: color-mix(in srgb, var(--warning) 8%, transparent);
@@ -54,7 +55,8 @@
 .radio {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  /* Like a checkbox: 16px mark, 8px to its text. */
+  gap: 8px;
 }
 .radio input {
   margin: 0;
@@ -210,6 +212,7 @@
   color: var(--fg-subtle);
 }
 .mappingIcon {
+  display: inline-block;
   vertical-align: -3px;
   margin-right: 6px;
 }

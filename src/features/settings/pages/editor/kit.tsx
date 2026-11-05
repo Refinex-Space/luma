@@ -200,27 +200,39 @@ function RadioItem({ item }: { item: Extract<Item, { t: "radio" }> }) {
   const [value, set] = useSetting<string>(item.key);
   const name = useId();
   const matched = useLabelMatch(item.label);
+  // Labelled groups list one option per line (wrapping by width read unevenly); unlabelled
+  // inline groups keep a row.
+  const radios = (
+    <div
+      className={clsx(styles.radios, item.label && styles.radiosColumn)}
+      role="radiogroup"
+      aria-label={item.label || undefined}
+    >
+      {item.options.map((o) => (
+        <label key={o.value} className={clsx(styles.radio, disabled && styles.dim)}>
+          <input
+            type="radio"
+            name={name}
+            checked={value === o.value}
+            disabled={disabled}
+            onChange={() => set(o.value)}
+          />
+          <SearchLabel text={o.label} />
+        </label>
+      ))}
+    </div>
+  );
+  // A labelled group is a row of the section's label column: its options start where the
+  // other rows' controls do, and wrap within that column.
+  if (item.label)
+    return (
+      <Row label={item.label} hint={item.hint} disabled={disabled}>
+        {radios}
+      </Row>
+    );
   return (
-    <div className={clsx(styles.radioBlock, matched && styles.matched)} role="radiogroup" aria-label={item.label}>
-      {item.label && (
-        <div className={clsx(styles.radioLabel, disabled && styles.dim)}>
-          <SearchLabel text={item.label} />:
-        </div>
-      )}
-      <div className={styles.radios}>
-        {item.options.map((o) => (
-          <label key={o.value} className={clsx(styles.radio, disabled && styles.dim)}>
-            <input
-              type="radio"
-              name={name}
-              checked={value === o.value}
-              disabled={disabled}
-              onChange={() => set(o.value)}
-            />
-            <SearchLabel text={o.label} />
-          </label>
-        ))}
-      </div>
+    <div className={clsx(styles.radioBlock, matched && styles.matched)}>
+      {radios}
       {item.hint && <div className={styles.checkHint}>{item.hint}</div>}
     </div>
   );

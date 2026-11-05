@@ -32,3 +32,11 @@
   gap: 8px;
   padding: 4px 0;
 }
+
+/* Settings › Version Control › GitHub: an untitled group, at the page's left edge. */
+.settingsPage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}

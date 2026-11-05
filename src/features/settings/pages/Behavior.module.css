@@ -1,8 +1,8 @@
-/* Rows under the Theme row (IDEA indents them under the label column). */
+/* Options depending on the checkbox above: under its label text (16px box + 8px gap). */
 .indented {
   display: flex;
   flex-direction: column;
-  padding-left: 20px;
+  padding-left: 24px;
 }
 .inline {
   display: inline-flex;
@@ -51,6 +51,15 @@
 }
 .sizeInput {
   width: 64px;
+}
+/* The size beside the fallback font, on the picker's first line (not centred on its hint). */
+.topAligned > :nth-child(2) {
+  align-items: flex-start;
+}
+.sizeLabel {
+  align-self: flex-start;
+  line-height: var(--h-field, 28px);
+  margin-left: 8px;
 }
 .disabled {
   color: var(--fg-subtle);
@@ -112,6 +121,7 @@
 .table tbody tr:hover {
   background: var(--bg-tree-hover);
 }
-.center {
+.table th.center,
+.table td.center {
   text-align: center;
 }

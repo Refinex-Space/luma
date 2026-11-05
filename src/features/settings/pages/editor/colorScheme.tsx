@@ -5,7 +5,8 @@
  * `editor.colorOverrides[scheme][attribute]`; `editor/core` injects them.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Button, Checkbox, Input, Tree, type SelectOption, T } from "@/ui";
+import { Checkbox, IconButton, Input, Tree, type SelectOption, T } from "@/ui";
+import { showContextMenu } from "@/ui/Menu";
 import { fontWeightVars, type CustomColorSchemes, type TextAttributesOverride } from "@/platform/editorSettings";
 import {
   ATTRIBUTES,
@@ -393,38 +394,53 @@ function ColorSchemePage() {
   return (
     <div className={styles.page}>
       <div className={styles.schemeRow}>
-        <Row label="Scheme">
+        {/* Notes under the select (the Row's hint), not at the page edge. */}
+        <Row
+          label="Scheme"
+          hint={
+            report || scheme === "theme-default" ? (
+              <>
+                {report && <span role="status">{report}</span>}
+                {report && scheme === "theme-default" && " "}
+                {scheme === "theme-default" && tx`Follows the IDE theme: currently ${schemeName}.`}
+              </>
+            ) : undefined
+          }
+        >
           <Select value={scheme} options={options} onChange={setScheme} aria-label="Scheme" />
+          {/* IDEA's scheme gear: the scheme actions in one menu beside the select. */}
+          <IconButton
+            icon="settings"
+            title="Scheme Actions"
+            disabled={busy}
+            onClick={(e) =>
+              showContextMenu(
+                (() => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  return { x: r.left, y: r.bottom + 2 };
+                })(),
+                [
+                  { label: "Import Scheme…", run: () => void executeAction("editor.colorScheme.import") },
+                  { label: "Export Scheme…", run: () => void executeAction("editor.colorScheme.export") },
+                  { kind: "separator" },
+                  {
+                    label: "Delete Scheme",
+                    danger: true,
+                    disabled: !customs[id],
+                    run: () => void executeAction("editor.colorScheme.delete"),
+                  },
+                  {
+                    label: "Restore Defaults",
+                    disabled: !mine,
+                    run: () =>
+                      setOverrides(Object.fromEntries(Object.entries(overrides ?? {}).filter(([k]) => k !== id))),
+                  },
+                ],
+              )
+            }
+          />
         </Row>
-        <Button size="small" disabled={busy} onClick={() => void executeAction("editor.colorScheme.import")}>
-          <T>Import Scheme</T>
-        </Button>
-        <Button size="small" disabled={busy} onClick={() => void executeAction("editor.colorScheme.export")}>
-          <T>Export Scheme</T>
-        </Button>
-        <Button
-          size="small"
-          disabled={busy || !customs[id]}
-          onClick={() => void executeAction("editor.colorScheme.delete")}
-        >
-          <T>Delete Scheme</T>
-        </Button>
-        <Button
-          size="small"
-          disabled={!mine}
-          onClick={() => setOverrides(Object.fromEntries(Object.entries(overrides ?? {}).filter(([k]) => k !== id)))}
-        >
-          <T>Restore Defaults</T>
-        </Button>
       </div>
-      {report && (
-        <div role="status" className={styles.note}>
-          {report}
-        </div>
-      )}
-      {scheme === "theme-default" && (
-        <div className={styles.note}>{tx`Follows the IDE theme: currently ${schemeName}.`}</div>
-      )}
       <div className={styles.schemeBody}>
         <div className={styles.attrTree}>
           <Tree<Node>

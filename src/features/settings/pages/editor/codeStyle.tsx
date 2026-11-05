@@ -12,7 +12,7 @@ import { Button, Checkbox, Input, type SelectOption, T } from "@/ui";
 import { commands, isTauri, type LanguageInfo_Serialize as LanguageInfo } from "@/platform/ipc";
 import { ENCODING_CHOICES, lineCommentDefaults, type LanguageCodeStyle } from "@/platform/editorSettings";
 import { NATIVE_TO_ASCII_ACTION } from "../../nativeToAscii";
-import { NumberInput, Row, Select } from "../../components/Form";
+import { NumberInput, Row, Section, Select } from "../../components/Form";
 import { useSetting } from "../../components/context";
 import type { PageSpec } from "../spec";
 import { CODE_STYLE_SCOPE, CodeStyleMain, SchemeRow, formatterLabels } from "./codeStyleScheme";
@@ -46,7 +46,7 @@ function VisualGuidesRow() {
         }}
         onBlur={() => setDraft(null)}
       />
-      <span className={styles.suffix}>
+      <span className={styles.unit}>
         <T>columns</T>
       </span>
     </Row>
@@ -158,7 +158,9 @@ function LanguageStyle({ lang }: { lang: LanguageInfo }) {
   };
   return (
     <div className={styles.page}>
-      <SchemeRow />
+      <Section>
+        <SchemeRow />
+      </Section>
       {lang.id === "java" && <JavaFormatter style={own} onChange={set} />}
       <section aria-label={tx("Tabs and Indents")}>
         <div className={styles.previewTitle}>
@@ -351,6 +353,17 @@ const ENCODINGS_PAGE = editorPage({
           options: ENCODINGS,
           hint: "Encoding of new files; decodes project files that are not valid UTF-8 and have no BOM.",
         },
+        {
+          t: "select",
+          key: "editor.encodings.utf8Bom",
+          label: "Create UTF-8 files",
+          options: [
+            { value: "never", label: "with NO BOM" },
+            { value: "always", label: "with BOM" },
+            { value: "windows", label: "with BOM under Windows, with no BOM otherwise" },
+          ],
+          hint: "A charset in .editorconfig takes precedence. Change one file's encoding from the status bar.",
+        },
       ],
     },
     {
@@ -367,24 +380,6 @@ const ENCODINGS_PAGE = editorPage({
           key: "editor.encodings.nativeToAscii",
           action: NATIVE_TO_ASCII_ACTION,
           label: "Transparent native-to-ascii conversion",
-        },
-      ],
-    },
-    {
-      items: [
-        {
-          t: "select",
-          key: "editor.encodings.utf8Bom",
-          label: "Create UTF-8 files",
-          options: [
-            { value: "never", label: "with NO BOM" },
-            { value: "always", label: "with BOM" },
-            { value: "windows", label: "with BOM under Windows, with no BOM otherwise" },
-          ],
-        },
-        {
-          t: "note",
-          text: "A charset in .editorconfig takes precedence. Change one file's encoding from the status bar.",
         },
       ],
     },

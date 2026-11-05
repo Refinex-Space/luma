@@ -2,6 +2,7 @@ import { useId } from "react";
 import { Input } from "@/ui";
 import { Row, Section, Select, Toggle } from "../components/Form";
 import { useSetting } from "../components/context";
+import styles from "./Sdk.module.css";
 import { DEFAULT_LANGUAGES } from "@/platform/languageSettings";
 
 const names: Record<string, string> = {
@@ -35,12 +36,20 @@ export function PrettierPage() {
           htmlFor={id}
           hint="Auto: nearest project node_modules, managed installation, then PATH. An explicit path overrides auto detection."
         >
-          <Input id={id} mono value={path} placeholder="Auto" onChange={(e) => setPath(e.target.value)} />
+          <Input
+            id={id}
+            mono
+            className={styles.pathField}
+            value={path}
+            placeholder="Auto"
+            onChange={(e) => setPath(e.target.value)}
+          />
         </Row>
         <Row label="Formatting provider">
           <Select
             value={prefer ? "prettier" : "auto"}
             onChange={(v) => setPrefer(v === "prettier")}
+            className={styles.pathField}
             aria-label="Formatting provider"
             options={[
               { value: "auto", label: "Automatic (language server first)" },

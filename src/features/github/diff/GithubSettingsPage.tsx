@@ -9,7 +9,7 @@ import styles from "./ReviewDiff.module.css";
 export function GithubSettingsPage() {
   const autoMarkViewed = useReviewDiffSettings((s) => s.autoMarkViewed);
   return (
-    <div className={styles.page}>
+    <div className={styles.settingsPage}>
       <Checkbox
         checked={autoMarkViewed}
         onChange={(v) => setReviewDiffSettings({ autoMarkViewed: v })}

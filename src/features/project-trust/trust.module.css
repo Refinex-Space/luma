@@ -55,3 +55,13 @@
 .path {
   overflow-wrap: anywhere;
 }
+.empty {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  color: var(--fg-subtle);
+}
+/* Sections: the settings' 22px apart in all (the column gap included). */
+.content > section + section {
+  margin-top: 10px;
+}

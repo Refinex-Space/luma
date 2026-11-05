@@ -611,7 +611,7 @@ function ExcludeNamesRow() {
       <Input
         id={id}
         mono
-        className={workflow.wide}
+        className={workflow.medium}
         value={draft ?? formatExcludes(names ?? [])}
         onChange={(e) => {
           setDraft(e.target.value);

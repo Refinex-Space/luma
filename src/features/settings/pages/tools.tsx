@@ -19,7 +19,7 @@ import { NumberInput, Row, SearchLabel, Section, Select } from "../components/Fo
 import { useLabelMatch, useSetting } from "../components/context";
 import { selectPage, setQuery } from "../model/staging";
 import type { PageSpec } from "./spec";
-import { BoundToggle, Grid, Indented, PageLink, TableEditor } from "./workflowControls";
+import { BoundToggle, Grid, PageLink, TableEditor } from "./workflowControls";
 import styles from "./Workflow.module.css";
 import { tx } from "@/platform/i18n";
 
@@ -246,37 +246,37 @@ function TerminalFont() {
           </PageLink>
         </span>
       </div>
-      <Indented>
-        <Row label="Font">
-          <span className={styles.fontFamily}>
-            <FontPicker
-              value={family}
-              onChange={setFamily}
-              monoOnly={monoOnly}
-              disabled={useEditor}
-              label="Terminal font"
-            />
-            <span className={monoMatched ? styles.matched : undefined}>
-              <Checkbox
-                checked={monoOnly}
-                onChange={setMonoOnly}
-                disabled={useEditor}
-                label={<SearchLabel text="Show only monospaced fonts" />}
-              />
-            </span>
-          </span>
-        </Row>
-        <Row label="Size">
-          <NumberInput
-            value={size}
-            onChange={setSize}
-            {...L.terminalFontSize}
-            step={1}
-            unit="px"
-            aria-label="Terminal font size"
+      {/* Rows of the section's label column (aligned with Line height and the rest), greyed while
+          the editor font is used. */}
+      <Row label="Font" disabled={useEditor}>
+        <span className={styles.fontFamily}>
+          <FontPicker
+            value={family}
+            onChange={setFamily}
+            monoOnly={monoOnly}
+            disabled={useEditor}
+            label="Terminal font"
           />
-        </Row>
-      </Indented>
+          <span className={monoMatched ? styles.matched : undefined}>
+            <Checkbox
+              checked={monoOnly}
+              onChange={setMonoOnly}
+              disabled={useEditor}
+              label={<SearchLabel text="Show only monospaced fonts" />}
+            />
+          </span>
+        </span>
+      </Row>
+      <Row label="Size" disabled={useEditor}>
+        <NumberInput
+          value={size}
+          onChange={setSize}
+          {...L.terminalFontSize}
+          step={1}
+          unit="px"
+          aria-label="Terminal font size"
+        />
+      </Row>
       <Row label="Line height">
         <NumberInput
           value={lineHeight}

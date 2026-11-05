@@ -67,6 +67,7 @@ export function TodoSettingsPage() {
             />
             <span className={styles.swatch} style={{ background: p.color }} aria-hidden />
             <Select
+              className={styles.color}
               value={p.color}
               options={COLORS}
               onChange={(v) => patch(p.id, { color: v })}

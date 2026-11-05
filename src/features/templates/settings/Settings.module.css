@@ -109,9 +109,17 @@
   flex: none;
   color: var(--fg-muted);
 }
+/* A second label within a row: as wide as its text, so the control after it keeps its room. */
+.inlineLabel {
+  width: auto;
+  margin-left: 8px;
+}
 .grow {
   flex: 1;
   min-width: 0;
+}
+.noShrink {
+  flex: none;
 }
 .body {
   width: 100%;

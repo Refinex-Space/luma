@@ -114,33 +114,33 @@ function ProxyOptions() {
             />
           ))}
         </div>
-        <div className={styles.hostRow}>
-          <Row label="Host name" htmlFor={ids.host}>
-            <Input
-              id={ids.host}
-              className={styles.host}
-              disabled={!manual}
-              value={proxy.host}
-              onChange={(e) => update({ host: e.target.value })}
+        <Row label="Host name" htmlFor={ids.host} className={clsx(styles.subRow, styles.hostLine)}>
+          <Input
+            id={ids.host}
+            className={styles.hostField}
+            disabled={!manual}
+            value={proxy.host}
+            onChange={(e) => update({ host: e.target.value })}
+          />
+          <label className={clsx(styles.inlineLabel, !manual && styles.disabled)} htmlFor={ids.port}>
+            <SearchLabel text="Port number" />:
+          </label>
+          {manual ? (
+            <NumberInput
+              id={ids.port}
+              value={proxy.port}
+              onChange={(port) => update({ port })}
+              {...PROXY_PORT_LIMITS}
+              integer
+              aria-label="Port number"
             />
-          </Row>
-          <Row label="Port number" htmlFor={ids.port}>
-            {manual ? (
-              <NumberInput
-                id={ids.port}
-                value={proxy.port}
-                onChange={(port) => update({ port })}
-                {...PROXY_PORT_LIMITS}
-                integer
-                aria-label="Port number"
-              />
-            ) : (
-              <Input id={ids.port} className={styles.port} value={String(proxy.port)} disabled readOnly />
-            )}
-          </Row>
-        </div>
+          ) : (
+            <Input id={ids.port} className={styles.port} value={String(proxy.port)} disabled readOnly />
+          )}
+        </Row>
         <Row
           label="No proxy for"
+          className={styles.subRow}
           htmlFor={ids.noProxy}
           hint="Comma-separated host names; * matches any characters, e.g. *.example.com, 192.168.*"
         >
@@ -160,27 +160,25 @@ function ProxyOptions() {
             label={<SearchLabel text="Proxy authentication" />}
           />
         </div>
-        <div className={styles.auth}>
-          <Row label="Login" htmlFor={ids.login}>
-            <Input
-              id={ids.login}
-              className={styles.host}
-              disabled={!auth}
-              value={proxy.login}
-              onChange={(e) => update({ login: e.target.value })}
-            />
-          </Row>
-          <Row label="Password" htmlFor={ids.password}>
-            <Input
-              id={ids.password}
-              type="password"
-              className={styles.host}
-              disabled={!auth}
-              value={proxy.password}
-              onChange={(e) => update({ password: e.target.value })}
-            />
-          </Row>
-        </div>
+        <Row label="Login" htmlFor={ids.login} className={clsx(styles.subRow, styles.authRow)}>
+          <Input
+            id={ids.login}
+            className={styles.host}
+            disabled={!auth}
+            value={proxy.login}
+            onChange={(e) => update({ login: e.target.value })}
+          />
+        </Row>
+        <Row label="Password" htmlFor={ids.password} className={clsx(styles.subRow, styles.authRow)}>
+          <Input
+            id={ids.password}
+            type="password"
+            className={styles.host}
+            disabled={!auth}
+            value={proxy.password}
+            onChange={(e) => update({ password: e.target.value })}
+          />
+        </Row>
         {problem && (
           <div className={styles.error} role="alert">
             <T>{problem}</T>

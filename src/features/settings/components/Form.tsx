@@ -43,7 +43,7 @@ export function SearchLabel({ text: source, className }: { text: string; classNa
 
 export function Section({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={clsx(styles.section, className)} aria-label={tx(title)}>
+    <section className={clsx(styles.section, !title && styles.untitled, className)} aria-label={tx(title)}>
       {title && (
         <div className={styles.sectionTitle}>
           <SearchLabel text={title} />
@@ -63,19 +63,27 @@ export interface RowProps {
   htmlFor?: string;
   /** Control under the label (lists, previews) instead of beside it. */
   stacked?: boolean;
+  /** In the label's place (a checkbox that enables the control): no colon after it. */
+  lead?: ReactNode;
+  /** The label greyed with its disabled control. */
+  disabled?: boolean;
   className?: string;
 }
 
-export function Row({ label, hint, children, htmlFor, stacked, className }: RowProps) {
+export function Row({ label, hint, children, htmlFor, stacked, lead, disabled, className }: RowProps) {
   const matched = useLabelMatch(label);
   return (
     <div
       className={clsx(styles.row, stacked && styles.stacked, matched && styles.matched, className)}
       data-search-match={matched || undefined}
     >
-      <label className={styles.label} htmlFor={htmlFor}>
-        <SearchLabel text={label} />
-      </label>
+      {lead ? (
+        <div className={clsx(styles.label, styles.lead)}>{lead}</div>
+      ) : (
+        <label className={clsx(styles.label, disabled && styles.labelDisabled)} htmlFor={htmlFor}>
+          <SearchLabel text={label} />
+        </label>
+      )}
       <div className={styles.control}>{children}</div>
       {hint && <div className={styles.hint}>{typeof hint === "string" ? <T>{hint}</T> : hint}</div>}
     </div>
@@ -171,17 +179,18 @@ export interface SelectProps<V extends string> {
   options: readonly SelectOption<V>[];
   onChange: (value: V) => void;
   disabled?: boolean;
+  className?: string;
   "aria-label"?: string;
 }
 
-export function Select<V extends string>({ value, options, onChange, disabled, ...aria }: SelectProps<V>) {
+export function Select<V extends string>({ value, options, onChange, disabled, className, ...aria }: SelectProps<V>) {
   return (
     <UiSelect<V>
       value={value}
       options={options}
       onChange={onChange}
       disabled={disabled}
-      className={styles.select}
+      className={clsx(styles.select, className)}
       aria-label={aria["aria-label"]}
     />
   );

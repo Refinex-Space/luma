@@ -8,7 +8,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Button, T, type SelectOption } from "@/ui";
 import { useProject } from "@/platform/project";
-import { GlobListEditor, Row, Select } from "../../components/Form";
+import { GlobListEditor, Row, Section, Select } from "../../components/Form";
 import { usePageContext, useSetting } from "../../components/context";
 import { setPageScope, stage, stagedValue, useSettingsDialog, type Scope } from "../../model/staging";
 import { EditorSections, sectionLabels, type EditorSection } from "./kit";
@@ -125,7 +125,9 @@ export function CodeStyleMain({ general }: { general: EditorSection[] }) {
   ];
   return (
     <div className={styles.page}>
-      <SchemeRow />
+      <Section>
+        <SchemeRow />
+      </Section>
       <div className={styles.tabs} role="tablist" aria-label={tx("Code Style")}>
         {tabs.map(([id, label]) => (
           <button

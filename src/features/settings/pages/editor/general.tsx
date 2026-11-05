@@ -9,7 +9,7 @@ import { useEffect, useId, useState } from "react";
 import clsx from "clsx";
 import { commands, isTauri } from "@/platform/ipc";
 import { Checkbox } from "@/ui";
-import { SearchLabel, Select } from "../../components/Form";
+import { Row, SearchLabel, Select } from "../../components/Form";
 import { useLabelMatch, useSetting } from "../../components/context";
 import { editorPage, type Item } from "./kit";
 import styles from "./Editor.module.css";
@@ -269,7 +269,7 @@ const APPEARANCE = editorPage({
         {
           t: "number",
           key: `${P}.appearance.distractionFreeWidth`,
-          label: "Distraction free mode text width:",
+          label: "Distraction free mode text width",
           min: 20,
           max: 500,
           unit: "chars",
@@ -496,28 +496,21 @@ function TabRows() {
   const [multiple, setMultiple] = useSetting<boolean>(`${P}.tabs.multipleRows`);
   const [overflow, setOverflow] = useSetting<string>(`${P}.tabs.oneRowOverflow`);
   const [placement] = useSetting<string>(`${P}.tabs.placement`);
-  const matched = useLabelMatch("Show tabs in:");
   const name = useId();
   // Vertical (left / right) tabs always scroll in one column.
   const disabled = placement === "none" || placement === "left" || placement === "right";
   const radio = (label: string, checked: boolean, onChange: () => void, off = disabled) => (
-    <label className={clsx(styles.radio, off && styles.dim)}>
+    <label className={clsx(styles.radio, styles.radioLine, off && styles.dim)}>
       <input type="radio" name={name} checked={checked} disabled={off} onChange={onChange} />
       <SearchLabel text={label} />
     </label>
   );
+  // One option per line; the overflow choices under "One row", under its label text.
   return (
-    <div
-      className={clsx(styles.radioBlock, matched && styles.matched)}
-      role="radiogroup"
-      aria-label={tx("Show tabs in")}
-    >
-      <div className={clsx(styles.radioLabel, disabled && styles.dim)}>
-        <SearchLabel text="Show tabs in" />:
-      </div>
-      <div className={styles.radios}>
+    <Row label="Show tabs in" disabled={disabled}>
+      <div className={styles.radioColumn} role="radiogroup" aria-label={tx("Show tabs in")}>
         {radio("One row, and if tabs don't fit:", !multiple, () => setMultiple(false))}
-        <div className={styles.children} role="radiogroup" aria-label={tx("If tabs don't fit")}>
+        <div className={styles.radioChildren} role="radiogroup" aria-label={tx("If tabs don't fit")}>
           {radio(
             "Scroll the tabs panel",
             !multiple && overflow !== "squeeze",
@@ -533,7 +526,7 @@ function TabRows() {
         </div>
         {radio("Multiple rows", multiple, () => setMultiple(true))}
       </div>
-    </div>
+    </Row>
   );
 }
 
@@ -547,12 +540,8 @@ const CLOSE_POSITIONS = [
 function CloseButtonPosition() {
   const [show, setShow] = useSetting<boolean>(`${P}.tabs.showCloseButton`);
   const [position, setPosition] = useSetting<string>(`${P}.tabs.closeButtonPosition`);
-  const matched = useLabelMatch("Close button position:");
   return (
-    <div className={clsx(styles.check, matched && styles.matched)}>
-      <span>
-        <SearchLabel text="Close button position:" />
-      </span>
+    <Row label="Close button position">
       <Select
         value={show ? (position === "left" ? "left" : "right") : "none"}
         options={CLOSE_POSITIONS}
@@ -562,7 +551,7 @@ function CloseButtonPosition() {
           if (v !== "none") setPosition(v);
         }}
       />
-    </div>
+    </Row>
   );
 }
 

@@ -5,6 +5,8 @@ import { loadSystemFonts, useSystemFonts } from "@/platform/systemFonts";
 import styles from "./FontPicker.module.css";
 
 /** Editable family name, not a CSS list. Search never restricts manual input. */
+const TYPE_OR_SEARCH = "Type a family name or search installed fonts.";
+
 export function FontPicker({
   value,
   onChange,
@@ -40,7 +42,7 @@ export function FontPicker({
         ? "No system fonts were returned. Bundled fonts and manual input are available."
         : value && !known && status === "ready"
           ? "This name was not found on this desktop. The saved preference is kept."
-          : "Type a family name or search installed fonts.";
+          : TYPE_OR_SEARCH;
   const choose = (name: string) => {
     onChange(name);
     setDraft(null);
@@ -108,7 +110,9 @@ export function FontPicker({
           <T>Refresh</T>
         </Button>
       </span>
-      <span id={`${listId}-status`} className={styles.hint} role="status">
+      {/* The usual "type or search" line is for screen readers only; a real state (loading, nothing
+          found, an unknown name) shows under the field. */}
+      <span id={`${listId}-status`} className={message === TYPE_OR_SEARCH ? styles.srOnly : styles.hint} role="status">
         {tx(message)}
       </span>
       <Popup

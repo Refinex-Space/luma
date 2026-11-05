@@ -121,34 +121,28 @@ function ColorSchemeRow() {
   const [customs] = useSetting<unknown>("editor.customSchemes", "global");
   const options = [SCHEMES[0]!, ...listSchemes(customSchemes(customs)).map((s) => ({ value: s.id, label: s.name }))];
   return (
-    <Indented>
-      <Row label="Editor color scheme">
-        <Select value={scheme} options={options} onChange={setScheme} aria-label="Editor color scheme" />
-      </Row>
-    </Indented>
+    <Row label="Editor color scheme">
+      <Select value={scheme} options={options} onChange={setScheme} aria-label="Editor color scheme" />
+    </Row>
   );
 }
 
 function AccentRow() {
   const [accent, setAccent] = useSetting<string>("appearance.accent");
   return (
-    <Indented>
-      <Row label="Accent colour">
-        <ColorSwatches value={accent} presets={ACCENT_PRESETS} onChange={setAccent} aria-label="Accent colour" />
-      </Row>
-    </Indented>
+    <Row label="Accent colour">
+      <ColorSwatches value={accent} presets={ACCENT_PRESETS} onChange={setAccent} aria-label="Accent colour" />
+    </Row>
   );
 }
 
 function ToolWindowBackgroundRow() {
   return (
-    <Indented>
-      <BoundToggle
-        k="appearance.differentToolWindowBackground"
-        label="Different tool window background"
-        hint="Use lighter color in the dark theme and darker color in the light theme as a background"
-      />
-    </Indented>
+    <BoundToggle
+      k="appearance.differentToolWindowBackground"
+      label="Different tool window background"
+      hint="Use lighter color in the dark theme and darker color in the light theme as a background"
+    />
   );
 }
 
@@ -165,15 +159,15 @@ function ZoomRow() {
   const t = useT();
   const key = (id: string, fallback: string) => shortcutLabel(id) ?? fallback;
   return (
-    <Row label="Zoom">
+    <Row
+      label="Zoom"
+      hint={t("settings.zoom.hint", {
+        zoomIn: key("view.zoomIn", "⌃⌥="),
+        zoomOut: key("view.zoomOut", "⌃⌥-"),
+        reset: key("view.resetZoom", "⌃⌥0"),
+      })}
+    >
       <Select value={String(zoom)} options={options} onChange={(v) => setZoom(Number(v))} aria-label="Zoom" />
-      <span className={styles.note}>
-        {t("settings.zoom.hint", {
-          zoomIn: key("view.zoomIn", "⌃⌥="),
-          zoomOut: key("view.zoomOut", "⌃⌥-"),
-          reset: key("view.resetZoom", "⌃⌥0"),
-        })}
-      </span>
     </Row>
   );
 }
@@ -184,17 +178,16 @@ function CustomFontRow() {
   const [fallback, setFallback] = useSetting<string>("appearance.uiFontFallback");
   const [size, setSize] = useSetting<number>("appearance.uiFontSize");
   const id = useId();
-  const matched = useLabelMatch("Use custom font");
+  // Two rows of the section's label column: the checkbox enables the font, the fallback and size follow it.
   return (
-    <div className={clsx(styles.fontRow, styles.customFontRow, matched && styles.matched)}>
-      <span className={styles.fontOption}>
-        <Checkbox checked={on} onChange={setOn} label={<SearchLabel text="Use custom font:" />} />
+    <>
+      <Row
+        label="Use custom font"
+        lead={<Checkbox checked={on} onChange={setOn} label={<SearchLabel text="Use custom font" />} />}
+      >
         <FontPicker label="UI font" disabled={!on} value={family} onChange={setFamily} />
-      </span>
-      <span className={styles.fontOption}>
-        <label className={clsx(!on && styles.disabled)} htmlFor={`${id}-fallback`}>
-          <SearchLabel text="Fallback font:" />
-        </label>
+      </Row>
+      <Row label="Fallback font" htmlFor={`${id}-fallback`} disabled={!on} className={styles.topAligned}>
         <FontPicker
           id={`${id}-fallback`}
           label="UI fallback font"
@@ -203,9 +196,7 @@ function CustomFontRow() {
           onChange={setFallback}
           allowEmpty
         />
-      </span>
-      <span className={styles.fontOption}>
-        <label className={clsx(!on && styles.disabled)} htmlFor={`${id}-size`}>
+        <label className={clsx(styles.sizeLabel, !on && styles.disabled)} htmlFor={`${id}-size`}>
           <SearchLabel text="Size:" />
         </label>
         {on ? (
@@ -227,8 +218,8 @@ function CustomFontRow() {
             readOnly
           />
         )}
-      </span>
-    </div>
+      </Row>
+    </>
   );
 }
 
@@ -464,7 +455,7 @@ function NotificationGroupsTable() {
           <th>
             <T>Popup type</T>
           </th>
-          <th>
+          <th className={styles.center}>
             <T>Show in tool window</T>
           </th>
         </tr>

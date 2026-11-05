@@ -183,15 +183,17 @@ function FileTemplateEditor({ template: t }: { template: FileTemplate }) {
         </span>
         <Input
           mono
+          className={styles.grow}
           value={t.extension}
           onChange={(e) => update({ extension: e.target.value.replace(/^\./, "").trim() })}
           aria-label="Extension"
           placeholder="none"
         />
-        <span className={styles.label}>
+        <span className={clsx(styles.label, styles.inlineLabel)}>
           <T>File name</T>
         </span>
         <Select
+          className={styles.noShrink}
           value={t.nameStyle}
           options={NAME_STYLES}
           onChange={(v) => update({ nameStyle: v })}

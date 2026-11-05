@@ -21,17 +21,32 @@
   height: 1px;
   background: var(--border);
 }
+/* One label column per section: every labelled row's control starts at the same x (IDEA panels),
+   other content spans the whole width. */
 .sectionBody {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   padding-left: 18px;
+}
+/* An untitled section's rows start at the page's left edge, like the section titles; a titled
+   section's rows are indented under its title. */
+.untitled > .sectionBody {
+  padding-left: 0;
+}
+.sectionBody > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.sectionBody > .row:not(.stacked, .toggleRow) {
+  grid-template-columns: subgrid;
 }
 
 .row {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  column-gap: 8px;
+  /* Top-aligned: a label lines up with its control's first line, not a hint or list below it. */
+  align-items: start;
+  column-gap: 12px;
   min-height: 28px;
   padding: 2px 6px;
   margin: 0 -6px;
@@ -43,23 +58,31 @@
 .stacked {
   grid-template-columns: minmax(0, 1fr);
   row-gap: 6px;
-  align-items: start;
   padding-top: 4px;
   padding-bottom: 4px;
 }
 .label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-field, 28px);
   color: var(--fg);
   white-space: nowrap;
 }
-.row:not(.stacked) > .label::after {
+.row:not(.stacked) > .label:not(.lead)::after {
   content: ":";
+}
+.labelDisabled {
+  color: var(--fg-subtle);
 }
 .control {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+  min-height: var(--h-field, 28px);
 }
+/* A labelled row's comment sits under its control (IDEA); a stacked or checkbox row's spans it all. */
 .hint {
   grid-column: 1 / -1;
   color: var(--fg-subtle);
@@ -67,12 +90,22 @@
   line-height: 1.4;
   padding-bottom: 2px;
 }
+/* The checkbox line has one height whether or not a hint follows, so side-by-side columns line up. */
 .toggleRow {
   grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   min-height: 26px;
 }
+.toggleRow > :first-child {
+  min-height: 22px;
+}
+.row:not(.stacked, .toggleRow) > .hint {
+  grid-column: 2;
+  margin-top: -2px;
+}
+/* Under the checkbox's label text: the 16px box and its 8px gap. */
 .toggleHint {
-  padding-left: 20px;
+  padding-left: 24px;
 }
 
 .number {
@@ -87,18 +120,20 @@
 .unit {
   color: var(--fg-subtle);
 }
+/* One standard field width, so selects and text fields of a column end together. */
 .select {
-  min-width: 180px;
+  min-width: 220px;
   max-width: 320px;
 }
 .text {
-  width: 240px;
+  width: 220px;
 }
 
+/* Five swatches and the hex field: the standard 220px field width in all. */
 .swatches {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .swatch {
   position: relative;
@@ -143,7 +178,7 @@
   outline-offset: 1px;
 }
 .hexInput {
-  width: 86px;
+  width: 80px;
 }
 
 .globEditor {

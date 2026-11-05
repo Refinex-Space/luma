@@ -350,7 +350,7 @@ export function LanguageServersPage() {
               className={styles.search}
               value={query}
               onChange={setQuery}
-              placeholder="Filter by tool or language"
+              placeholder="Filter"
               aria-label="Filter language servers"
             />
           </div>

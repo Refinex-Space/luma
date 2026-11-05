@@ -11,7 +11,6 @@
   gap: 4px;
   min-width: 0;
   flex: 1;
-  max-width: 560px;
 }
 .sdkSelect {
   flex: 1;
@@ -54,7 +53,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 28px;
+  height: 32px;
   padding: 0 4px;
   border-bottom: 1px solid var(--border);
 }
@@ -217,15 +216,18 @@
 .markBar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
-  height: 30px;
+  min-height: 30px;
   padding: 0 6px;
   border-bottom: 1px solid var(--border);
   color: var(--fg-secondary);
 }
 .markButton {
   display: inline-flex;
+  flex: none;
   align-items: center;
+  white-space: nowrap;
   gap: 4px;
   height: 22px;
   padding: 0 6px;
@@ -333,10 +335,21 @@
 .search {
   width: 180px;
 }
+.tableToolbar .search {
+  height: 24px;
+}
+/* Empty placeholders (a warning not shown) take no gap. */
+.page > :empty {
+  display: none;
+}
+/* Sections of a language page: the Form's 22px between them, not that plus the page gap. */
+.page.page > section + section {
+  margin-top: 12px;
+}
 
 /* Project Structure: content roots and "Exclude files". */
 .contentRoot {
-  padding-left: 4px;
+  padding-left: 0;
   font-weight: 600;
 }
 .excludeFiles {
@@ -368,4 +381,19 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* "+ Add Content Root": as wide as its label, left-aligned like the rest of the column. */
+.rootGroup > button:first-child {
+  align-self: flex-start;
+}
+.markBar > span {
+  white-space: nowrap;
+  flex: none;
+}
+
+/* A path typed by hand: the standard settings field width, like the selects around it. */
+/* Prettier's path and provider: one width, wide enough for "Automatic (language server first)". */
+.pathField {
+  width: 260px;
 }

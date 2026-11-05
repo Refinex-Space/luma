@@ -7,7 +7,7 @@ import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { Checkbox, IconButton, Input } from "@/ui";
 import { NumberInput, Row, SearchLabel, Toggle } from "../components/Form";
-import { useLabelMatch, useSetting } from "../components/context";
+import { useSetting } from "../components/context";
 import { selectPage } from "../model/staging";
 import styles from "./Workflow.module.css";
 
@@ -60,22 +60,26 @@ export function ToggleNumber({
 }) {
   const [on, setOn] = useSetting<boolean>(toggleKey);
   const [n, setN] = useSetting<number>(numberKey);
-  const matched = useLabelMatch(label);
+  // A row of the section's label column: the number lines up with the other rows' controls.
   return (
-    <div className={clsx(styles.inlineRow, matched && styles.matched)} data-search-match={matched || undefined}>
-      <Checkbox
-        checked={!!on}
-        onChange={setOn}
-        label={
-          <>
-            <SearchLabel text={label} />:
-          </>
-        }
-      />
+    <Row
+      label={label}
+      lead={
+        <Checkbox
+          checked={!!on}
+          onChange={setOn}
+          label={
+            <>
+              <SearchLabel text={label} />:
+            </>
+          }
+        />
+      }
+    >
       <NumberInput value={n} onChange={setN} min={min} max={max} integer aria-label={label} />
       {unit && <span className={clsx(styles.unit, !on && styles.disabled)}>{unit}</span>}
       {hint && <span className={styles.inlineHint}>{hint}</span>}
-    </div>
+    </Row>
   );
 }
 

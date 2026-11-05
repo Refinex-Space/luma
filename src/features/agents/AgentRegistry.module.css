@@ -21,6 +21,7 @@
   color: var(--warning);
 }
 .error {
+  padding: 16px 8px;
   color: var(--danger);
   white-space: pre-wrap;
 }

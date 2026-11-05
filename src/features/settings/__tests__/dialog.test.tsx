@@ -251,7 +251,7 @@ describe("Settings dialog", () => {
   it("enables, saves and clears the custom UI fallback font", async () => {
     const dialog = await openDialog("appearance");
     const fallback = within(dialog).getByRole("combobox", { name: "UI fallback font" });
-    const custom = within(dialog).getByRole("checkbox", { name: "Use custom font:" });
+    const custom = within(dialog).getByRole("checkbox", { name: "Use custom font" });
     expect(fallback).toBeDisabled();
     fireEvent.click(custom);
     expect(fallback).toBeEnabled();
