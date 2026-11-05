@@ -311,6 +311,7 @@ const ICONS = {
   "md-column-left": "luma/markdown/columnLeft",
   "md-column-right": "luma/markdown/columnRight",
   "md-outline": "luma/markdown/outline",
+  minimap: "luma/general/minimap",
   chessboard: "luma/general/chessboard",
   minimize: "general/openInToolWindow",
   "main-menu": "luma/general/mainMenu",

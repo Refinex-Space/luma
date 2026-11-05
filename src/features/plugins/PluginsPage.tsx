@@ -40,6 +40,8 @@ import {
 } from "./store";
 import styles from "./PluginsPage.module.css";
 import { tx } from "@/platform/i18n";
+import { executeAction } from "@/platform/actions";
+import { useBundledPlugins, type BundledPluginContribution } from "@/workbench/contributions";
 
 const STATUS: Record<PluginStatus, { label: string; tone: "success" | "accent" | "neutral" | "danger" }> = {
   active: { label: "Running", tone: "success" },
@@ -69,6 +71,21 @@ export function filterPlugins(plugins: readonly PluginInfo[], query: string): Pl
   );
 }
 
+export function filterBundled(
+  plugins: readonly BundledPluginContribution[],
+  query: string,
+): BundledPluginContribution[] {
+  const q = query.trim().toLowerCase();
+  const sorted = [...plugins].sort((a, b) => tx(a.name).localeCompare(tx(b.name)));
+  if (!q) return sorted;
+  return sorted.filter((p) =>
+    matches([p.name, tx(p.name), p.id, p.description, tx(p.description), ...(p.features ?? []).map((f) => tx(f))], q),
+  );
+}
+
+/** Selection key of a bundled plugin (kept apart from installed plugin ids). */
+const bundledKey = (id: string) => `bundled:${id}`;
+
 export function filterCatalog(catalog: readonly CatalogPlugin[], query: string): CatalogPlugin[] {
   const q = query.trim().toLowerCase();
   if (!q) return [...catalog];
@@ -90,10 +107,10 @@ export function catalogState(
 
 const vendorOf = (authors: readonly string[]) => authors.join(", ");
 
-function PluginIcon({ large }: { large?: boolean }) {
+function PluginIcon({ large, icon = "plugin" }: { large?: boolean; icon?: string }) {
   return (
     <span className={clsx(styles.icon, large && styles.iconLarge)} aria-hidden>
-      <Icon name="plugin" size={large ? 32 : 20} />
+      <Icon name={icon} size={large ? 32 : 20} />
     </span>
   );
 }
@@ -145,6 +162,112 @@ function InstalledRow({ plugin, selected, onSelect }: { plugin: PluginInfo; sele
         aria-label={plugin.enabled ? tx`Disable ${plugin.name}` : tx`Enable ${plugin.name}`}
       />
     </li>
+  );
+}
+
+function BundledRow({
+  plugin,
+  selected,
+  onSelect,
+}: {
+  plugin: BundledPluginContribution;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const enabled = plugin.useEnabled();
+  const name = tx(plugin.name);
+  return (
+    <li className={clsx(styles.row, selected && styles.rowSelected, !enabled && styles.rowDisabled)}>
+      <button
+        type="button"
+        className={styles.rowMain}
+        aria-current={selected || undefined}
+        onClick={onSelect}
+        title={tx(plugin.description)}
+      >
+        <PluginIcon icon={plugin.icon} />
+        <span className={styles.rowText}>
+          <span className={styles.rowName}>{name}</span>
+          <span className={styles.rowMeta}>
+            <span className={styles.rowVendor}>Luma</span>
+            <span className={styles.bundledTag}>
+              <T>Bundled</T>
+            </span>
+          </span>
+        </span>
+      </button>
+      <Checkbox
+        className={styles.rowCheck}
+        checked={enabled}
+        onChange={(on) => void plugin.setEnabled(on)}
+        aria-label={enabled ? tx`Disable ${name}` : tx`Enable ${name}`}
+      />
+    </li>
+  );
+}
+
+function BundledDetails({ plugin }: { plugin: BundledPluginContribution }) {
+  const enabled = plugin.useEnabled();
+  const name = tx(plugin.name);
+  const overview = (
+    <>
+      <p className={styles.description}>{tx(plugin.description)}</p>
+      <dl className={styles.facts}>
+        <dt>
+          <T>Id</T>
+        </dt>
+        <dd className={styles.mono}>{plugin.id}</dd>
+        <dt>
+          <T>Code</T>
+        </dt>
+        <dd>
+          <T>Bundled with Luma: no download, always up to date</T>
+        </dd>
+      </dl>
+      {plugin.features && plugin.features.length > 0 && (
+        <Section title="Features">
+          <ul className={styles.items}>
+            {plugin.features.map((f) => (
+              <li key={f} className={styles.item}>
+                <span className={styles.itemMain}>{tx(f)}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+    </>
+  );
+  return (
+    <div className={styles.details} aria-label={tx`${name} details`}>
+      <header className={styles.header}>
+        <PluginIcon large icon={plugin.icon} />
+        <div className={styles.headerText}>
+          <h2 className={styles.title}>{name}</h2>
+          <div className={styles.authors}>Luma</div>
+          <div className={styles.titleLine}>
+            <Badge tone={enabled ? "accent" : "neutral"}>{enabled ? tx("Enabled") : tx("Disabled")}</Badge>
+            <Badge tone="neutral">
+              <T>Bundled</T>
+            </Badge>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
+          <Button
+            size="small"
+            variant={enabled ? "secondary" : "primary"}
+            onClick={() => void plugin.setEnabled(!enabled)}
+          >
+            {enabled ? "Disable" : "Enable"}
+          </Button>
+          {plugin.settingsPage && (
+            <Button size="small" onClick={() => void executeAction("file.settings", plugin.settingsPage)}>
+              <T>Configure…</T>
+            </Button>
+          )}
+        </div>
+      </header>
+      <DetailTabs notes={null} overview={overview} />
+    </div>
   );
 }
 
@@ -543,10 +666,14 @@ export function PluginsPage() {
     void refreshCatalog();
   }, []);
 
+  const bundledMap = useBundledPlugins((s) => s.plugins);
   const shown = useMemo(() => filterPlugins(plugins, query), [plugins, query]);
+  const bundled = useMemo(() => filterBundled([...bundledMap.values()], query), [bundledMap, query]);
   const downloaded = shown.filter((p) => p.source === "installed");
   const dev = shown.filter((p) => p.source === "dev");
-  const selected = shown.find((p) => p.id === selectedId) ?? shown[0] ?? null;
+  const selectedBundled = bundled.find((p) => bundledKey(p.id) === selectedId) ?? null;
+  const selected = selectedBundled ? null : (shown.find((p) => p.id === selectedId) ?? shown[0] ?? null);
+  const shownBundled = selectedBundled ?? (selected ? null : (bundled[0] ?? null));
 
   const catalogShown = useMemo(() => filterCatalog(catalog ?? [], query), [catalog, query]);
   const selectedEntry = catalogShown.find((c) => c.id === selectedCatalogId) ?? catalogShown[0] ?? null;
@@ -581,7 +708,7 @@ export function PluginsPage() {
             {
               id: "installed",
               label: "Installed",
-              trailing: <span className={styles.tabCount}>{plugins.length}</span>,
+              trailing: <span className={styles.tabCount}>{plugins.length + bundledMap.size}</span>,
             },
           ]}
         />
@@ -625,9 +752,20 @@ export function PluginsPage() {
                   onSelect={() => setSelectedId(p.id)}
                 />
               ))}
-              {loaded && shown.length === 0 && (
+              {bundled.length > 0 && <ListHeader title="Bundled" count={bundled.length} />}
+              {bundled.map((p) => (
+                <BundledRow
+                  key={p.id}
+                  plugin={p}
+                  selected={p.id === shownBundled?.id}
+                  onSelect={() => setSelectedId(bundledKey(p.id))}
+                />
+              ))}
+              {loaded && shown.length === 0 && bundled.length === 0 && (
                 <li className={styles.listEmpty}>
-                  {plugins.length === 0 ? tx("No plugins installed.") : tx("No plugins match.")}
+                  {plugins.length === 0 && bundledMap.size === 0
+                    ? tx("No plugins installed.")
+                    : tx("No plugins match.")}
                 </li>
               )}
             </ul>
@@ -659,6 +797,8 @@ export function PluginsPage() {
         {tab === "installed" ? (
           selected ? (
             <InstalledDetails key={selected.id} plugin={selected} />
+          ) : shownBundled ? (
+            <BundledDetails key={bundledKey(shownBundled.id)} plugin={shownBundled} />
           ) : (
             <EmptyState className={styles.detailsEmpty} title={loaded ? "No plugin selected" : "Loading…"}>
               <T>Plugins are folders with a</T> <code>plugin.toml</code>

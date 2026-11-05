@@ -110,6 +110,7 @@ export const EDITOR_EXTRA_DEFAULTS = {
   },
   // Off: the status bar's navigation bar already shows the file and the symbols at the caret.
   breadcrumbs: { show: false, placement: "bottom", disabledLanguages: [] as string[] },
+  minimap: { enabled: true, width: 110, style: "characters" as "characters" | "blocks", showMarkers: true },
   completion: {
     matchCase: true,
     caseSensitivity: "first",

@@ -1,0 +1,6 @@
+<!-- Luma: minimap (code lines beside a scaled-down page with its visible part) in the expui style. -->
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M1.5 3.5H6.5M1.5 6.5H8M3.5 9.5H8M1.5 12.5H5.5" stroke="#6C707E" stroke-linecap="round"/>
+<rect x="10.5" y="1.5" width="4" height="13" rx="1" stroke="#6C707E"/>
+<rect x="10" y="5" width="5" height="4.5" rx="0.5" fill="#6C707E"/>
+</svg>

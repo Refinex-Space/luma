@@ -5,6 +5,7 @@
  */
 import { EditorSelection, StateEffect, StateField, type EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { minimapHidden } from "@/editor/api";
 
 export const setLivePreview = StateEffect.define<boolean>();
 /** The editor gained (true) or lost (false) focus. */
@@ -41,6 +42,8 @@ export const liveState = StateField.define<LiveState>({
     return next === value && same ? value : { ...next, reveal };
   },
   provide: (f) => [
+    // A document to read: the outline beside it does the minimap's job.
+    minimapHidden.from(f, (s) => s.on),
     EditorView.editorAttributes.from(f, (s): Record<string, string> => (s.on ? { class: "cm-md-live" } : {})),
     // Prose wraps at the column's width (never a sideways scroll).
     EditorView.contentAttributes.from(f, (s): Record<string, string> => (s.on ? { class: "cm-lineWrapping" } : {})),

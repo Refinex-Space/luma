@@ -2957,6 +2957,7 @@ export type EditorSettings_Deserialize = {
 	general?: EditorGeneralSettings,
 	appearance?: EditorAppearanceSettings,
 	breadcrumbs?: BreadcrumbsSettings,
+	minimap?: MinimapSettings,
 	completion?: CompletionSettings,
 	autoImport?: AutoImportSettings,
 	folding?: FoldingSettings,
@@ -3006,6 +3007,7 @@ export type EditorSettings_Serialize = {
 	general: EditorGeneralSettings,
 	appearance: EditorAppearanceSettings,
 	breadcrumbs: BreadcrumbsSettings,
+	minimap: MinimapSettings,
 	completion: CompletionSettings,
 	autoImport: AutoImportSettings,
 	folding: FoldingSettings,
@@ -4559,6 +4561,17 @@ export type MethodStat = {
 	frame: number,
 	selfWeight: number | null,
 	total: number | null,
+};
+
+/**  Editor › General › Minimap: a scaled-down overview of the file beside the scrollbar. */
+export type MinimapSettings = {
+	enabled?: boolean,
+	/**  Width in px (48–240). */
+	width?: number,
+	/**  `characters`: glyph-like marks per character | `blocks`: one bar per token. */
+	style?: string,
+	/**  Error, warning, VCS change and search result marks. */
+	showMarkers?: boolean,
 };
 
 export type NewAgentTask = {

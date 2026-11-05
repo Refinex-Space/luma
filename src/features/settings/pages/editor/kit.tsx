@@ -14,6 +14,7 @@ import { NumberInput, Row, SearchLabel, Section, Select } from "../../components
 import { useLabelMatch, usePageContext, useSetting } from "../../components/context";
 import type { PageSpec } from "../spec";
 import styles from "./Editor.module.css";
+import formStyles from "../../components/Form.module.css";
 
 export type Inline =
   | { kind: "number"; key: string; min: number; max: number; unit?: string; suffix?: string }
@@ -85,7 +86,7 @@ function CheckItem({ item }: { item: Extract<Item, { t: "check" }> }) {
       {item.hint && <div className={styles.checkHint}>{item.hint}</div>}
       {item.children && (
         <Disabled.Provider value={off}>
-          <div className={styles.children}>
+          <div className={clsx(styles.children, formStyles.optionGrid)}>
             {item.children.map((c, i) => (
               <ItemView key={i} item={c} />
             ))}

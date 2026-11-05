@@ -298,7 +298,8 @@ export const lumaTheme = EditorView.theme({
     position: "absolute",
     top: "0",
     left: "0",
-    right: "12px",
+    // Clear of the scrollbar lane and the minimap (cm/minimap.ts).
+    right: "calc(12px + var(--luma-minimap-space, 0px))",
     zIndex: "4",
     backgroundColor: "var(--bg-editor, var(--bg-island, var(--bg-app)))",
     borderBottom: "1px solid var(--editor-gutter-border)",

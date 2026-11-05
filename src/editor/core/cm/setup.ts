@@ -34,6 +34,7 @@ import { lumaHighlightStyle } from "./highlight";
 import { lumaTheme } from "./theme";
 import { caretRowHighlight } from "./caretRow";
 import { changeLane, overviewLane } from "./lanes";
+import { minimap } from "./minimap";
 import { foldingExtension } from "./folding";
 import { syntaxHighlightField } from "./syntaxHighlight";
 import { indentGuides } from "./indentGuides";
@@ -71,6 +72,7 @@ export const compartments = {
   caret: new Compartment(),
   prefs: new Compartment(),
   distractionFree: new Compartment(),
+  minimap: new Compartment(),
 };
 
 /** Editor-group settings of an `editor` settings object (validated, with defaults). */
@@ -206,6 +208,13 @@ export function wrapExtension(
   override?: boolean | null,
 ): Extension {
   return (override ?? softWrapActive(settings?.softWrap, prefsOf(settings), path)) ? EditorView.lineWrapping : [];
+}
+
+/** The minimap per settings; Distraction Free Mode shows the text alone. */
+export function minimapExtension(settings: EditorSettings | undefined): Extension {
+  const m = prefsOf(settings).minimap;
+  if (!m.enabled || isDistractionFree()) return [];
+  return minimap({ width: m.width, style: m.style === "blocks" ? "blocks" : "characters", showMarkers: m.showMarkers });
 }
 
 export function stickyExtension(settings: EditorSettings | undefined): Extension {
@@ -359,6 +368,7 @@ export function baseExtensions(o: SetupOptions): Extension {
     methodLinesField,
     findExtension(),
     overviewLane,
+    compartments.minimap.of(minimapExtension(o.settings)),
     codeLensExtension,
     EditorView.contentAttributes.of({
       spellcheck: "false",

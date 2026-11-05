@@ -30,6 +30,7 @@ export const CLIENT_SETTINGS_KEYS = [
   "editor.stickyScroll",
   "editor.appearance",
   "editor.breadcrumbs",
+  "editor.minimap",
   "editor.folding",
   "editor.tabs",
   "editor.codeEditing",

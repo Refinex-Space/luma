@@ -25,9 +25,7 @@
   line-height: 1.4;
 }
 .children {
-  display: flex;
-  flex-direction: column;
-  /* Child options start under their parent checkbox's label text. */
+  /* Laid out by Form's `optionGrid`. Child options start under their parent checkbox's label text. */
   padding-left: 24px;
 }
 .inline {

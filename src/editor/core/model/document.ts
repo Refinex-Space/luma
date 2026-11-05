@@ -56,6 +56,7 @@ import {
   prefsOf,
   readOnlyExtension,
   stickyExtension,
+  minimapExtension,
   wrapExtension,
   HEAVY_LIMIT,
 } from "../cm/setup";
@@ -458,6 +459,7 @@ export class DocModel {
       compartments.indent.reconfigure(indentExtension(indent, this.formatIndent())),
       compartments.wrap.reconfigure(wrapExtension(editor, this.path, this.softWrapOverride)),
       compartments.sticky.reconfigure(stickyExtension(editor)),
+      compartments.minimap.reconfigure(minimapExtension(editor)),
       compartments.font.reconfigure(fontExtension(editor)),
       compartments.comments.reconfigure(commentTokens(this.info, this.meta.language)),
       compartments.lineNumbers.reconfigure(lineNumbersExtension(editor)),

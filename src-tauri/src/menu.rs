@@ -364,6 +364,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
                     act("editor.toggleZen", "Enter Distraction Free Mode"),
                     act("window.toggleFullScreen", "Toggle Full Screen"),
                     act("view.toggleCompactMode", "Compact Mode"),
+                    act("view.toggleMinimap", "Minimap"),
                     SEP,
                     act("view.zoomIn", "Zoom In IDE"),
                     act("view.zoomOut", "Zoom Out IDE"),

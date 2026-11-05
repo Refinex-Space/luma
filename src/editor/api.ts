@@ -243,6 +243,12 @@ export const scrollbarMarks = Facet.define<readonly ScrollbarMark[], readonly Sc
 });
 
 /**
+ * Hides the minimap of an editor while any provider says so: views that read as a document
+ * rather than code (Markdown live preview) have their own way around.
+ */
+export const minimapHidden = Facet.define<boolean, boolean>({ combine: (values) => values.some(Boolean) });
+
+/**
  * The 3px change-marker lane right of the line numbers (VCS added / modified /
  * deleted bars, as in the design). Provide a `RangeSet<GutterMarker>` whose
  * markers start at line starts; `LaneMarker` draws the bar:
@@ -297,7 +303,8 @@ export function editorCorner(view: EditorView): HTMLElement {
   Object.assign(el.style, {
     position: "absolute",
     top: "4px",
-    right: "16px",
+    // Left of the minimap when there is one (cm/minimap.ts).
+    right: "calc(16px + var(--luma-minimap-space, 0px))",
     zIndex: "5",
     display: "flex",
     alignItems: "center",

@@ -180,6 +180,14 @@
   font-size: var(--fs-tiny);
   line-height: 14px;
 }
+.bundledTag {
+  padding: 0 4px;
+  border-radius: var(--radius-small);
+  background: var(--bg-control);
+  color: var(--fg-muted);
+  font-size: var(--fs-tiny);
+  line-height: 14px;
+}
 .listEmpty {
   padding: 8px 12px;
   color: var(--fg-muted);

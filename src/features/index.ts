@@ -28,6 +28,7 @@ import { activate as settings, activateSettingsWindow } from "./settings";
 import { activate as app, activateLocale as appLocale } from "./app";
 import { activate as perf } from "./perf";
 import { activate as plugins, activateSettingsPages as pluginsPages } from "./plugins";
+import { activate as minimap, activateSettingsPages as minimapPages } from "./minimap";
 import { activate as tools, activateSettingsPages as toolsPages } from "./tools";
 import { activate as scratch } from "./scratch";
 import { activate as libraries } from "./libraries";
@@ -72,6 +73,7 @@ const features: Array<[string, Activate]> = [
   ["settings", settings],
   ["perf", perf],
   ["plugins", plugins],
+  ["minimap", minimap],
   ["tools", tools],
   ["scratch", scratch],
   ["libraries", libraries],
@@ -117,6 +119,7 @@ export function activateSettingsWindowFeatures(parent: string): () => void {
     ["templates", templatesPages],
     ["todo", todoPages],
     ["plugins", pluginsPages],
+    ["minimap", minimapPages],
     ["tools", toolsPages],
     ["agents", agentsPages],
     ["vim", vimPages],

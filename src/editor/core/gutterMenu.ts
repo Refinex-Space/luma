@@ -32,6 +32,7 @@ function appearanceItems(): MenuItem[] {
     toggle("Show Whitespaces", "showWhitespace", whitespace),
     toggle("Show Method Separators", "appearance.methodSeparators", p.appearance.methodSeparators),
     toggle("Show Breadcrumbs", "breadcrumbs.show", p.breadcrumbs.show),
+    toggle("Show Minimap", "minimap.enabled", p.minimap.enabled),
   ];
 }
 

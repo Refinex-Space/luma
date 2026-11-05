@@ -6,7 +6,8 @@ import { EditorView } from "@codemirror/view";
 import type { PluginInfo } from "@/bindings";
 import { _setActiveEditor } from "@/editor/api";
 import { executeAction, getAction } from "@/platform/actions";
-import { provideNotificationService, type NotificationService } from "@/workbench/contributions";
+import { create } from "zustand";
+import { provideNotificationService, registerBundledPlugin, type NotificationService } from "@/workbench/contributions";
 import { applyThemeAttributes, useThemeOverride } from "@/workbench/theme";
 import { createMemoryPluginsBackend, sampleCatalog, setPluginsBackend, type PluginsBackend } from "../backend";
 import {
@@ -249,6 +250,42 @@ describe("PluginsPage", () => {
     await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(1));
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Toy Language");
     expect(screen.getByText(".toy")).toBeInTheDocument();
+  });
+
+  it("lists bundled plugins under Installed: no uninstall, turned off and on in place", async () => {
+    setPluginsBackend(createMemoryPluginsBackend([]));
+    const useOn = create(() => ({ on: true }));
+    const dispose = registerBundledPlugin({
+      id: "minimap",
+      name: "Minimap",
+      description: "A scaled-down view of the whole file.",
+      icon: "minimap",
+      features: ["Click to jump"],
+      settingsPage: "editor.general.minimap",
+      useEnabled: () => useOn((s) => s.on),
+      setEnabled: (on) => useOn.setState({ on }),
+    });
+    try {
+      const user = userEvent.setup();
+      render(<PluginsPage />);
+      const list = await screen.findByRole("list", { name: "Installed plugins" });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+      // Selected by default when nothing is downloaded.
+      expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Minimap");
+      expect(screen.getByText("Click to jump")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Configure…" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Uninstall…" })).toBeNull();
+
+      await user.click(within(list).getByRole("checkbox", { name: "Disable Minimap" }));
+      expect(useOn.getState().on).toBe(false);
+      await user.click(screen.getByRole("button", { name: "Enable" }));
+      expect(useOn.getState().on).toBe(true);
+
+      await user.type(screen.getByLabelText("Filter plugins"), "nothing like it");
+      await waitFor(() => expect(within(list).queryByText("Minimap")).toBeNull());
+    } finally {
+      dispose();
+    }
   });
 
   it("restarts a failed plugin instead of disabling it", async () => {

@@ -120,6 +120,25 @@ impl Default for BreadcrumbsSettings {
     }
 }
 
+/// Editor › General › Minimap: a scaled-down overview of the file beside the scrollbar.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MinimapSettings {
+    pub enabled: bool,
+    /// Width in px (48–240).
+    pub width: u32,
+    /// `characters`: glyph-like marks per character | `blocks`: one bar per token.
+    pub style: String,
+    /// Error, warning, VCS change and search result marks.
+    pub show_markers: bool,
+}
+
+impl Default for MinimapSettings {
+    fn default() -> Self {
+        Self { enabled: true, width: 110, style: "characters".into(), show_markers: true }
+    }
+}
+
 /// Editor › General › Code Completion.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default, rename_all = "camelCase")]

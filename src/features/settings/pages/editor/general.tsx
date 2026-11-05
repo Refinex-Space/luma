@@ -279,6 +279,38 @@ const APPEARANCE = editorPage({
   ],
 });
 
+const MINIMAP = editorPage({
+  id: "editor.general.minimap",
+  title: "Minimap",
+  // Right after Appearance.
+  order: 1.5,
+  keywords: ["code overview", "code map", "scroll map", "codeglance", "thumbnail"],
+  sections: [
+    {
+      items: [
+        {
+          t: "check",
+          key: `${P}.minimap.enabled`,
+          label: "Show minimap",
+          children: [
+            {
+              t: "radio",
+              key: `${P}.minimap.style`,
+              label: "Render as",
+              options: [
+                { value: "characters", label: "Characters" },
+                { value: "blocks", label: "Blocks" },
+              ],
+            },
+            { t: "number", key: `${P}.minimap.width`, label: "Width", min: 48, max: 240, unit: "px" },
+            { t: "check", key: `${P}.minimap.showMarkers`, label: "Show errors, changes and search results" },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
 const BREADCRUMBS = editorPage({
   id: "editor.general.breadcrumbs",
   title: "Breadcrumbs",
@@ -817,6 +849,7 @@ export const GENERAL_PAGES = [
   GENERAL,
   AUTO_IMPORT,
   APPEARANCE,
+  MINIMAP,
   BREADCRUMBS,
   COMPLETION,
   FOLDING,

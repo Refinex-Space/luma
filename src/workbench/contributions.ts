@@ -854,6 +854,40 @@ export function registerSettingsPage(page: SettingsPageContribution): () => void
     });
 }
 
+/**
+ * A capability that ships with Luma, listed in Settings › Plugins › Installed › Bundled like
+ * IDEA's bundled plugins: it can be turned off, never uninstalled, and needs no download.
+ */
+export interface BundledPluginContribution {
+  id: string;
+  name: string;
+  description: string;
+  /** Icon name from `ui/icons`. */
+  icon: string;
+  /** What it adds, one line each (shown in its details). */
+  features?: readonly string[];
+  /** The settings page that configures it (a Configure… button). */
+  settingsPage?: string;
+  /** React hook: whether it is on. */
+  useEnabled: () => boolean;
+  setEnabled: (on: boolean) => void | Promise<void>;
+}
+
+export const useBundledPlugins = create<{ plugins: Map<string, BundledPluginContribution> }>(() => ({
+  plugins: new Map(),
+}));
+
+export function registerBundledPlugin(plugin: BundledPluginContribution): () => void {
+  useBundledPlugins.setState((s) => ({ plugins: new Map(s.plugins).set(plugin.id, plugin) }));
+  return () =>
+    useBundledPlugins.setState((s) => {
+      if (s.plugins.get(plugin.id) !== plugin) return s;
+      const plugins = new Map(s.plugins);
+      plugins.delete(plugin.id);
+      return { plugins };
+    });
+}
+
 /** A searchable settings entry: a page, or an option label on it (Search Everywhere's "Settings: …" items). */
 export interface SettingsSearchEntry {
   pageId: string;
