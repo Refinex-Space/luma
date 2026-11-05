@@ -160,6 +160,7 @@
   "menu.file": "文件",
   "menu.fileProperties": "文件属性",
   "menu.newProjectsSetup": "新项目设置",
+  "menu.file.projectStructure": "项目结构…",
   "menu.file.newProjectsSettings": "新项目的设置…",
   "menu.file.toggleReadOnly": "将文件设为只读/可写",
   "menu.file.closeProject": "关闭项目",

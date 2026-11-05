@@ -224,6 +224,8 @@ pub fn spec(os: Os) -> Vec<Entry> {
         act("remote.disconnect", "Disconnect from Remote Host"),
         act("remote.reloadEnvironment", "Reload Environment"),
         SEP,
+        act("file.projectStructure", "Project Structure…"),
+        SEP,
         act("file.save", "Save All"),
         act("file.reloadAllFromDisk", "Reload All from Disk"),
         sub("fileProperties", "File Properties", vec![act("file.toggleReadOnly", "Make File Read-only / Writable")]),

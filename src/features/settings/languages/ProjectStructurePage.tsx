@@ -11,7 +11,7 @@
  * by Find in Files; "Exclude files" name patterns (`projectStructure.excludeFiles`)
  * are hidden from the tree and skipped by search and indexing.
  */
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { Button, Icon, IconButton, Input, Tree, folderIconName, type FolderKind, T } from "@/ui";
 import { call, commands, isTauri, type FileEntry } from "@/platform/ipc";
@@ -29,7 +29,7 @@ import {
 } from "@/platform/languageSettings";
 import { initProjectRoots, useDetectedRoots } from "@/platform/projectRoots";
 import { choosePath } from "./api";
-import { useProjectSetting } from "./components";
+import { tildify, useProjectSetting } from "./components";
 import styles from "./Sdk.module.css";
 import { tx } from "@/platform/i18n";
 
@@ -76,8 +76,8 @@ function useStructure(): [ProjectStructureValid, (next: ProjectStructureValid) =
   );
   const [excluded, setExcluded] = useProjectSetting<string[] | undefined>("projectStructure.excluded");
   const [unmarked, setUnmarked] = useProjectSetting<string[] | undefined>("projectStructure.unmarked");
-  const [contentRoots] = useProjectSetting<string[] | undefined>("projectStructure.contentRoots");
-  const [excludeFiles] = useProjectSetting<string | undefined>("projectStructure.excludeFiles");
+  const [contentRoots, setContentRoots] = useProjectSetting<string[] | undefined>("projectStructure.contentRoots");
+  const [excludeFiles, setExcludeFiles] = useProjectSetting<string | undefined>("projectStructure.excludeFiles");
   const ps = useMemo<ProjectStructureValid>(
     () => ({
       sourceRoots: sourceRoots ?? [],
@@ -103,20 +103,30 @@ function useStructure(): [ProjectStructureValid, (next: ProjectStructureValid) =
       };
       for (const k of PROJECT_STRUCTURE_KEYS)
         if (JSON.stringify(next[k]) !== JSON.stringify(ps[k])) setters[k](next[k]);
+      if (JSON.stringify(next.contentRoots) !== JSON.stringify(ps.contentRoots)) setContentRoots(next.contentRoots);
+      if (next.excludeFiles !== ps.excludeFiles) setExcludeFiles(next.excludeFiles);
     },
-    [ps, setSource, setTest, setResources, setTestResources, setExcluded, setUnmarked],
+    [
+      ps,
+      setSource,
+      setTest,
+      setResources,
+      setTestResources,
+      setExcluded,
+      setUnmarked,
+      setContentRoots,
+      setExcludeFiles,
+    ],
   );
   return [ps, set];
 }
 
 /** "+ Add Content Root" and the content roots, the project folder first (IDEA's module Sources tab). */
-function ContentRoots({ root }: { root: string }) {
-  const [roots, setRoots] = useProjectSetting<string[] | undefined>("projectStructure.contentRoots");
-  const list = roots ?? [];
+function ContentRoots({ root, list, onChange }: { root: string; list: string[]; onChange: (next: string[]) => void }) {
   const add = async () => {
     const picked = await choosePath({ directory: true, title: "Add Content Root", defaultPath: root });
     if (!picked || inside(root, picked) || list.includes(picked)) return;
-    setRoots([...list, picked]);
+    onChange([...list, picked]);
   };
   return (
     <div className={styles.rootGroup}>
@@ -138,7 +148,7 @@ function ContentRoots({ root }: { root: string }) {
             size="small"
             iconSize={12}
             title={tx`Remove content root ${r}`}
-            onClick={() => setRoots(list.filter((x) => x !== r))}
+            onClick={() => onChange(list.filter((x) => x !== r))}
           />
         </div>
       ))}
@@ -146,8 +156,7 @@ function ContentRoots({ root }: { root: string }) {
   );
 }
 
-function ExcludeFiles() {
-  const [value, setValue] = useProjectSetting<string | undefined>("projectStructure.excludeFiles");
+function ExcludeFiles({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const id = useId();
   return (
     <div className={styles.excludeFiles}>
@@ -157,9 +166,9 @@ function ExcludeFiles() {
       <Input
         id={id}
         className={styles.excludeInput}
-        value={value ?? ""}
+        value={value}
         placeholder="*.log;tmp*"
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
       />
       <div className={styles.excludeHint}>
         <T>Use ; to separate name patterns, * for any number of symbols, ? for one.</T>
@@ -168,15 +177,51 @@ function ExcludeFiles() {
   );
 }
 
-export function ProjectStructurePage() {
+/** Stable: the folder reads below re-run when the content roots change. */
+const NO_CONTENT_ROOTS: string[] = [];
+
+export interface SourcesEditorProps {
+  /** The folder the tree shows (absolute): the project folder, or a module's directory. */
+  base: string;
+  /** Its display name. */
+  name: string;
+  ps: ProjectStructureValid;
+  onChange: (next: ProjectStructureValid) => void;
+  /** Content roots and "Exclude files" (project-wide): shown for the project folder. */
+  projectLevel?: boolean;
+  /** Project-relative folders of nested modules: their roots are listed with their own module. */
+  nested?: readonly string[];
+  /** Fills its container's height (the Project Structure dialog) instead of a fixed height. */
+  fill?: boolean;
+  /** Rows above "Mark as" (the module's language level). */
+  top?: ReactNode;
+}
+
+/**
+ * IDEA's module "Sources" tab: the folder tree with "Mark as" and the marked folders of
+ * `base`. Controlled: Settings › Project Structure stages changes in the settings form,
+ * the Project Structure dialog in its own draft.
+ */
+export function SourcesEditor({
+  base,
+  name,
+  ps,
+  onChange: setPs,
+  projectLevel,
+  nested = [],
+  fill,
+  top,
+}: SourcesEditorProps) {
   const root = useProject((s) => s.project?.root ?? null);
-  const name = useProject((s) => s.project?.name ?? "");
-  const [ps, setPs] = useStructure();
   const detected = useDetectedRoots();
   const roots = useMemo(() => effectiveRoots(detected, ps), [detected, ps]);
   useEffect(() => initProjectRoots(), []);
   const [children, setChildren] = useState<Map<string, DirNode[]>>(new Map());
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(root ? [root] : []));
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([base]));
+  // Project-relative folder of `base` ("" for the project folder) and the roots it owns.
+  const baseRel = root && base !== root ? relativePath(root, base) : "";
+  const within = (rel: string, dir: string) => !dir || rel === dir || rel.startsWith(`${dir}/`);
+  const own = (rel: string) => within(rel, baseRel) && !nested.some((n) => n !== baseRel && within(rel, n));
   const [selected, setSelected] = useState<DirNode | null>(null);
 
   const load = useCallback(
@@ -188,13 +233,17 @@ export function ProjectStructurePage() {
     [root],
   );
 
-  const rootNode = useMemo<DirNode | null>(() => (root ? { path: root, name, rel: "" } : null), [root, name]);
+  const rootNode = useMemo<DirNode | null>(
+    () => (root ? { path: base, name, rel: base !== root ? relativePath(root, base) : "" } : null),
+    [root, base, name],
+  );
+  const contentRoots = projectLevel ? ps.contentRoots : NO_CONTENT_ROOTS;
   const treeRoots = useMemo<DirNode[]>(
     () =>
       rootNode
         ? [
             rootNode,
-            ...ps.contentRoots.map((p) => ({
+            ...contentRoots.map((p) => ({
               path: p,
               name: p.slice(p.lastIndexOf("/") + 1) || p,
               rel: null,
@@ -202,19 +251,19 @@ export function ProjectStructurePage() {
             })),
           ]
         : [],
-    [rootNode, ps.contentRoots],
+    [rootNode, contentRoots],
   );
   useEffect(() => {
     if (!root) return;
     let live = true;
-    for (const dir of [root, ...ps.contentRoots])
+    for (const dir of [base, ...contentRoots])
       void readDirs(root, dir)
         .then((dirs) => live && setChildren((m) => new Map(m).set(dir, dirs)))
         .catch(() => {});
     return () => {
       live = false;
     };
-  }, [root, ps.contentRoots]);
+  }, [root, base, contentRoots]);
 
   if (!rootNode)
     return (
@@ -229,37 +278,44 @@ export function ProjectStructurePage() {
     if (markable === null) return;
     setPs(markFolder(ps, markable, role === r ? null : r, detected));
   };
-  const unmarkedDetected = unmarkedRoots(detected, ps);
+  const unmarkedDetected = unmarkedRoots(detected, ps).filter((r) => own(r.path));
   const restore = () => setPs(restoreDetected(ps, detected));
 
+  const groups = ROLES.map((r) => ({ ...r, list: roots.filter((x) => x.kind === r.role && own(x.path)) })).filter(
+    (g) => g.list.length > 0,
+  );
+  const relToBase = (path: string) =>
+    (baseRel && path.startsWith(`${baseRel}/`) ? path.slice(baseRel.length + 1) : path) || ".";
+
   return (
-    <div className={styles.page}>
+    <div className={clsx(styles.sourcesEditor, fill && styles.sourcesFill)}>
+      {top}
+      <div className={styles.markBar} role="toolbar" aria-label={tx("Mark as")}>
+        <span className={styles.markLabel}>
+          <T>Mark as:</T>
+        </span>
+        {ROLES.map((r) => (
+          <button
+            key={r.role}
+            type="button"
+            className={styles.markButton}
+            aria-pressed={role === r.role}
+            disabled={markable === null || (!markable && r.role === "excluded")}
+            onClick={() => mark(r.role)}
+          >
+            <Icon name={folderIconName(r.kind)} size={14} />
+            {tx(r.label)}
+          </button>
+        ))}
+      </div>
       <div className={styles.structure}>
         <div className={styles.structureTree}>
-          <div className={styles.markBar} role="toolbar" aria-label={tx("Mark as")}>
-            <span>
-              <T>Mark as:</T>
-            </span>
-            {ROLES.map((r) => (
-              <button
-                key={r.role}
-                type="button"
-                className={styles.markButton}
-                aria-pressed={role === r.role}
-                disabled={markable === null || (!markable && r.role === "excluded")}
-                onClick={() => mark(r.role)}
-              >
-                <Icon name={folderIconName(r.kind)} size={14} />
-                {r.label}
-              </button>
-            ))}
-          </div>
           <div className={styles.treeScroll}>
             <Tree<DirNode>
               aria-label="Content root"
               roots={treeRoots}
               getKey={(n) => n.path}
-              getLabel={(n) => n.name}
+              getLabel={(n) => (n.rel === null || n.path === base ? tildify(n.path) : n.name)}
               getChildren={(n) => children.get(n.path)}
               isExpandable={() => true}
               loadChildren={load}
@@ -271,52 +327,57 @@ export function ProjectStructurePage() {
               getIcon={(n) => {
                 if (n.rel === null) return n.contentRoot ? "module" : folderIconName("plain");
                 const r = rootRole(roots, n.rel);
-                if (!n.rel && !r) return "module";
+                if (n.path === base && !r) return folderIconName("plain");
                 return folderIconName(r ? ROLES.find((x) => x.role === r)!.kind : "plain");
               }}
-              getDetail={(n) => (n.rel === "" ? (root ?? undefined) : n.contentRoot ? n.path : undefined)}
             />
           </div>
-          <ExcludeFiles />
+          {projectLevel && <ExcludeFiles value={ps.excludeFiles} onChange={(v) => setPs({ ...ps, excludeFiles: v })} />}
         </div>
         <div className={styles.roots} aria-label={tx("Marked folders")}>
-          <ContentRoots root={rootNode.path} />
-          {ROLES.map((r) => {
-            const list = roots.filter((x) => x.kind === r.role);
-            return (
-              <div key={r.role} className={styles.rootGroup}>
-                <div className={clsx(styles.rootTitle, r.cls)}>
-                  <Icon name={folderIconName(r.kind)} size={14} />
-                  {r.title}
-                </div>
-                {list.length === 0 && (
-                  <div className={clsx(styles.rootItem, styles.note)}>
-                    <T>None</T>
+          {projectLevel ? (
+            <ContentRoots
+              root={rootNode.path}
+              list={ps.contentRoots}
+              onChange={(next) => setPs({ ...ps, contentRoots: next })}
+            />
+          ) : (
+            <div className={clsx(styles.rootItem, styles.contentRoot)}>
+              <span className={styles.rootPath} title={base}>
+                {shortPath(base)}
+              </span>
+            </div>
+          )}
+          {groups.map((g) => (
+            <div key={g.role} className={clsx(styles.rootGroup, g.cls)}>
+              <div className={styles.rootTitle}>{tx(g.title)}</div>
+              {g.list.map((x) => {
+                const shown = relToBase(x.path);
+                return (
+                  <div
+                    key={x.path}
+                    className={styles.rootItem}
+                    title={x.detectedFrom ? tx`detected from ${x.detectedFrom}` : undefined}
+                  >
+                    <span className={styles.rootPath}>{shown}</span>
+                    <span className={styles.rootLeader} aria-hidden />
+                    <IconButton
+                      icon="close"
+                      size="small"
+                      iconSize={12}
+                      title={tx`Unmark ${shown}`}
+                      onClick={() => setPs(markFolder(ps, x.path, null, detected))}
+                    />
                   </div>
-                )}
-                {list.map((x) => {
-                  const shown = x.path || name || ".";
-                  return (
-                    <div key={x.path} className={styles.rootItem}>
-                      <span className={styles.rootPath} title={x.path || root || undefined}>
-                        {shown}
-                        {x.detectedFrom && (
-                          <span className={styles.rootHint}> {tx`detected from ${x.detectedFrom}`}</span>
-                        )}
-                      </span>
-                      <IconButton
-                        icon="close"
-                        size="small"
-                        iconSize={12}
-                        title={tx`Unmark ${shown}`}
-                        onClick={() => setPs(markFolder(ps, x.path, null, detected))}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
+          {groups.length === 0 && (
+            <div className={styles.note}>
+              <T>No marked folders</T>
+            </div>
+          )}
           {unmarkedDetected.length > 0 && (
             <div className={styles.note}>
               {unmarkedDetected.length === 1
@@ -327,15 +388,29 @@ export function ProjectStructurePage() {
               </button>
             </div>
           )}
-          <div className={styles.note}>
-            <T>
-              {
-                "Folders are detected from build files (pom.xml, build.gradle, Cargo.toml, go.mod, pyproject.toml, package.json); marking or unmarking a folder overrides detection. Excluded folders are skipped by the Project view, Find in Files and the index (reopen the project to re-index)."
-              }
-            </T>
-          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/** `/Users/…/project/module`: the start and the last two folders of a long path. */
+function shortPath(path: string): string {
+  const p = tildify(path);
+  if (p.length <= 36) return p;
+  const parts = p.split("/");
+  return parts.length > 4 ? `${parts.slice(0, 2).join("/")}/…/${parts.slice(-2).join("/")}` : p;
+}
+
+export function ProjectStructurePage() {
+  const root = useProject((s) => s.project?.root ?? null);
+  const name = useProject((s) => s.project?.name ?? "");
+  const [ps, setPs] = useStructure();
+  if (!root)
+    return (
+      <div className={styles.note}>
+        <T>Open a project to configure its folders.</T>
+      </div>
+    );
+  return <SourcesEditor base={root} name={name} ps={ps} onChange={setPs} projectLevel />;
 }

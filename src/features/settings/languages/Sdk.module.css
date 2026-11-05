@@ -199,29 +199,53 @@
 }
 
 /* Project Structure */
-.structure {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 10px;
+/* IDEA's Sources tab: "Mark as" over the folder tree | the marked folders. */
+.sourcesEditor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+.sourcesEditor .structure {
   min-height: 420px;
+}
+.sourcesFill {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.sourcesFill .structure {
+  min-height: 0;
+}
+.structure {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
+  border-top: 1px solid var(--border);
 }
 .structureTree {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-radius: var(--radius-small);
-  box-shadow: inset 0 0 0 1px var(--border);
+  min-width: 0;
   overflow: hidden;
 }
 .markBar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-height: 30px;
-  padding: 0 6px;
-  border-bottom: 1px solid var(--border);
+  gap: 2px;
+  min-height: 32px;
+  padding: 0 10px;
+  overflow: hidden;
   color: var(--fg-secondary);
+}
+.markLabel {
+  flex: none;
+  margin-right: 6px;
+  white-space: nowrap;
 }
 .markButton {
   display: inline-flex;
@@ -267,8 +291,11 @@
 .roots {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-height: 0;
+  padding: 8px 6px 12px 12px;
   overflow: auto;
+  border-left: 1px solid var(--border);
 }
 .rootGroup {
   display: flex;
@@ -281,20 +308,33 @@
   gap: 6px;
   font-weight: 600;
 }
-.rootTitle.sourceTitle {
-  color: var(--syn-keyword);
+/* Each kind in IDEA's colour (its *RootEditHandler.getRootsGroupColor), title and folders alike. */
+.sourceTitle {
+  color: #0a50a1;
 }
-.rootTitle.testTitle {
-  color: var(--success);
+.testTitle {
+  color: #008c2e;
 }
-.rootTitle.resourcesTitle {
-  color: var(--syn-string);
+.resourcesTitle {
+  color: #812df3;
 }
-.rootTitle.testResourcesTitle {
-  color: var(--success);
+.testResourcesTitle {
+  color: #739503;
 }
-.rootTitle.excludedTitle {
-  color: var(--warning);
+.excludedTitle {
+  color: #992e00;
+}
+:global([data-theme="dark"]) .sourceTitle {
+  color: #589df6;
+}
+:global([data-theme="dark"]) .testTitle {
+  color: #498c65;
+}
+:global([data-theme="dark"]) .resourcesTitle {
+  color: #7f6090;
+}
+:global([data-theme="dark"]) .excludedTitle {
+  color: #ff6464;
 }
 .rootHint {
   color: var(--fg-subtle);
@@ -315,17 +355,25 @@
 .rootItem {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-left: 20px;
+  gap: 2px;
+  padding-left: 12px;
   min-height: 22px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-small);
 }
 .rootPath {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The dotted leader from a folder to its remove button. */
+.rootLeader {
+  flex: 1;
+  min-width: 8px;
+  align-self: center;
+  margin: 4px 2px 0;
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.35;
 }
 .note {
   color: var(--fg-subtle);
@@ -351,6 +399,7 @@
 .contentRoot {
   padding-left: 0;
   font-weight: 600;
+  color: var(--fg-strong);
 }
 .excludeFiles {
   display: grid;
@@ -358,8 +407,7 @@
   align-items: center;
   column-gap: 8px;
   row-gap: 2px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--border);
+  padding: 8px 10px;
 }
 .excludeInput {
   width: 100%;

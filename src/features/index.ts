@@ -29,6 +29,7 @@ import { activate as app, activateLocale as appLocale } from "./app";
 import { activate as perf } from "./perf";
 import { activate as plugins, activateSettingsPages as pluginsPages } from "./plugins";
 import { activate as minimap, activateSettingsPages as minimapPages } from "./minimap";
+import { activate as projectStructure } from "./project-structure";
 import { activate as tools, activateSettingsPages as toolsPages } from "./tools";
 import { activate as scratch } from "./scratch";
 import { activate as libraries } from "./libraries";
@@ -74,6 +75,7 @@ const features: Array<[string, Activate]> = [
   ["perf", perf],
   ["plugins", plugins],
   ["minimap", minimap],
+  ["project-structure", projectStructure],
   ["tools", tools],
   ["scratch", scratch],
   ["libraries", libraries],

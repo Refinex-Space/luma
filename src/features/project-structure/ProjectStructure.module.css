@@ -1,0 +1,409 @@
+/* IDEA's Project Structure: grouped sidebar, master-detail pages, one flat dialog surface. */
+.dialog {
+  height: min(680px, calc(100vh - 48px));
+  background: var(--bg-dialog, var(--bg-elev));
+}
+.layout {
+  height: 100%;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ---- sidebar */
+.sidebar {
+  flex: none;
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  padding-bottom: 8px;
+  overflow: auto;
+}
+.history {
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  align-items: center;
+  padding: 0 10px;
+  flex: none;
+}
+.navGroup {
+  padding: 8px 12px 4px;
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.navItem {
+  display: flex;
+  width: 100%;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: var(--h-list-row, 26px);
+  padding: 0 12px 0 28px;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+.navItem:hover {
+  background: var(--bg-tree-hover);
+}
+.navItem[aria-current="page"] {
+  background: var(--bg-tree-selected);
+}
+/* Like the Settings sidebar: the selection is the focus indication, no ring. */
+.navItem:focus,
+.navItem:focus-visible {
+  outline: none;
+}
+.navLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navRule {
+  height: 1px;
+  margin: 8px 12px;
+  background: var(--border);
+}
+.count {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: var(--fg-on-accent, #fff);
+  font-size: var(--fs-tiny);
+  line-height: 16px;
+  text-align: center;
+}
+.countWarning {
+  background: var(--warning);
+}
+
+/* ---- page */
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pageHead {
+  flex: none;
+  padding: 12px 20px 10px;
+}
+.pageTitle {
+  margin: 0;
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.pageNote {
+  margin: 2px 0 0;
+  color: var(--fg-subtle);
+}
+.pageBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 20px 16px;
+}
+.pageBody.flush {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ---- master-detail */
+.master {
+  flex: none;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+.masterBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+.masterSearch {
+  flex: 1;
+  min-width: 0;
+}
+.masterList {
+  flex: 1;
+  min-height: 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding-right: 8px;
+}
+.rowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowDetail {
+  flex: none;
+  color: var(--fg-subtle);
+}
+.rowDim {
+  color: var(--fg-subtle);
+}
+.section {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  padding: 0 8px 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-subtle);
+  font-size: var(--fs-small);
+}
+.paths {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.detailHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 8px;
+}
+.detailTitle {
+  flex: none;
+  max-width: 60%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.detailSub {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.detailActions {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.tabs {
+  flex: none;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.detailBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 16px;
+}
+.detailBody.fill {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--fg-subtle);
+  text-align: center;
+}
+
+/* ---- module detail (IDEA: Name, then the tabs) */
+.moduleHead {
+  flex: none;
+  padding: 10px 16px 4px;
+}
+.moduleHead > div {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.wideField {
+  width: 100%;
+}
+.inlineRow {
+  flex: none;
+  padding: 6px 10px 2px;
+}
+.inlineRow > div {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+/* ---- facts (label: value) */
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+.facts dt {
+  color: var(--fg-muted);
+}
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+}
+.muted {
+  color: var(--fg-subtle);
+}
+
+/* ---- tables (dependencies, problems) */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.table th {
+  height: var(--h-list-row, 26px);
+  padding: 0 8px;
+  text-align: left;
+  font-weight: normal;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-dialog, var(--bg-elev));
+}
+.table td {
+  height: var(--h-list-row, 26px);
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table tbody tr:hover {
+  background: var(--bg-tree-hover);
+}
+.scopeCol {
+  width: 112px;
+}
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cell > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.twisty {
+  flex: none;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg-muted);
+}
+.tableScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- project page */
+.field {
+  width: 360px;
+  max-width: 100%;
+}
+.sdkLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.value {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-field, 28px);
+  gap: 6px;
+}
+
+/* ---- problems */
+.problems {
+  display: flex;
+  flex-direction: column;
+}
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.problemText {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.problemFixes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
+.footerError {
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -160,6 +160,7 @@
   "menu.file": "File",
   "menu.fileProperties": "File Properties",
   "menu.newProjectsSetup": "New Projects Setup",
+  "menu.file.projectStructure": "Project Structure…",
   "menu.file.newProjectsSettings": "Settings for New Projects…",
   "menu.file.toggleReadOnly": "Make File Read-only / Writable",
   "menu.file.closeProject": "Close Project",
