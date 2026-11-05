@@ -173,6 +173,8 @@ export const EDITOR_EXTRA_DEFAULTS = {
     disabledLanguages: [] as string[],
     codeVisionUsages: true,
     codeVisionAuthor: true,
+    /** The AI actions menu above methods and functions. */
+    codeVisionAi: true,
   },
   inlineCompletion: { enabled: true, onlyOnPause: false, pauseMs: 500, disabledLanguages: [] as string[] },
   gutterIconsDisabled: [] as string[],

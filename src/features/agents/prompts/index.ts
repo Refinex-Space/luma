@@ -2,11 +2,12 @@
  * The Prompt Library's contributions: its settings page, the editor's AI Actions (documentation,
  * unit tests, find problems, a chat on the selection) and keeping windows in step.
  */
-import { registerActions } from "@/platform/actions";
+import { executeAction, registerActions } from "@/platform/actions";
 import { isVirtualUri } from "@/platform/virtualDocs";
 import { lazyComponent } from "@/ui";
 import { registerMenuGroup, registerSettingsPage } from "@/workbench/contributions";
-import { codeAction, newChatWithSelection, PROMPTS_PAGE } from "./generate";
+import { codeAction, newChatWithSelection, PROMPTS_PAGE, type CodeActionKind } from "./generate";
+import { registerDeclarationActions, type DeclarationAction, type DeclarationRef } from "@/editor/api";
 import { syncPromptLibrary } from "./store";
 
 export { PROMPTS_PAGE } from "./generate";
@@ -22,10 +23,59 @@ export const registerPromptsPage = () =>
     component: lazyComponent(() => import("./PromptLibraryPage").then((m) => m.PromptLibraryPage)),
   });
 
+/** The AI actions above methods and functions (code vision): the same prompts, on the declaration. */
+function declarationAiActions(d: DeclarationRef): DeclarationAction[] {
+  const target = { path: d.path, rel: d.rel, lines: d.lines, code: d.code, name: d.name, kind: d.kind };
+  const act = (id: string, label: string, icon: string, action: CodeActionKind): DeclarationAction => ({
+    id,
+    label,
+    icon,
+    run: () => codeAction(action, target),
+  });
+  return [
+    act("ai.explainCode", "Explain Code", "info", "explain"),
+    act("ai.generateUnitTests", "Generate Unit Tests", "run", "unitTests"),
+    act("ai.writeDocumentation", "Write Documentation", "edit", "documentation"),
+    act("ai.optimizeCode", "Optimize Code", "bulb", "optimize"),
+    {
+      id: "ai.promptLibrary",
+      label: "Customize Prompts…",
+      icon: "settings",
+      group: true,
+      // Opens on Explain Code: the Code Actions group, near Write Documentation and Generate Unit Tests.
+      run: () => void executeAction("file.settings", `${PROMPTS_PAGE}#chat.explain-code`),
+    },
+  ];
+}
+
 export function activatePrompts(): () => void {
   const disposers = [
     syncPromptLibrary(),
+    registerDeclarationActions(declarationAiActions),
     registerActions([
+      {
+        id: "ai.explainCode",
+        title: "Explain Code",
+        description: "Asks an agent to explain the selected code (Prompt Library › Explain Code).",
+        category: "AI",
+        icon: "info",
+        // The editor, or its context menu open over it.
+        when: "editorTextFocus || textEditorActive && popupOpen",
+        keywords: ["ai", "agent", "explain", "understand", "what does"],
+        run: () => void codeAction("explain"),
+      },
+      {
+        id: "ai.optimizeCode",
+        title: "Optimize Code",
+        description:
+          "Asks an agent to improve the selected code without changing what it does (Prompt Library › Optimize Code).",
+        category: "AI",
+        icon: "bulb",
+        // The editor, or its context menu open over it.
+        when: "editorTextFocus || textEditorActive && popupOpen",
+        keywords: ["ai", "agent", "optimize", "refactor", "improve", "simplify"],
+        run: () => void codeAction("optimize"),
+      },
       {
         id: "ai.writeDocumentation",
         title: "Write Documentation",
@@ -99,9 +149,11 @@ export function activatePrompts(): () => void {
                 submenu: [
                   { kind: "action", action: "ai.newChatWithSelection" },
                   { kind: "separator" },
-                  { kind: "action", action: "ai.findProblems" },
-                  { kind: "action", action: "ai.writeDocumentation" },
+                  { kind: "action", action: "ai.explainCode" },
                   { kind: "action", action: "ai.generateUnitTests" },
+                  { kind: "action", action: "ai.writeDocumentation" },
+                  { kind: "action", action: "ai.optimizeCode" },
+                  { kind: "action", action: "ai.findProblems" },
                   { kind: "separator" },
                   { kind: "action", action: "ai.promptLibrary" },
                 ],

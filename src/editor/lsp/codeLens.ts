@@ -1,5 +1,6 @@
 /**
- * "N usages" code lenses above declarations (IDEA's usages inlay). Cheap by
+ * "N usages" code lenses above declarations (IDEA's usages inlay), and before them
+ * the AI actions menu of methods and functions (`registerDeclarationActions`). Cheap by
  * construction: only declarations in (and near) the viewport are counted, one
  * debounced pass after edits / scrolling, results cached per document text
  * and symbol, and at most a few reference requests in flight. Beside each
@@ -7,7 +8,15 @@
  */
 import { EditorSelection, MapMode, StateEffect, StateField, type Extension, type Text } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import { codeLenses, type CodeLens } from "@/editor/api";
+import {
+  codeLenses,
+  declarationActions,
+  hasDeclarationActions,
+  type CodeLens,
+  type DeclarationRef,
+} from "@/editor/api";
+import { declarationStart } from "@/editor/core/cm/codeLens";
+import { showContextMenu, useContextMenuStore, type MenuItem } from "@/ui";
 import { executeAction } from "@/platform/actions";
 import { commands, nextRequestId, type OutlineItem, type RequestId, type SymbolKind } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
@@ -31,6 +40,9 @@ const LENS_KINDS = new Set<SymbolKind>([
   "macro",
 ]);
 
+/** Declarations with the AI actions menu. */
+const AI_KINDS = new Set<SymbolKind>(["function", "method", "constructor"]);
+
 const MAX_PER_PASS = 40;
 const CONCURRENCY = 4;
 /** Lines above/below the viewport that are counted too, so scrolling feels instant. */
@@ -39,6 +51,7 @@ const usagesBackoff = featureBackoff();
 
 export interface LensTarget {
   name: string;
+  kind: SymbolKind;
   /** 0-based line / UTF-16 col of the identifier. */
   line: number;
   col: number;
@@ -58,6 +71,7 @@ export function lensTargets(items: readonly OutlineItem[]): LensTarget[] {
       if (LENS_KINDS.has(it.kind) && !anonymous(it.name))
         out.push({
           name: it.name,
+          kind: it.kind,
           line: it.selection_range.start.line,
           col: it.selection_range.start.col,
           startLine: it.range.start.line,
@@ -98,6 +112,60 @@ const lensField = StateField.define<CodeLens[]>({
 
 const usagesEnabled = () => editorPrefs().inlay.codeVisionUsages;
 const authorEnabled = () => editorPrefs().inlay.codeVisionAuthor;
+const aiEnabled = () => editorPrefs().inlay.codeVisionAi && hasDeclarationActions();
+
+const relative = (path: string) => {
+  const root = useProject.getState().project?.root;
+  return root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+};
+
+/**
+ * Declaration `t` of `text`, `shift` lines further down (edits above it since the outline):
+ * its whole lines, with the doc comment and annotations above it.
+ */
+export function declarationRef(path: string, text: Text, t: LensTarget, shift = 0): DeclarationRef | null {
+  const first = Math.min(t.startLine, t.line) + 1 + shift;
+  const last = Math.max(t.endLine, t.line) + 1 + shift;
+  if (first < 1 || last > text.lines || first > last) return null;
+  return {
+    path,
+    rel: relative(path),
+    name: t.name,
+    kind: t.kind,
+    lines: { from: first, to: last },
+    code: text.sliceString(text.line(first).from, text.line(last).to),
+  };
+}
+
+/** The AI actions menu of a declaration, below its lens. */
+function openAiMenu(view: EditorView, event: MouseEvent, path: string, t: LensTarget, widgetLine: number) {
+  const button = (event.target as Element | null)?.closest("button");
+  if (!button) return;
+  // Lines moved since the outline: the lens row sits where the declaration starts now.
+  const shift = view.state.doc.lineAt(view.posAtDOM(button)).number - widgetLine;
+  const ref = declarationRef(path, view.state.doc, t, shift);
+  if (!ref) return;
+  const items: MenuItem[] = [];
+  for (const a of declarationActions(ref)) {
+    if (a.group && items.length) items.push({ kind: "separator" });
+    items.push({
+      id: a.id,
+      label: a.label,
+      icon: a.icon,
+      run: () => void Promise.resolve(a.run()).catch(console.error),
+    });
+  }
+  if (!items.length) return;
+  const r = button.getBoundingClientRect();
+  button.setAttribute("aria-expanded", "true");
+  showContextMenu({ x: r.left, y: r.bottom + 2 }, items);
+  const shown = useContextMenuStore.getState().menu;
+  const off = useContextMenuStore.subscribe((s) => {
+    if (s.menu === shown) return;
+    off();
+    button.removeAttribute("aria-expanded");
+  });
+}
 
 function openUsages(view: EditorView, offset: number) {
   view.dispatch({ selection: EditorSelection.cursor(offset), userEvent: "select.lens" });
@@ -158,7 +226,8 @@ class UsagesLensPlugin {
     const gen = this.generation;
     const usages = usagesEnabled() && !usagesBackoff.active(doc.doc);
     const authors = authorEnabled() && !doc.virtual;
-    if (!usages && !authors) {
+    const ai = aiEnabled() && !doc.virtual;
+    if (!usages && !authors && !ai) {
       if (view.state.field(lensField).length) view.dispatch({ effects: setLenses.of([]) });
       return;
     }
@@ -216,6 +285,18 @@ class UsagesLensPlugin {
       const lenses: CodeLens[] = [];
       for (const t of visible) {
         const offset = posToOffset(text, { line: t.line, col: t.col });
+        if (ai && AI_KINDS.has(t.kind)) {
+          const widgetLine = text.lineAt(declarationStart(view.state, text.lineAt(offset).number)).number;
+          lenses.push({
+            pos: offset,
+            title: "",
+            icon: "ai",
+            menu: true,
+            tooltip: tx("AI Actions"),
+            order: 0,
+            run: (v, e) => openAiMenu(v, e, doc.path, t, widgetLine),
+          });
+        }
         const who = lines && authorSummary(lines, t.startLine, t.endLine);
         if (who)
           lenses.push({ pos: offset, title: authorLabel(who), tooltip: authorTooltip(who), icon: "user", order: 20 });

@@ -48,11 +48,15 @@ const USES: Record<PromptUse, string> = {
   commitMessage: "Used by Generate Commit Message in the Commit tool window.",
   selfReview: "Used by AI Self-Review in the Commit tool window: it starts a conversation.",
   prSummary: "Used by Generate Description when creating a GitHub pull request.",
-  documentation: "Used by AI Actions › Write Documentation in the editor, for files in this language.",
-  unitTests: "Used by AI Actions › Generate Unit Tests in the editor, for files in this language.",
+  documentation:
+    "Used by Write Documentation (AI actions above a method, AI Actions in the editor), for files in this language.",
+  unitTests:
+    "Used by Generate Unit Tests (AI actions above a method, AI Actions in the editor), for files in this language.",
   findProblems: "Used by AI Actions › Find Problems in the editor, and as /find-problems in the agent chat.",
   newChat: "Used by AI Actions › New Chat Using Selection: the message the new chat starts with.",
   fixProblem: "Used by Fix with Agent on a problem in the editor (its hover card and ⌥↵).",
+  explainCode: "Used by Explain Code: the AI actions above a method, and AI Actions in the editor.",
+  optimizeCode: "Used by Optimize Code: the AI actions above a method, and AI Actions in the editor.",
   command: "Typed as its /command in the agent chat.",
 };
 

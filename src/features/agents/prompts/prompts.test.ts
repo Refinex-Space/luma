@@ -77,6 +77,8 @@ describe("the library", () => {
         .prompts.at(-1)!.id,
     ).toBe(added);
     expect(promptCommands(usePromptLibrary.getState()).map((c) => c.name)).toEqual([
+      "explain",
+      "optimize",
       "find-problems",
       "new-prompt-2",
       "new-prompt",

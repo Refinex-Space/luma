@@ -9,6 +9,10 @@ import { call, commands } from "@/platform/ipc";
 import { basename, relativePath, useProject } from "@/platform/project";
 import { fillTemplate, languageOf, type VariableValues } from "./library";
 import { promptById } from "./store";
+import { useI18n } from "@/platform/i18n";
+
+/** `$UI_LANGUAGE`: the interface language, named for an agent. */
+const UI_LANGUAGES: Record<string, string> = { en: "English", zh: "Simplified Chinese" };
 
 /** A diff past this many characters is cut (the agent can read the files itself). */
 const MAX_DIFF = 60_000;
@@ -26,6 +30,7 @@ export function localValues(): VariableValues {
     DATE: new Date().toISOString().slice(0, 10),
     PROJECT_NAME: project?.name,
     GIT_BRANCH_NAME: useVcs.getState().branch?.head ?? undefined,
+    UI_LANGUAGE: UI_LANGUAGES[useI18n.getState().locale] ?? "English",
   };
   const editor = activeEditor();
   if (editor) {

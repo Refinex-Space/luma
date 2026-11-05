@@ -28,12 +28,12 @@ export function groupLenses(
     }));
 }
 
-/** Attribute / annotation / decorator / doc comment lines that belong to the declaration below. */
-const PREFIX_LINE = /^\s*(#!?\[|@[\w.]|\/\/\/|\/\/!|\/\*\*|\*(?!\w)|\*\/)/;
+/** Attribute / annotation / decorator lines that open the declaration below. */
+const PREFIX_LINE = /^\s*(#!?\[|@[\w.])/;
 
 /**
- * Line start where a declaration's lens goes: above its attributes,
- * annotations and doc comments (`#[test]`, `@Test`, `/// docs`), like IDEA.
+ * Line start where a declaration's lens goes: right above the declaration, its attributes,
+ * annotations and decorators included (`#[test]`, `@Override`), below its doc comment.
  */
 export function declarationStart(state: EditorState, lineNumber: number): number {
   let n = lineNumber;
@@ -60,7 +60,26 @@ const ICONS: Record<string, string> = {
   run: "M4 3l9 5-9 5z",
   user: "M8 2a3 3 0 110 6 3 3 0 010-6zM2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5z",
   debug: "M8 2a3 3 0 013 3v1h1v2h-1v1h1v2h-1a3 3 0 01-6 0H4V9h1V8H4V6h1V5a3 3 0 013-3z",
+  // AI actions: a four-point sparkle with a small one beside it.
+  ai: "M6.5 1.5l1.3 3.7 3.7 1.3-3.7 1.3-1.3 3.7-1.3-3.7-3.7-1.3 3.7-1.3zM12.5 9l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z",
 };
+
+/** The chevron after a menu lens's icon. */
+const CHEVRON = "M4 6.5h8L8 10.5z";
+
+function svgIcon(d: string, size: number, className: string): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add(className);
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "currentColor");
+  svg.appendChild(path);
+  return svg;
+}
 
 class LensWidget extends WidgetType {
   constructor(
@@ -74,7 +93,9 @@ class LensWidget extends WidgetType {
     return (
       this.indent +
       "\u0000" +
-      this.lenses.map((l) => `${l.icon ?? ""}|${l.title}|${l.tooltip ?? ""}|${l.run ? 1 : 0}`).join("\u0001")
+      this.lenses
+        .map((l) => `${l.icon ?? ""}|${l.title}|${l.tooltip ?? ""}|${l.run ? 1 : 0}|${l.menu ? 1 : 0}`)
+        .join("\u0001")
     );
   }
 
@@ -109,21 +130,14 @@ class LensWidget extends WidgetType {
       }
       const el = document.createElement(lens.run ? "button" : "span");
       el.className = lens.run ? "cm-luma-lensItem cm-luma-lensAction" : "cm-luma-lensItem";
+      if (lens.menu) el.classList.add("cm-luma-lensMenu");
       if (lens.tooltip) el.title = lens.tooltip;
-      if (lens.icon && ICONS[lens.icon]) {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16");
-        svg.setAttribute("width", "10");
-        svg.setAttribute("height", "10");
-        svg.setAttribute("aria-hidden", "true");
-        svg.classList.add(`cm-luma-lensIcon-${lens.icon}`);
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", ICONS[lens.icon]!);
-        path.setAttribute("fill", "currentColor");
-        svg.appendChild(path);
-        el.appendChild(svg);
-      }
-      el.appendChild(document.createTextNode(lens.title));
+      if (!lens.title && lens.tooltip) el.setAttribute("aria-label", lens.tooltip);
+      if (lens.menu) el.setAttribute("aria-haspopup", "menu");
+      if (lens.icon && ICONS[lens.icon])
+        el.appendChild(svgIcon(ICONS[lens.icon]!, lens.menu ? 12 : 10, `cm-luma-lensIcon-${lens.icon}`));
+      if (lens.title) el.appendChild(document.createTextNode(lens.title));
+      if (lens.menu) el.appendChild(svgIcon(CHEVRON, 9, "cm-luma-lensChevron"));
       if (lens.run) {
         const button = el as HTMLButtonElement;
         button.type = "button";
@@ -188,6 +202,21 @@ const lensTheme = EditorView.theme({
   ".cm-luma-lensAction:hover": { color: "var(--accent)", textDecoration: "underline" },
   ".cm-luma-lensSep": { color: "var(--fg-faint)" },
   ".cm-luma-lensIcon-run": { color: "var(--success)" },
+  // The AI actions menu: an icon button, no underline; the chevron says it opens a menu.
+  ".cm-luma-lensMenu": {
+    gap: "1px",
+    height: "16px",
+    padding: "0 3px",
+    margin: "0 -3px",
+    borderRadius: "var(--radius-small, 4px)",
+  },
+  ".cm-luma-lensMenu:hover, .cm-luma-lensMenu[aria-expanded=true]": {
+    color: "var(--fg)",
+    background: "var(--bg-hover)",
+    textDecoration: "none",
+  },
+  ".cm-luma-lensIcon-ai": { color: "var(--accent)" },
+  ".cm-luma-lensChevron": { opacity: "0.7" },
 });
 
 /** Base extension (always installed): no cost until a provider contributes lenses. */

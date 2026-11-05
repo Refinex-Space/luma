@@ -5,7 +5,7 @@
  * selection).
  */
 import { create } from "zustand";
-import type { AgentProvider } from "@/bindings";
+import type { AgentPrompt, AgentProvider } from "@/bindings";
 import { executeAction } from "@/platform/actions";
 import { call, commands, nextRequestId, type RequestId } from "@/platform/ipc";
 import { tx } from "@/platform/i18n";
@@ -13,8 +13,9 @@ import { notifications } from "@/workbench/contributions";
 import { activeEditor } from "@/editor/api";
 import { REGISTRY_PAGE } from "../model";
 import { sendSelection } from "../references";
-import { openHome, startPromptTask, useAgents } from "../store";
-import { fillTemplate, type Prompt, type VariableValues } from "./library";
+import { openConversation, openHome, sendToConversation, startPromptTask, useAgents } from "../store";
+import { isVirtualUri } from "@/platform/virtualDocs";
+import { fillTemplate, languageOf, type Prompt, type VariableValues } from "./library";
 import { libraryGroups, promptById, usePromptLibrary, type GenerationChoice } from "./store";
 import { changeValues, commitValues, localValues } from "./values";
 
@@ -179,35 +180,116 @@ export async function selfReview(files: ReadonlyArray<{ kind: string; path: stri
   await startPromptTask({ text: fillTemplate(prompt.text, values).trim(), files: [], images: [] });
 }
 
-/** What the editor actions act on: the selection, else the whole file. */
-function codeValues(): VariableValues | null {
-  const values = localValues();
-  if (!values.FILE_PATH) {
-    notifications().notify({ level: "info", title: tx("Open a file first") });
-    return null;
+/** The AI code actions (Prompt Library prompts sent with a piece of code). */
+export type CodeActionKind = "explain" | "unitTests" | "documentation" | "optimize" | "findProblems";
+
+/** What a code action is about: a method from its code vision row, or the editor's selection. */
+export interface CodeTarget {
+  path: string;
+  rel: string;
+  /** 1-based lines, inclusive. */
+  lines: { from: number; to: number };
+  code: string;
+  /** The method or function, when the target is one. */
+  name?: string;
+  kind?: string;
+}
+
+/** The editor's selection (the lines it touches), else its whole file. */
+function editorTarget(): CodeTarget | null {
+  const editor = activeEditor();
+  if (!editor || isVirtualUri(editor.ctx.path)) return null;
+  const { state } = editor.view;
+  const sel = state.selection.main;
+  const path = editor.ctx.path;
+  const rel = localValues().FILE_PATH ?? path;
+  if (sel.empty) return { path, rel, lines: { from: 1, to: state.doc.lines }, code: state.doc.toString() };
+  // A selection ending at a line start does not include that line.
+  const end = sel.to > sel.from && state.doc.lineAt(sel.to).from === sel.to ? sel.to - 1 : sel.to;
+  return {
+    path,
+    rel,
+    lines: { from: state.doc.lineAt(sel.from).number, to: state.doc.lineAt(end).number },
+    code: state.sliceDoc(sel.from, sel.to),
+  };
+}
+
+/** The Prompt Library prompt of `action` for a file at `path` (documentation and tests: by its language). */
+export function codeActionPrompt(action: CodeActionKind, path: string): Prompt | undefined {
+  switch (action) {
+    case "explain":
+      return promptById("chat.explain-code");
+    case "optimize":
+      return promptById("chat.optimize-code");
+    case "findProblems":
+      return promptById("chat.find-problems");
+    case "documentation":
+      return promptForFile("docs", path);
+    case "unitTests":
+      return promptForFile("tests", path);
   }
-  if (!values.SELECTION) {
-    const editor = activeEditor();
-    if (editor) values.SELECTION = editor.view.state.doc.toString();
-  }
-  return values;
+}
+
+/** The Prompt Library's variables for `target`. */
+export function codeTargetValues(target: CodeTarget): VariableValues {
+  return {
+    ...localValues(),
+    FILE_PATH: target.rel,
+    FILE_NAME: target.path.slice(target.path.lastIndexOf("/") + 1),
+    LANGUAGE: languageOf(target.path),
+    SELECTION: target.code,
+  };
 }
 
 /**
- * Starts a conversation with a code action's prompt for the editor's selection: Write
- * Documentation, Generate Unit Tests (by the file's language) or Find Problems.
- *
- * @param action which one
+ * The message of `action` on `target`: the filled prompt, the file attached, and where the code
+ * is as context (the agent can read around it and edit it in place).
  */
-export async function codeAction(action: "documentation" | "unitTests" | "findProblems"): Promise<void> {
-  const values = codeValues();
-  if (!values) return;
-  const prompt =
-    action === "findProblems"
-      ? promptById("chat.find-problems")
-      : promptForFile(action === "documentation" ? "docs" : "tests", values.FILE_PATH);
-  if (!prompt) return;
-  await startPromptTask({ text: fillTemplate(prompt.text, values).trim(), files: [], images: [] });
+export function codeActionMessage(action: CodeActionKind, target: CodeTarget): AgentPrompt | null {
+  const prompt = codeActionPrompt(action, target.path);
+  if (!prompt) return null;
+  const { from, to } = target.lines;
+  const lines = from === to ? `line ${from}` : `lines ${from}-${to}`;
+  const what = target.name ? ` (the ${target.kind ?? "declaration"} \`${target.name}\`)` : "";
+  const file = target.path.slice(target.path.lastIndexOf("/") + 1);
+  return {
+    text: fillTemplate(prompt.text, codeTargetValues(target)).trim(),
+    files: [target.path],
+    images: [],
+    context: [
+      {
+        label: from === to ? `${file}:${from}` : `${file}:${from}-${to}`,
+        // For the agent, in English (as the composer's selection notes).
+        text: ["Context:", lines, "of", target.path].join(" ") + what,
+      },
+    ],
+  };
+}
+
+/**
+ * Sends a code action's prompt (Explain Code, Generate Unit Tests, Write Documentation, Optimize
+ * Code, Find Problems) for `target`, else the editor's selection: to the conversation the user
+ * has open (queued while the agent works), else to a new one.
+ */
+export async function codeAction(action: CodeActionKind, target?: CodeTarget): Promise<void> {
+  const t = target ?? editorTarget();
+  if (!t) {
+    notifications().notify({ level: "info", title: tx("Open a file first") });
+    return;
+  }
+  const message = codeActionMessage(action, t);
+  if (!message) return;
+  try {
+    const task = openConversation();
+    if (task) await sendToConversation(task, message);
+    else await startPromptTask(message);
+  } catch (e) {
+    notifications().notify({
+      level: "error",
+      title: tx("Couldn't send the code to the agent"),
+      body: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
 
 /** Opens a new chat on the editor's selection: it as a chip, the prompt as the message to finish. */

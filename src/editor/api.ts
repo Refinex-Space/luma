@@ -504,10 +504,13 @@ export async function revealRange(
  */
 export interface CodeLens {
   pos: number;
+  /** Empty for an icon-only lens. */
   title: string;
   tooltip?: string;
   /** Icon name from `ui/icons`. */
   icon?: string;
+  /** Opens a menu: a chevron follows the icon. */
+  menu?: boolean;
   /** Click handler; lenses without one render as plain text. */
   run?: (view: EditorView, event: MouseEvent) => void;
   /** Lower first within a line. Default 100. */
@@ -738,6 +741,57 @@ export function problemActions(problem: ProblemRef): ProblemAction[] {
       return p(problem);
     } catch (e) {
       console.error("problem action provider failed", e);
+      return [];
+    }
+  });
+}
+
+// --- declarations (code vision AI actions) ---------------------------------------
+
+/** A method or function in the editor, with what is needed to quote it. */
+export interface DeclarationRef {
+  /** Absolute file path. */
+  path: string;
+  /** Relative to the project (the path when outside it). */
+  rel: string;
+  name: string;
+  /** `method`, `function`, `constructor`. */
+  kind: string;
+  /** 1-based lines, inclusive: the declaration with its doc comment and annotations. */
+  lines: { from: number; to: number };
+  code: string;
+}
+
+/** An action on a declaration: in the AI menu of its code vision row. */
+export interface DeclarationAction {
+  id: string;
+  label: string;
+  icon?: string;
+  /** Starts a group (a separator before it). */
+  group?: boolean;
+  run: () => void | Promise<void>;
+}
+
+export type DeclarationActionProvider = (declaration: DeclarationRef) => DeclarationAction[];
+const declarationActionProviders = new Set<DeclarationActionProvider>();
+
+/** Contributes the AI actions of methods and functions (Explain Code, Generate Unit Tests…). */
+export function registerDeclarationActions(provider: DeclarationActionProvider): () => void {
+  declarationActionProviders.add(provider);
+  return () => {
+    declarationActionProviders.delete(provider);
+  };
+}
+
+/** Whether any feature offers declaration actions (no AI lens otherwise). */
+export const hasDeclarationActions = () => declarationActionProviders.size > 0;
+
+export function declarationActions(declaration: DeclarationRef): DeclarationAction[] {
+  return [...declarationActionProviders].flatMap((p) => {
+    try {
+      return p(declaration);
+    } catch (e) {
+      console.error("declaration action provider failed", e);
       return [];
     }
   });

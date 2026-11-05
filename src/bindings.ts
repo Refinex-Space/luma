@@ -3806,6 +3806,8 @@ export type InlayHintsSettings = {
 	codeVisionUsages?: boolean,
 	/**  Code vision: last author of a declaration (VCS blame) beside its usages. */
 	codeVisionAuthor?: boolean,
+	/**  Code vision: the AI actions menu of methods and functions (explain, tests, docs, optimize). */
+	codeVisionAi?: boolean,
 };
 
 export type InlayKind = "type" | "parameter" | "other";

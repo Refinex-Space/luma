@@ -5,13 +5,14 @@ import { declarationStart, groupLenses, indentColumns } from "./codeLens";
 const doc = (text: string) => EditorState.create({ doc: text });
 
 describe("code lens layout", () => {
-  it("places lenses above attributes, annotations and doc comments", () => {
+  it("places lenses right above the declaration and its annotations, below its doc comment", () => {
     const s = doc(
-      "mod a {\n    /// Docs\n    #[test]\n    #[ignore]\n    fn t() {}\n}\n@Test\nvoid x() {}\n/**\n * doc\n */\nfunction f() {}",
+      "mod a {\n    /// Docs\n    #[test]\n    #[ignore]\n    fn t() {}\n}\n@Test\nvoid x() {}\n/**\n * doc\n */\nfunction f() {}\n/** doc */\n@Override\npublic void g() {}",
     );
-    expect(s.doc.lineAt(declarationStart(s, 5)).number).toBe(2);
+    expect(s.doc.lineAt(declarationStart(s, 5)).number).toBe(3);
     expect(s.doc.lineAt(declarationStart(s, 8)).number).toBe(7);
-    expect(s.doc.lineAt(declarationStart(s, 12)).number).toBe(9);
+    expect(s.doc.lineAt(declarationStart(s, 12)).number).toBe(12);
+    expect(s.doc.lineAt(declarationStart(s, 15)).number).toBe(14);
     expect(s.doc.lineAt(declarationStart(s, 1)).number).toBe(1);
   });
 

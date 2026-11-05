@@ -839,6 +839,12 @@ const INLAY_HINTS = editorPage({
       items: [
         { t: "check", key: `${P}.inlay.codeVisionUsages`, label: "Usages" },
         { t: "check", key: `${P}.inlay.codeVisionAuthor`, label: "Code author" },
+        {
+          t: "check",
+          key: `${P}.inlay.codeVisionAi`,
+          label: "AI actions",
+          hint: "Explain, test, document or optimize a method with the agent.",
+        },
       ],
     },
     { title: "Languages", items: [{ t: "custom", label: "Show inlay hints for:", component: InlayLanguages }] },

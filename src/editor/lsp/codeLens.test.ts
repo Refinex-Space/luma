@@ -204,3 +204,58 @@ describe("background usage counts", () => {
     }
   });
 });
+
+describe("AI actions above methods", () => {
+  it("offers the contributed actions on methods and functions, with the declaration's lines and code", async () => {
+    const { registerDeclarationActions } = await import("@/editor/api");
+    const { codeLensExtension } = await import("@/editor/core/cm/codeLens");
+    const { useContextMenuStore } = await import("@/ui");
+    const seen: unknown[] = [];
+    const off = registerDeclarationActions((d) => {
+      seen.push(d);
+      return [
+        { id: "explain", label: "Explain Code", run: () => {} },
+        { id: "prompts", label: "Customize Prompts…", group: true, run: () => {} },
+      ];
+    });
+    useProject.setState({
+      project: { root: "/p", name: "p" },
+      settings: { editor: { inlay: { codeVisionUsages: false, codeVisionAuthor: false, codeVisionAi: true } } },
+    } as never);
+    const method = item("total", "method", 2);
+    method.range = { start: { line: 1, col: 0 }, end: { line: 4, col: 1 } };
+    ipc.docOutline.mockResolvedValue(ok([item("Cart", "class", 0, [method])]));
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "class Cart {\n  /// Sum.\n  fn total() {\n    1\n  }\n}",
+        extensions: [lspDoc.of(ctx), usagesLensExtension(), codeLensExtension],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+    await settle();
+    // Classes get no AI lens; the method's is an icon-only menu.
+    expect(view.state.facet(codeLenses).map((l) => [l.icon, l.menu, l.tooltip])).toEqual([["ai", true, "AI Actions"]]);
+    const button = view.dom.querySelector<HTMLButtonElement>(".cm-luma-lensMenu")!;
+    expect(button.getAttribute("aria-label")).toBe("AI Actions");
+    button.click();
+    expect(seen).toEqual([
+      {
+        path: "/p/a.rs",
+        rel: "a.rs",
+        name: "total",
+        kind: "method",
+        lines: { from: 2, to: 5 },
+        code: "  /// Sum.\n  fn total() {\n    1\n  }",
+      },
+    ]);
+    const menu = useContextMenuStore.getState().menu!;
+    expect(menu.items.map((i) => ("label" in i ? i.label : i.kind))).toEqual([
+      "Explain Code",
+      "separator",
+      "Customize Prompts…",
+    ]);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    off();
+  });
+});

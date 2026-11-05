@@ -34,6 +34,7 @@ export const VARIABLES: readonly PromptVariable[] = [
   { name: "RECENT_COMMITS", description: "The latest commit messages of the branch", example: "feat: add paging" },
   { name: "COMMITS", description: "The pull request's commits", example: "1a2b3c4 feat: add paging" },
   { name: "DATE", description: "Today's date (YYYY-MM-DD)", example: "2026-11-05" },
+  { name: "UI_LANGUAGE", description: "The language of Luma's interface", example: "Simplified Chinese" },
   { name: "PROBLEM", description: "The problem's message", example: 'Remove this unused "total" local variable.' },
   { name: "PROBLEM_ORIGIN", description: "What reported the problem, and its rule", example: "sonarqube java:S1481" },
   { name: "PROBLEM_LOCATION", description: "The problem's file and range", example: "src/App.java:42:9-42:14" },
@@ -54,6 +55,8 @@ export type PromptUse =
   | "findProblems"
   | "newChat"
   | "fixProblem"
+  | "explainCode"
+  | "optimizeCode"
   | "command";
 
 export interface Prompt {
@@ -91,6 +94,7 @@ const CODE_VARS = [
 /** What a custom prompt used as `/command` can use. */
 export const CHAT_VARS: readonly VariableName[] = [
   "USER_INPUT",
+  "UI_LANGUAGE",
   "SELECTION",
   "FILE_PATH",
   "FILE_NAME",
@@ -158,13 +162,13 @@ const PR_SUMMARY = lines(
 
 const docs = (language: string, style: string) =>
   lines(
-    `Write documentation comments for the ${language} code selected in \`$FILE_PATH\`, in ${style}.`,
+    `Write documentation comments for the ${language} code below, from \`$FILE_PATH\`, in ${style}.`,
     "",
     "Document what each declaration is for, its parameters, return value and the exceptions or errors it can raise, and anything a caller must know (side effects, threading, nullability). Do not restate what the code obviously says. Keep the language and the style of the comments already in the file.",
     "",
     "Edit the file in place: add or update the comments only, and do not change the code.",
     "",
-    "Selected code:",
+    "Code:",
     "```",
     "$SELECTION",
     "```",
@@ -172,20 +176,20 @@ const docs = (language: string, style: string) =>
 
 const tests = (language: string, frameworks: string) =>
   lines(
-    `Write unit tests for the ${language} code selected in \`$FILE_PATH\`.`,
+    `Write unit tests for the ${language} code below, from \`$FILE_PATH\`.`,
     "",
     `Use the test framework and assertion style this project already uses (${frameworks} when it has none yet), and put the tests where the project keeps its tests, following the naming of the existing ones.`,
     "",
     "Cover the normal behaviour, the edge cases (empty, null, limits) and the error paths, one behaviour per test with a name that says what it checks. Mock only what crosses a boundary (network, file system, clock). Run the tests and fix them until they pass; if the code under test has a bug, say so instead of testing around it.",
     "",
-    "Selected code:",
+    "Code:",
     "```",
     "$SELECTION",
     "```",
   );
 
 const FIND_PROBLEMS = lines(
-  "Find problems in the $LANGUAGE code selected in `$FILE_PATH`: bugs, unhandled edge cases, security issues, performance traps and misleading names. Read the code around it where you need to; do not change any files.",
+  "Find problems in the $LANGUAGE code below, from `$FILE_PATH`: bugs, unhandled edge cases, security issues, performance traps and misleading names. Read the code around it where you need to; do not change any files.",
   "",
   "List the problems most important first, each with the line, what goes wrong and a fix. Say so when the code looks right.",
   "",
@@ -195,6 +199,28 @@ const FIND_PROBLEMS = lines(
 );
 
 const NEW_CHAT = "Look at the code I selected in `$FILE_PATH`. ";
+
+const EXPLAIN_CODE = lines(
+  "Explain the $LANGUAGE code below, from `$FILE_PATH`, to a developer who is new to this project. Answer in $UI_LANGUAGE.",
+  "",
+  "Start with what it does and why it exists, in one or two sentences. Then walk through how it works: its inputs and outputs, the main steps and the decisions it makes, the state it reads or changes, and how it fits with the code around it (read its callers and the types it uses where that helps). End with anything surprising: edge cases, side effects, assumptions, error handling, performance or concurrency concerns. Refer to lines by number. Do not change any files.",
+  "",
+  "```",
+  "$SELECTION",
+  "```",
+);
+
+const OPTIMIZE_CODE = lines(
+  "Improve the $LANGUAGE code below, from `$FILE_PATH`, without changing what it does. Answer in $UI_LANGUAGE.",
+  "",
+  "Look for clearer structure and naming, simpler control flow, duplicated code, needless work or allocations, and better use of the language and of the libraries this project already uses. Keep its signature and its behaviour, including error handling and edge cases, and follow the project's conventions.",
+  "",
+  "Edit the file in place with focused changes, then run the relevant tests or checks and say what you verified. Explain each improvement in a sentence. If the code is already in good shape, say so and change nothing.",
+  "",
+  "```",
+  "$SELECTION",
+  "```",
+);
 
 const FIX_PROBLEM = lines(
   "Fix this $LANGUAGE problem reported at `$PROBLEM_LOCATION` ($PROBLEM_ORIGIN):",
@@ -229,6 +255,58 @@ export const BUILTIN_GROUPS: readonly PromptGroup[] = [
         builtin: true,
         use: "instructions",
         variables: ["PROJECT_NAME", "GIT_BRANCH_NAME", "DATE"],
+      },
+    ],
+  },
+  {
+    // The AI actions on code: above methods (code vision), AI Actions in the editor, problems.
+    // Their prompt ids keep the `chat.` prefix they shipped with (edits are stored by id).
+    id: "code",
+    name: "Code Actions",
+    builtin: true,
+    prompts: [
+      {
+        id: "chat.explain-code",
+        name: "Explain Code",
+        command: "explain",
+        text: EXPLAIN_CODE,
+        builtin: true,
+        use: "explainCode",
+        variables: [...CODE_VARS, "UI_LANGUAGE"],
+      },
+      {
+        id: "chat.optimize-code",
+        name: "Optimize Code",
+        command: "optimize",
+        text: OPTIMIZE_CODE,
+        builtin: true,
+        use: "optimizeCode",
+        variables: [...CODE_VARS, "UI_LANGUAGE"],
+      },
+      {
+        id: "chat.find-problems",
+        name: "Find Problems",
+        command: "find-problems",
+        text: FIND_PROBLEMS,
+        builtin: true,
+        use: "findProblems",
+        variables: CODE_VARS,
+      },
+      {
+        id: "chat.fix-problem",
+        name: "Fix Problem",
+        text: FIX_PROBLEM,
+        builtin: true,
+        use: "fixProblem",
+        variables: [
+          "PROBLEM",
+          "PROBLEM_ORIGIN",
+          "PROBLEM_LOCATION",
+          "PROBLEM_CODE",
+          "FILE_PATH",
+          "LANGUAGE",
+          "PROJECT_NAME",
+        ],
       },
     ],
   },
@@ -313,31 +391,6 @@ export const BUILTIN_GROUPS: readonly PromptGroup[] = [
     name: "Chat Actions",
     builtin: true,
     prompts: [
-      {
-        id: "chat.find-problems",
-        name: "Find Problems",
-        command: "find-problems",
-        text: FIND_PROBLEMS,
-        builtin: true,
-        use: "findProblems",
-        variables: CODE_VARS,
-      },
-      {
-        id: "chat.fix-problem",
-        name: "Fix Problem",
-        text: FIX_PROBLEM,
-        builtin: true,
-        use: "fixProblem",
-        variables: [
-          "PROBLEM",
-          "PROBLEM_ORIGIN",
-          "PROBLEM_LOCATION",
-          "PROBLEM_CODE",
-          "FILE_PATH",
-          "LANGUAGE",
-          "PROJECT_NAME",
-        ],
-      },
       {
         id: "chat.new-chat-with-selection",
         name: "New Chat Using Selection",

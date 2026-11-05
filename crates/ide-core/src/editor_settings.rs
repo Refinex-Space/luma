@@ -361,6 +361,8 @@ pub struct InlayHintsSettings {
     pub code_vision_usages: bool,
     /// Code vision: last author of a declaration (VCS blame) beside its usages.
     pub code_vision_author: bool,
+    /// Code vision: the AI actions menu of methods and functions (explain, tests, docs, optimize).
+    pub code_vision_ai: bool,
 }
 
 impl Default for InlayHintsSettings {
@@ -372,6 +374,7 @@ impl Default for InlayHintsSettings {
             disabled_languages: Vec::new(),
             code_vision_usages: true,
             code_vision_author: true,
+            code_vision_ai: true,
         }
     }
 }
