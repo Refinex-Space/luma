@@ -24,6 +24,7 @@ export const CLIENT_SETTINGS_KEYS = [
   "editor.customSchemes",
   "editor.semanticHighlighting",
   "editor.rainbowBrackets",
+  "editor.rainbow",
   "editor.softWrap",
   "editor.showWhitespace",
   "editor.inlayHints",

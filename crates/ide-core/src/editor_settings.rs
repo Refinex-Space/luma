@@ -139,6 +139,32 @@ impl Default for MinimapSettings {
     }
 }
 
+/// Rainbow Brackets (a bundled plugin): what is coloured by nesting depth, in the
+/// `Rainbow brackets › Level n` colours of the colour scheme. `EditorSettings::rainbow_brackets`
+/// turns it all on or off.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RainbowBracketsSettings {
+    /// `()`
+    pub round: bool,
+    /// `[]`
+    pub square: bool,
+    /// `{}`
+    pub curly: bool,
+    /// `<>` of type arguments and parameters (`List<Map<K, V>>`), never comparisons.
+    pub angle: bool,
+    /// HTML / XML / JSX tags by element depth.
+    pub tags: bool,
+    /// Indent guides in the colour of their nesting level.
+    pub indent_guides: bool,
+}
+
+impl Default for RainbowBracketsSettings {
+    fn default() -> Self {
+        Self { round: true, square: true, curly: true, angle: true, tags: true, indent_guides: true }
+    }
+}
+
 /// Editor › General › Code Completion.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default, rename_all = "camelCase")]

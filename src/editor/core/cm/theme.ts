@@ -228,6 +228,13 @@ export const lumaTheme = EditorView.theme({
     ]),
   ),
   ".cm-rainbow-bracket-unmatched, .cm-rainbow-bracket-unmatched *": { color: "var(--syn-invalid)" },
+  // Rainbow indent guides (cm/indentGuides.ts): the bracket colours, faded like plain guides.
+  ".cm-luma-guides-rainbow": Object.fromEntries(
+    Array.from({ length: BRACKET_COLORS }, (_, i) => [
+      `--luma-rainbow-guide-${i + 1}`,
+      `color-mix(in srgb, var(--syn-bracket-${i + 1}) var(--luma-rainbow-guide-strength, 38%), transparent)`,
+    ]),
+  ),
 
   // Whitespace rendering
   ".cm-highlightSpace": {

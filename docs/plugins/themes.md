@@ -240,7 +240,7 @@ from `type`, then map:
 | `--fg-whitespace` | `editorWhitespace.foreground` |
 | `--bg-text-search-result`, `--bg-text-search-result-current` | `editor.findMatchHighlightBackground`, `editor.findMatchBackground` |
 | `--bg-matched-brace` | `editorBracketMatch.background` |
-| `--syn-bracket-1` … `--syn-bracket-3` (Rainbow brackets) | `editorBracketHighlight.foreground1` … `foreground3` |
+| `--syn-bracket-1` … `--syn-bracket-5` (Rainbow brackets) | `editorBracketHighlight.foreground1` … `foreground5` |
 | `--bg-identifier-under-caret`, `-write` | `editor.wordHighlightBackground`, `editor.wordHighlightStrongBackground` |
 | `--wave-error`, `--wave-warning` | `editorError.foreground`, `editorWarning.foreground` |
 | `--gutter-modified`, `--gutter-added`, `--gutter-deleted` | `editorGutter.modifiedBackground`, `.addedBackground`, `.deletedBackground` |
@@ -295,7 +295,7 @@ a token.
 
 <!-- BEGIN GENERATED TOKEN REFERENCE: pnpm gen:theme-docs -->
 
-223 themeable tokens: 117 in the UI theme file, 106 in the editor colour scheme file.
+225 themeable tokens: 117 in the UI theme file, 108 in the editor colour scheme file.
 
 ### Surfaces (UI theme)
 
@@ -422,6 +422,8 @@ a token.
 | `--syn-bracket-1` | `#e8c25b` | `#0431fa` |
 | `--syn-bracket-2` | `#d78bd6` | `#319331` |
 | `--syn-bracket-3` | `#4ea7f0` | `#7b3814` |
+| `--syn-bracket-4` | `#5fc58f` | `#b31b9e` |
+| `--syn-bracket-5` | `#f0915e` | `#0b8193` |
 
 ### Editor (editor scheme)
 

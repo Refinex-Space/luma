@@ -134,6 +134,8 @@ html {
   --syn-bracket-1: #e8c25b;
   --syn-bracket-2: #d78bd6;
   --syn-bracket-3: #4ea7f0;
+  --syn-bracket-4: #5fc58f;
+  --syn-bracket-5: #f0915e;
 
   /* editor (scheme colours) */
   --fg-editor: #bcbec4;
@@ -524,6 +526,8 @@ html {
   --syn-bracket-1: #0431fa;
   --syn-bracket-2: #319331;
   --syn-bracket-3: #7b3814;
+  --syn-bracket-4: #b31b9e;
+  --syn-bracket-5: #0b8193;
 
   /* editor */
   --fg-editor: #080808;
@@ -778,6 +782,8 @@ html {
   --syn-bracket-1: #ffd700;
   --syn-bracket-2: #ee90ee;
   --syn-bracket-3: #87cefa;
+  --syn-bracket-4: #7cfc9b;
+  --syn-bracket-5: #ffa560;
 
   --fg-editor: #e3e4e8;
   --caret: #ffffff;
@@ -1115,6 +1121,8 @@ html {
   --syn-bracket-1: var(--palette-yellow);
   --syn-bracket-2: var(--palette-magenta);
   --syn-bracket-3: var(--palette-blue);
+  --syn-bracket-4: var(--palette-green);
+  --syn-bracket-5: var(--palette-orange);
   --ansi-black: var(--palette-ansi-black);
   --ansi-bright-black: var(--palette-ansi-bright-black);
   --ansi-red: var(--palette-ansi-red);

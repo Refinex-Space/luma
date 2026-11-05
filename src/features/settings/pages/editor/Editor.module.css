@@ -278,3 +278,61 @@
 .unit {
   color: var(--fg-subtle);
 }
+
+/* Rainbow Brackets preview: real (read-only) editors with the staged options. */
+.rainbowPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.rainbowSamples {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-editor);
+}
+.rainbowSample + .rainbowSample {
+  border-top: 1px solid var(--border);
+}
+.rainbowSample :global(.cm-editor) {
+  background: var(--bg-editor);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+}
+.rainbowSample :global(.cm-scroller) {
+  padding: 8px 0;
+  line-height: 1.6;
+}
+.rainbowSample :global(.cm-content) {
+  padding: 0;
+}
+.rainbowSample :global(.cm-line) {
+  padding: 0 12px;
+}
+.rainbowColors {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+.rainbowColors:hover {
+  text-decoration: underline;
+}
+.rainbowSwatches {
+  display: inline-flex;
+  gap: 2px;
+}
+.rainbowSwatches > span {
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+}

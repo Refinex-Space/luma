@@ -376,6 +376,7 @@
   "menu.navigate.prevBookmark": "Previous Bookmark",
   "menu.view.toggleCompactMode": "Compact Mode",
   "menu.view.toggleMinimap": "Minimap",
+  "menu.view.toggleRainbowBrackets": "Rainbow Brackets",
   "menu.view.zoomIn": "Zoom In IDE",
   "menu.view.zoomOut": "Zoom Out IDE",
   "menu.view.resetZoom": "Reset IDE Zoom",

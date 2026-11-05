@@ -43,6 +43,8 @@
     "--syn-bracket-1": "#f2d07a",
     "--syn-bracket-2": "#d7a0e0",
     "--syn-bracket-3": "#6fc3df",
+    "--syn-bracket-4": "#8fd19e",
+    "--syn-bracket-5": "#f0a77a",
 
     // Editor
     "--fg-editor": "#d9dfe8",

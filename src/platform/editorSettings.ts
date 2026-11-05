@@ -70,8 +70,9 @@ export const EDITOR_EXTRA_DEFAULTS = {
   colorOverrides: {} as Record<string, Record<string, TextAttributesOverride>>,
   /** Color Scheme › Language Defaults › Semantic highlighting (rainbow locals / parameters). */
   semanticHighlighting: false,
-  /** Color Scheme › Language Defaults › Rainbow brackets. */
-  rainbowBrackets: false,
+  /** Rainbow Brackets (bundled plugin): on by default; `rainbow` says what is coloured. */
+  rainbowBrackets: true,
+  rainbow: { round: true, square: true, curly: true, angle: true, tags: true, indentGuides: true },
   ligatures: false,
   fallbackFont: "",
   /** Typography Settings › Main / Bold font weight (CSS weights, IDEA's Regular / Bold). */

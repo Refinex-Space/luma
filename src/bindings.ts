@@ -2956,8 +2956,12 @@ export type EditorSettings_Deserialize = {
 	 *  parameters get a colour derived from their name (IDEA's rainbow identifiers).
 	 */
 	semanticHighlighting?: boolean,
-	/**  Color Scheme › Language Defaults › Rainbow brackets: `()`, `[]`, `{}` coloured by depth. */
+	/**
+	 *  Rainbow Brackets (bundled plugin, on by default): brackets, tags and indent
+	 *  guides coloured by nesting depth; `rainbow` says which.
+	 */
 	rainbowBrackets?: boolean,
+	rainbow?: RainbowBracketsSettings,
 	ligatures?: boolean,
 	/**  Fallback font for glyphs the main font lacks; empty = none. */
 	fallbackFont?: string,
@@ -3006,8 +3010,12 @@ export type EditorSettings_Serialize = {
 	 *  parameters get a colour derived from their name (IDEA's rainbow identifiers).
 	 */
 	semanticHighlighting: boolean,
-	/**  Color Scheme › Language Defaults › Rainbow brackets: `()`, `[]`, `{}` coloured by depth. */
+	/**
+	 *  Rainbow Brackets (bundled plugin, on by default): brackets, tags and indent
+	 *  guides coloured by nesting depth; `rainbow` says which.
+	 */
 	rainbowBrackets: boolean,
+	rainbow: RainbowBracketsSettings,
 	ligatures: boolean,
 	/**  Fallback font for glyphs the main font lacks; empty = none. */
 	fallbackFont: string,
@@ -5151,6 +5159,26 @@ export type PythonSettings = {
 	interpreter?: string,
 	/**  Activate the interpreter's virtualenv in new terminal sessions. */
 	activateVirtualenv?: boolean,
+};
+
+/**
+ *  Rainbow Brackets (a bundled plugin): what is coloured by nesting depth, in the
+ *  `Rainbow brackets › Level n` colours of the colour scheme. `EditorSettings::rainbow_brackets`
+ *  turns it all on or off.
+ */
+export type RainbowBracketsSettings = {
+	/**  `()` */
+	round?: boolean,
+	/**  `[]` */
+	square?: boolean,
+	/**  `{}` */
+	curly?: boolean,
+	/**  `<>` of type arguments and parameters (`List<Map<K, V>>`), never comparisons. */
+	angle?: boolean,
+	/**  HTML / XML / JSX tags by element depth. */
+	tags?: boolean,
+	/**  Indent guides in the colour of their nesting level. */
+	indentGuides?: boolean,
 };
 
 /**  Half-open range `[start, end)`. */

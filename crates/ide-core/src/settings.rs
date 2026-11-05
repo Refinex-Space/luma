@@ -421,8 +421,10 @@ pub struct EditorSettings {
     /// Color Scheme › Language Defaults › Semantic highlighting: local variables and
     /// parameters get a colour derived from their name (IDEA's rainbow identifiers).
     pub semantic_highlighting: bool,
-    /// Color Scheme › Language Defaults › Rainbow brackets: `()`, `[]`, `{}` coloured by depth.
+    /// Rainbow Brackets (bundled plugin, on by default): brackets, tags and indent
+    /// guides coloured by nesting depth; `rainbow` says which.
     pub rainbow_brackets: bool,
+    pub rainbow: RainbowBracketsSettings,
     pub ligatures: bool,
     /// Fallback font for glyphs the main font lacks; empty = none.
     pub fallback_font: String,
@@ -466,7 +468,8 @@ impl Default for EditorSettings {
             color_overrides: BTreeMap::new(),
             custom_schemes: BTreeMap::new(),
             semantic_highlighting: false,
-            rainbow_brackets: false,
+            rainbow_brackets: true,
+            rainbow: RainbowBracketsSettings::default(),
             ligatures: false,
             fallback_font: String::new(),
             font_weight: 400,

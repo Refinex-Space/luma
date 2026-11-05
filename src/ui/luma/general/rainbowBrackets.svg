@@ -1,0 +1,6 @@
+<!-- Luma: Rainbow Brackets (nested brackets coloured by depth), in the expui style. -->
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.5 2C2.9 3.6 2 5.7 2 8C2 10.3 2.9 12.4 4.5 14M11.5 2C13.1 3.6 14 5.7 14 8C14 10.3 13.1 12.4 11.5 14" stroke="#D9A21B" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M6.6 4.6C5.6 5.5 5 6.7 5 8C5 9.3 5.6 10.5 6.6 11.4M9.4 4.6C10.4 5.5 11 6.7 11 8C11 9.3 10.4 10.5 9.4 11.4" stroke="#C25FC2" stroke-width="1.2" stroke-linecap="round"/>
+<circle cx="8" cy="8" r="1.2" fill="#3D8FE0"/>
+</svg>

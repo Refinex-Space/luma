@@ -376,6 +376,7 @@
   "menu.navigate.prevBookmark": "上一个书签",
   "menu.view.toggleCompactMode": "紧凑模式",
   "menu.view.toggleMinimap": "代码缩略图",
+  "menu.view.toggleRainbowBrackets": "彩虹括号",
   "menu.view.zoomIn": "放大 IDE",
   "menu.view.zoomOut": "缩小 IDE",
   "menu.view.resetZoom": "重置 IDE 缩放",

@@ -130,7 +130,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   syn("markupTag", "Markup › Tag", [LD], "tag"),
   syn("markupAttribute", "Markup › Attribute", [LD], "attribute"),
   ...[1, 2, 3, 4, 5].map((n) => syn(`semantic${n}`, `Semantic highlighting › Color ${n}`, [LD], `rainbow-${n}`)),
-  ...[1, 2, 3].map((n) => syn(`bracket${n}`, `Rainbow brackets › Level ${n}`, [LD], `bracket-${n}`)),
+  ...[1, 2, 3, 4, 5].map((n) => syn(`bracket${n}`, `Rainbow brackets › Level ${n}`, [LD], `bracket-${n}`)),
 
   syn("pySelf", "Self parameter", ["Python"], "self"),
   {

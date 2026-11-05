@@ -1,9 +1,10 @@
 /**
- * Rainbow brackets (VS Code's bracket pair colorization): `()`, `[]`, `{}`
- * coloured by nesting depth (`--syn-bracket-<n>`, cycling), unmatched ones in
- * the error colour. Strings and comments are skipped: with the syntax tree
- * when the language has one, else lexically with the language's comment
- * tokens and quotes.
+ * Rainbow Brackets (a bundled plugin, after JetBrains' plugin of that name):
+ * `()`, `[]`, `{}` and the `<>` of type arguments coloured by nesting depth
+ * (`--syn-bracket-<n>`, cycling), unmatched ones in the error colour; HTML /
+ * XML / JSX tags by element depth. Strings and comments are skipped: with the
+ * syntax tree when the language has one, else lexically with the language's
+ * comment tokens and quotes. `<>` are told from comparisons by the tree only.
  *
  * Only the viewport is decorated. The nesting state at its start comes from
  * checkpoints saved every few KB while scanning, so scrolling and typing
@@ -17,7 +18,18 @@ type Tree = ReturnType<typeof syntaxTree>;
 type NodeType = Tree["type"];
 
 /** Number of `--syn-bracket-<n>` colours the depth cycles through. */
-export const BRACKET_COLORS = 3;
+export const BRACKET_COLORS = 5;
+
+/** What is coloured (Settings › Editor › Rainbow Brackets). */
+export interface RainbowOptions {
+  round: boolean;
+  square: boolean;
+  curly: boolean;
+  angle: boolean;
+  tags: boolean;
+}
+
+export const ALL_RAINBOW: RainbowOptions = { round: true, square: true, curly: true, angle: true, tags: true };
 
 const CHUNK = 4096;
 /** How far past the viewport to look for the closers of visible openers. */
@@ -25,8 +37,18 @@ const LOOKAHEAD = 64_000;
 /** Longest comment / quote token the lexical scanner needs to see past a chunk end. */
 const TOKEN_SLACK = 8;
 
-/** Closer char code of each opener char code: `(` `[` `{`. */
-const CLOSER: Record<number, number> = { 40: 41, 91: 93, 123: 125 };
+/** Closer char code of each opener char code: `(` `[` `{` `<`. */
+const CLOSER: Record<number, number> = { 40: 41, 91: 93, 123: 125, 60: 62 };
+
+/** Type argument / parameter lists: their first and last characters are the `<` `>` pair. */
+const ANGLE_LIST =
+  /^(TypeArguments|TypeParameters|TypeArgList|TypeParamList|TemplateArgumentList|TemplateParameterList)$/;
+const angleCache = new WeakMap<NodeType, boolean>();
+function anglesNode(type: NodeType): boolean {
+  let v = angleCache.get(type);
+  if (v === undefined) angleCache.set(type, (v = ANGLE_LIST.test(type.name)));
+  return v;
+}
 
 /** An open bracket; the stack is a persistent list so checkpoints can share it. */
 interface Opener {
@@ -48,8 +70,12 @@ interface ScanState {
 
 export interface BracketMark {
   from: number;
+  /** Length of the coloured text (1 for a bracket; a tag's `</`, name, `/>`). */
+  length: number;
   /** 0-based depth, or -1 for an unmatched bracket. */
   depth: number;
+  /** The bracket character code (0 for tag parts). */
+  ch: number;
 }
 
 interface CommentTokens {
@@ -57,7 +83,7 @@ interface CommentTokens {
   block?: { open: string; close: string };
 }
 
-const SKIP_NODE = /string|comment|char|rune|regexp|textblock|docstring|heredoc/i;
+const SKIP_NODE = /string|comment|char|rune|regexp|textblock|docstring|heredoc|^(Text|JSXText)$/i;
 const skipCache = new WeakMap<NodeType, boolean>();
 function skipsNode(type: NodeType): boolean {
   let v = skipCache.get(type);
@@ -96,8 +122,8 @@ export class BracketScanner {
     const comments = tree ? {} : (state.languageDataAt<CommentTokens>("commentTokens", 0)[0] ?? {});
     const out: BracketMark[] = [];
     const s = this.start(from);
-    const visit = (pos: number, depth: number) => {
-      if (pos >= from && pos < to) out.push({ from: pos, depth });
+    const visit = (pos: number, depth: number, ch: number) => {
+      if (pos >= from && pos < to) out.push({ from: pos, length: 1, depth, ch });
     };
     this.scan(doc, tree, comments, s, Math.min(to, limit), visit);
     // Visible openers whose closer never comes are unmatched; give up (leave them coloured) past the lookahead.
@@ -142,7 +168,7 @@ export class BracketScanner {
     comments: CommentTokens,
     s: ScanState,
     end: number,
-    visit: (pos: number, depth: number) => void,
+    visit: (pos: number, depth: number, ch: number) => void,
     untilBelow = -1,
   ) {
     const cps = this.checkpoints;
@@ -154,11 +180,18 @@ export class BracketScanner {
       const text = doc.sliceString(base, Math.min(doc.length, chunkEnd + TOKEN_SLACK));
       const stop = chunkEnd - base;
       const skips: number[] = [];
+      // `<` `>` that pair as type arguments (absolute positions): anything else is an operator.
+      const angles = new Set<number>();
       if (tree)
         tree.iterate({
           from: base,
           to: chunkEnd,
           enter: (n) => {
+            if (anglesNode(n.type)) {
+              angles.add(n.from);
+              angles.add(n.to - 1);
+              return;
+            }
             if (!skipsNode(n.type)) return;
             skips.push(n.from - base, n.to - base);
             return false;
@@ -185,19 +218,20 @@ export class BracketScanner {
             continue;
           }
         }
-        if (ch === 40 || ch === 91 || ch === 123) {
+        const angle = (ch === 60 || ch === 62) && angles.has(base + i);
+        if (ch === 40 || ch === 91 || ch === 123 || (ch === 60 && angle)) {
           const depth = s.stack ? s.stack.depth + 1 : 0;
-          visit(base + i, depth);
+          visit(base + i, depth, ch);
           s.stack = { closer: CLOSER[ch]!, pos: base + i, depth, prev: s.stack };
-        } else if (ch === 41 || ch === 93 || ch === 125) {
+        } else if (ch === 41 || ch === 93 || ch === 125 || (ch === 62 && angle)) {
           if (s.stack && s.stack.closer === ch) {
-            visit(base + i, s.stack.depth);
+            visit(base + i, s.stack.depth, ch);
             s.stack = s.stack.prev;
             if ((s.stack?.depth ?? -1) < untilBelow) {
               s.pos = base + i + 1;
               return;
             }
-          } else visit(base + i, -1);
+          } else visit(base + i, -1, ch);
         }
         i++;
       }
@@ -274,36 +308,82 @@ function markFor(depth: number): Decoration {
   return m;
 }
 
-function build(view: EditorView, scanner: BracketScanner): DecorationSet {
+/** Which bracket characters `options` colours. */
+function colours(options: RainbowOptions): (ch: number) => boolean {
+  return (ch) =>
+    ch === 40 || ch === 41
+      ? options.round
+      : ch === 91 || ch === 93
+        ? options.square
+        : ch === 123 || ch === 125
+          ? options.curly
+          : options.angle;
+}
+
+const TAG = /^(OpenTag|CloseTag|SelfClosingTag|MismatchedCloseTag|JSXOpenTag|JSXCloseTag|JSXSelfClosingTag)$/;
+/** A tag's own tokens and name (attributes keep their colours). */
+const TAG_PART =
+  /^(StartTag|StartCloseTag|EndTag|SelfCloseEndTag|TagName|JSXStartTag|JSXStartCloseTag|JSXEndTag|JSXSelfCloseEndTag|JSXBuiltin|JSXIdentifier|JSXMemberExpression|JSXNamespacedName)$/;
+const ELEMENT = /^(Element|JSXElement)$/;
+
+/** HTML / XML / JSX tags in `[from, to)` coloured by element depth; mismatched close tags as unmatched. */
+export function tagMarks(state: EditorState, from: number, to: number): BracketMark[] {
+  const out: BracketMark[] = [];
+  syntaxTree(state).iterate({
+    from,
+    to,
+    enter: (n) => {
+      if (!TAG.test(n.name)) return;
+      let depth = -1;
+      if (n.name !== "MismatchedCloseTag")
+        for (let p = n.node.parent; p; p = p.parent) if (ELEMENT.test(p.name)) depth++;
+      for (let c = n.node.firstChild; c; c = c.nextSibling)
+        if (TAG_PART.test(c.name) && c.to > c.from) out.push({ from: c.from, length: c.to - c.from, depth, ch: 0 });
+      // Children are attributes; JSX inside them (`a={<b/>}`) has tags of its own.
+    },
+  });
+  return out;
+}
+
+function build(view: EditorView, scanner: BracketScanner, options: RainbowOptions): DecorationSet {
   const { from, to } = view.viewport;
+  const wanted = colours(options);
+  const brackets = scanner.marks(view.state, from, to).filter((m) => wanted(m.ch));
+  const tags = options.tags ? tagMarks(view.state, from, to) : [];
   return Decoration.set(
-    scanner.marks(view.state, from, to).map((m) => markFor(m.depth).range(m.from, m.from + 1)),
+    [...brackets, ...tags].map((m) => markFor(m.depth).range(m.from, m.from + m.length)),
     true,
   );
 }
 
-const plugin = ViewPlugin.fromClass(
-  class {
-    scanner = new BracketScanner();
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = build(view, this.scanner);
-    }
-    update(u: ViewUpdate) {
-      if (u.docChanged) {
-        let first = Infinity;
-        u.changes.iterChangedRanges((fromA) => (first = Math.min(first, fromA)));
-        this.scanner.invalidate(first);
-      }
-      if (u.docChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state))
-        this.decorations = build(u.view, this.scanner);
-    }
-  },
-  { decorations: (v) => v.decorations },
-);
+const plugins = new Map<string, Extension>();
 
-/** Rainbow brackets for one editor (Settings › Editor › Color Scheme › Rainbow brackets). */
-export function rainbowBrackets(): Extension {
-  // Above the syntax highlighter so the bracket colour is the innermost span.
-  return Prec.high(plugin);
+/** Rainbow brackets for one editor; `options` says what is coloured. */
+export function rainbowBrackets(options: RainbowOptions = ALL_RAINBOW): Extension {
+  const key = JSON.stringify(options);
+  let ext = plugins.get(key);
+  if (!ext) {
+    const plugin = ViewPlugin.fromClass(
+      class {
+        scanner = new BracketScanner();
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
+          this.decorations = build(view, this.scanner, options);
+        }
+        update(u: ViewUpdate) {
+          if (u.docChanged) {
+            let first = Infinity;
+            u.changes.iterChangedRanges((fromA) => (first = Math.min(first, fromA)));
+            this.scanner.invalidate(first);
+          }
+          if (u.docChanged || u.viewportChanged || syntaxTree(u.startState) !== syntaxTree(u.state))
+            this.decorations = build(u.view, this.scanner, options);
+        }
+      },
+      { decorations: (v) => v.decorations },
+    );
+    // Above the syntax highlighter so the bracket colour is the innermost span.
+    plugins.set(key, (ext = Prec.high(plugin)));
+  }
+  return ext;
 }

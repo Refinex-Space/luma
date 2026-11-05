@@ -30,6 +30,7 @@ import { activate as perf } from "./perf";
 import { activate as plugins, activateSettingsPages as pluginsPages } from "./plugins";
 import { activate as minimap, activateSettingsPages as minimapPages } from "./minimap";
 import { activate as sonarlint, activateSettingsPages as sonarlintPages } from "./sonarlint";
+import { activate as rainbowBrackets, activateSettingsPages as rainbowBracketsPages } from "./rainbow-brackets";
 import { activate as projectStructure } from "./project-structure";
 import { activate as tools, activateSettingsPages as toolsPages } from "./tools";
 import { activate as scratch } from "./scratch";
@@ -76,6 +77,7 @@ const features: Array<[string, Activate]> = [
   ["perf", perf],
   ["plugins", plugins],
   ["minimap", minimap],
+  ["rainbow-brackets", rainbowBrackets],
   ["sonarlint", sonarlint],
   ["project-structure", projectStructure],
   ["tools", tools],
@@ -124,6 +126,7 @@ export function activateSettingsWindowFeatures(parent: string): () => void {
     ["todo", todoPages],
     ["plugins", pluginsPages],
     ["minimap", minimapPages],
+    ["rainbow-brackets", rainbowBracketsPages],
     ["sonarlint", sonarlintPages],
     ["tools", toolsPages],
     ["agents", agentsPages],

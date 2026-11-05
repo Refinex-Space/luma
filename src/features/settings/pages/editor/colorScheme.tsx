@@ -523,7 +523,7 @@ export const COLOR_SCHEME_PAGE = editorPage({
           t: "check",
           key: "editor.rainbowBrackets",
           label: "Rainbow brackets",
-          hint: "Color (), [] and {} by nesting depth; unmatched brackets use the error color.",
+          hint: "Color brackets, tags and indent guides by nesting depth (Editor › Rainbow Brackets).",
         },
       ],
     },

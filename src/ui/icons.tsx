@@ -312,6 +312,7 @@ const ICONS = {
   "md-column-right": "luma/markdown/columnRight",
   "md-outline": "luma/markdown/outline",
   minimap: "luma/general/minimap",
+  "rainbow-brackets": "luma/general/rainbowBrackets",
   chessboard: "luma/general/chessboard",
   minimize: "general/openInToolWindow",
   "main-menu": "luma/general/mainMenu",
