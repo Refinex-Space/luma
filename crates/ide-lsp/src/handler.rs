@@ -164,9 +164,13 @@ impl ClientHandler {
                 .map(|item| match item.get("section").and_then(Value::as_str).filter(|s| !s.is_empty()) {
                     // The server's own section: its block under `settings` (basedpyright asks
                     // `basedpyright` and `basedpyright.analysis`), else the options themselves.
-                    Some(section) if section == self.server.name => {
-                        options.get("settings").and_then(|s| s.get(section)).unwrap_or(&options).clone()
-                    }
+                    // SonarQube for IDE keeps its section beside its initialization options.
+                    Some(section) if section == self.server.name => options
+                        .get("settings")
+                        .and_then(|s| s.get(section))
+                        .or_else(|| options.get(section))
+                        .unwrap_or(&options)
+                        .clone(),
                     // Servers that take settings under `initializationOptions.settings`
                     // (jdtls) ask for the same sections later.
                     Some(section) => [&options, options.get("settings").unwrap_or(&Value::Null)]
@@ -237,6 +241,18 @@ impl Handler for ClientHandler {
             "language/status" if self.server.name == "jdtls" && params["type"] == "ServiceReady" => {
                 mgr.java_import_ready(self.server.clone(), self.generation);
             }
+            "language/eventNotification" if self.server.name == "jdtls" => mgr.sonar_classpath_updated(&params),
+            "sonarlint/showRuleDescription" => mgr.sonar_rule_shown(&params),
+            // The engine's own progress (analysis of a large file, loading a project).
+            "sonarlint/startProgressNotification" => {
+                let token = format!("sonarlint:{}", params["taskId"].as_str().unwrap_or_default());
+                let title = params["message"].as_str().filter(|m| !m.is_empty()).unwrap_or("SonarQube for IDE");
+                self.progress(&mgr, json!({ "token": token, "value": { "kind": "begin", "title": title } }));
+            }
+            "sonarlint/endProgressNotification" => {
+                let token = format!("sonarlint:{}", params["taskId"].as_str().unwrap_or_default());
+                self.progress(&mgr, json!({ "token": token, "value": { "kind": "end" } }));
+            }
             // The Angular server's project loading, shown like `$/progress`; one
             // task while several projects load.
             "angular/projectLoadingStart" if !self.server.progress.lock().contains_key(ANGULAR_LOADING) => self
@@ -285,6 +301,9 @@ impl Handler for ClientHandler {
                 Ok(Value::Null)
             }
             "workspace/diagnostic/refresh" | "workspace/inlineValue/refresh" => Ok(Value::Null),
+            m if m.starts_with("sonarlint/") && self.server.name == crate::sonarlint::SERVER => mgr
+                .sonar_request(&self.server, m, params)
+                .ok_or_else(|| (codes::METHOD_NOT_FOUND, format!("unsupported method {m}"))),
             other => Err((codes::METHOD_NOT_FOUND, format!("unsupported method {other}"))),
         }
     }

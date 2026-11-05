@@ -12,6 +12,7 @@ import { commands, isCancelled, type CodeAction } from "@/platform/ipc";
 import {
   contributedIntentions,
   contributedQuickFixes,
+  problemActions,
   intentionProviders,
   intentionsChanged,
   whenSynced,
@@ -28,7 +29,8 @@ import { featureBackoff } from "./availability";
 import { iconNode } from "./iconMarkup";
 import { editorPrefs } from "@/platform/editorSettings";
 import { spellingIntentions } from "./spelling";
-import { inspectionsAt } from "./diagnostics";
+import { diagnosticsAt, inspectionsAt } from "./diagnostics";
+import { problemRef } from "./problems";
 import { SPELLING_INSPECTION } from "@/platform/inspections";
 import { editInspectionSettings, intentionControls } from "@/platform/inspectionControls";
 import { runInteractiveCodeAction } from "./interactiveCommand";
@@ -398,6 +400,19 @@ export function withInspectionControls(view: EditorView, items: ListPopupItem[])
   ];
 }
 
+/** Actions on the most severe problem at the caret (Fix with Agent…), after the fixes. */
+export function problemItems(view: EditorView): ListPopupItem[] {
+  const placed = diagnosticsAt(view, view.state.selection.main.head).find((p) => p.diagnostic.severity !== "hint");
+  const problem = placed && problemRef(view, placed);
+  if (!problem) return [];
+  return problemActions(problem).map((a) => ({
+    id: `problem:${a.id}`,
+    label: tx(a.label),
+    icon: a.icon ?? "bulb",
+    run: a.run,
+  }));
+}
+
 /** ⌥↵ */
 export async function showIntentions(view: EditorView) {
   try {
@@ -415,7 +430,10 @@ export async function showIntentions(view: EditorView) {
     const resolved = new Map<CodeAction, Promise<CodeAction>>();
     const serverItems = actionItems(view, sorted, resolved);
     const previews = new Map(serverItems.map((item, i) => [item.id, sorted[i]!]));
-    const items = withInspectionControls(view, listedIntentions(view, [...local, ...serverItems]));
+    const items = withInspectionControls(
+      view,
+      listedIntentions(view, [...local, ...serverItems, ...problemItems(view)]),
+    );
     if (!items.length) {
       if (failure) throw failure.error;
       showHint(view, "No intentions available");

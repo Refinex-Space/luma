@@ -419,7 +419,7 @@ impl LspManager {
     }
 
     /// Like [`jdtls_command`](Self::jdtls_command), retried while the project is still importing.
-    async fn jdtls_project_command(
+    pub(crate) async fn jdtls_project_command(
         &self,
         path: &Path,
         command: &str,

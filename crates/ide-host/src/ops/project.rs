@@ -176,8 +176,10 @@ pub fn set_settings(
     let toolchain = ["languages", "tools", "languageServers", "projectStructure"]
         .iter()
         .any(|k| key == *k || key.starts_with(&format!("{k}.")));
+    // SonarQube for IDE: turned on / off (its engine starts or stops) or its rules changed.
+    let sonar = key == "sonarlint" || key.starts_with("sonarlint.");
     // Code style only reaches servers as settings (e.g. jdtls' formatter profile); builds don't depend on it.
-    if code_style || toolchain {
+    if code_style || toolchain || sonar {
         for project in affected() {
             if toolchain && let Some(bridge) = &project.kotlin_bridge {
                 bridge.schedule();

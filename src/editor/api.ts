@@ -660,3 +660,85 @@ export function onWorkspaceEditHistory(listener: (state: WorkspaceEditHistorySta
 export function _emitWorkspaceEditHistory(state: WorkspaceEditHistoryState) {
   for (const listener of workspaceHistoryListeners) listener(state);
 }
+
+/**
+ * A command of language-server code actions that the client runs itself (SonarQube's
+ * "Deactivate rule"): the action's edit still applies, then `run` gets the decoded arguments.
+ */
+export type CodeActionCommandHandler = (args: unknown[]) => void | Promise<void>;
+const codeActionCommands = new Map<string, CodeActionCommandHandler>();
+
+export function registerCodeActionCommand(command: string, run: CodeActionCommandHandler): () => void {
+  codeActionCommands.set(command, run);
+  return () => {
+    if (codeActionCommands.get(command) === run) codeActionCommands.delete(command);
+  };
+}
+
+/** @internal editor/lsp only. */
+export function codeActionCommand(command: string): CodeActionCommandHandler | undefined {
+  return codeActionCommands.get(command);
+}
+
+// --- problems ------------------------------------------------------------------
+
+/** 1-based line and column (UTF-16). */
+export interface ProblemPos {
+  line: number;
+  column: number;
+}
+
+/** A problem shown in the editor (a diagnostic), with what is needed to quote it. */
+export interface ProblemRef {
+  /** Absolute file path. */
+  path: string;
+  /** Relative to the project (the path when outside it). */
+  rel: string;
+  /** Code fence language of the file (`java`, `ts`), if known. */
+  fence: string;
+  severity: "error" | "warning" | "info" | "hint";
+  message: string;
+  /** What reported it (`sonarqube`, `ts`, `jdtls`). */
+  source: string | null;
+  /** The rule or error code (`java:S2259`, `2322`). */
+  code: string | null;
+  /** The language server that reported it, keying inspection profiles. */
+  server: string | null;
+  start: ProblemPos;
+  end: ProblemPos;
+  /** The problem's lines (1-based, inclusive) and their text. */
+  lines: { from: number; to: number };
+  snippet: string;
+}
+
+/** An action on a problem: in its hover card's ⋮ menu and the ⌥↵ list. */
+export interface ProblemAction {
+  id: string;
+  label: string;
+  icon?: string;
+  /** Also shown in the hover card's action row. */
+  primary?: boolean;
+  run: () => void | Promise<void>;
+}
+
+export type ProblemActionProvider = (problem: ProblemRef) => ProblemAction[];
+const problemActionProviders = new Set<ProblemActionProvider>();
+
+/** Contributes actions on problems (Fix with Agent, rule descriptions). */
+export function registerProblemActions(provider: ProblemActionProvider): () => void {
+  problemActionProviders.add(provider);
+  return () => {
+    problemActionProviders.delete(provider);
+  };
+}
+
+export function problemActions(problem: ProblemRef): ProblemAction[] {
+  return [...problemActionProviders].flatMap((p) => {
+    try {
+      return p(problem);
+    } catch (e) {
+      console.error("problem action provider failed", e);
+      return [];
+    }
+  });
+}

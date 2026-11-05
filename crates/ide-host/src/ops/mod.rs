@@ -26,6 +26,7 @@ pub mod routes;
 pub mod run;
 pub mod sdk;
 pub mod search;
+pub mod sonar;
 pub mod spell;
 pub mod syntax;
 pub mod term;
@@ -76,6 +77,7 @@ pub fn register_all(d: &mut crate::rpc::Dispatcher) {
     coverage::register(d);
     build::register(d);
     tools::register(d);
+    sonar::register(d);
     sdk::register(d);
     java::register(d);
     debug::register(d);

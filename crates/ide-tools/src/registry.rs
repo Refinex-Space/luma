@@ -13,6 +13,9 @@ pub enum ToolKind {
     /// Loaded into another tool's process, e.g. a jdtls agent.
     Plugin,
     Formatter,
+    /// A code analysis engine with its own settings page (SonarQube for IDE),
+    /// started by the host rather than by a language definition.
+    Analyzer,
 }
 
 /// Where release archives come from.
@@ -106,7 +109,7 @@ impl ToolSpec {
 
 use Arch::{Arm64, X64};
 use Os::{Linux, Mac, Windows};
-use ToolKind::{Debugger, Formatter, LanguageServer, Plugin};
+use ToolKind::{Analyzer, Debugger, Formatter, LanguageServer, Plugin};
 
 const V: Option<(&str, &[&str])> = None;
 const JAVA: &[(&str, &str)] = &[("java", "Java is required (https://adoptium.net)")];
@@ -633,6 +636,28 @@ pub static TOOLS: &[ToolSpec] = &[
         needs: &[],
     },
     ToolSpec {
+        name: "sonarlint",
+        display: "SonarQube for IDE",
+        kind: Analyzer,
+        commands: &["sonarlint-ls.jar"],
+        // SonarSource's own package: the language server (LGPL-3.0) with the
+        // analyzers (SSALv1), fetched from Sonar's publication, never redistributed.
+        // The universal package: Luma runs it on its own Java 21+ runtime.
+        method: Method::Release {
+            source: ReleaseSource::OpenVsx { namespace: "SonarSource", extension: "sonarlint-vscode" },
+            assets: &[
+                any_arch(Mac, "SonarSource.sonarlint-vscode-*.vsix"),
+                any_arch(Linux, "SonarSource.sonarlint-vscode-*.vsix"),
+                any_arch(Windows, "SonarSource.sonarlint-vscode-*.vsix"),
+            ],
+            locate: &["sonarlint-ls.jar"],
+        },
+        fallback: None,
+        version: V,
+        homepage: "https://www.sonarsource.com/products/sonarqube/ide/",
+        needs: &[],
+    },
+    ToolSpec {
         name: "lombok",
         display: "Lombok (jdtls agent)",
         kind: Plugin,
@@ -1011,8 +1036,8 @@ mod tests {
                 known.insert((d.adapter.clone(), d.command.clone()));
             }
         }
-        // The host selects the formatter of each file (Prettier or oxfmt).
-        for t in TOOLS.iter().filter(|t| !matches!(t.kind, Plugin | Formatter)) {
+        // The host selects the formatter of each file (Prettier or oxfmt) and starts analyzers.
+        for t in TOOLS.iter().filter(|t| !matches!(t.kind, Plugin | Formatter | Analyzer)) {
             assert!(
                 known.contains(&(t.name.to_string(), t.commands[0].to_string())),
                 "{} / {} is not referenced by languages/*.toml",

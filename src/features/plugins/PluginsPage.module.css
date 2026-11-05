@@ -321,3 +321,70 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- a bundled plugin downloading what it needs (SonarQube for IDE's engine) */
+.rowProgress {
+  min-width: 0;
+  gap: 8px;
+}
+.rowProgressText {
+  flex: none;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent);
+}
+.rowProgressBar {
+  flex: 1;
+  min-width: 24px;
+}
+.progressPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-control);
+  animation: progressIn var(--dur) var(--ease);
+}
+.progressFailed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+.progressHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.progressTitle {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg-strong);
+}
+.progressFailed .progressTitle {
+  color: var(--danger);
+}
+.progressPct {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.progressDetail {
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+@keyframes progressIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progressPanel {
+    animation: none;
+  }
+}

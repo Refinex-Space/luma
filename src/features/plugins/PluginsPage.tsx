@@ -17,6 +17,7 @@ import {
   Icon,
   IconButton,
   Kbd,
+  ProgressBar,
   SearchField,
   Spinner,
   Tabs,
@@ -41,7 +42,11 @@ import {
 import styles from "./PluginsPage.module.css";
 import { tx } from "@/platform/i18n";
 import { executeAction } from "@/platform/actions";
-import { useBundledPlugins, type BundledPluginContribution } from "@/workbench/contributions";
+import {
+  useBundledPlugins,
+  type BundledPluginContribution,
+  type BundledPluginProgress,
+} from "@/workbench/contributions";
 
 const STATUS: Record<PluginStatus, { label: string; tone: "success" | "accent" | "neutral" | "danger" }> = {
   active: { label: "Running", tone: "success" },
@@ -118,7 +123,7 @@ function PluginIcon({ large, icon = "plugin" }: { large?: boolean; icon?: string
 function ListHeader({ title, count }: { title: string; count: number }) {
   return (
     <li className={styles.groupHeader} aria-hidden>
-      <span>{title}</span>
+      <span>{tx(title)}</span>
       <span className={styles.groupCount}>{count}</span>
     </li>
   );
@@ -175,9 +180,11 @@ function BundledRow({
   onSelect: () => void;
 }) {
   const enabled = plugin.useEnabled();
+  const progress = useBundledProgress(plugin);
+  const working = !!progress && !progress.failed;
   const name = tx(plugin.name);
   return (
-    <li className={clsx(styles.row, selected && styles.rowSelected, !enabled && styles.rowDisabled)}>
+    <li className={clsx(styles.row, selected && styles.rowSelected, !enabled && !working && styles.rowDisabled)}>
       <button
         type="button"
         className={styles.rowMain}
@@ -188,26 +195,79 @@ function BundledRow({
         <PluginIcon icon={plugin.icon} />
         <span className={styles.rowText}>
           <span className={styles.rowName}>{name}</span>
-          <span className={styles.rowMeta}>
-            <span className={styles.rowVendor}>Luma</span>
-            <span className={styles.bundledTag}>
-              <T>Bundled</T>
+          {working ? (
+            <span className={clsx(styles.rowMeta, styles.rowProgress)}>
+              <span className={styles.rowProgressText}>{progressSummary(progress)}</span>
+              <ProgressBar className={styles.rowProgressBar} value={progress.fraction ?? undefined} />
             </span>
-          </span>
+          ) : (
+            <span className={styles.rowMeta}>
+              <span className={styles.rowVendor}>Luma</span>
+              <span className={styles.bundledTag}>
+                <T>Bundled</T>
+              </span>
+            </span>
+          )}
         </span>
       </button>
-      <Checkbox
-        className={styles.rowCheck}
-        checked={enabled}
-        onChange={(on) => void plugin.setEnabled(on)}
-        aria-label={enabled ? tx`Disable ${name}` : tx`Enable ${name}`}
-      />
+      {working ? (
+        <Spinner className={styles.rowCheck} size={16} />
+      ) : (
+        <Checkbox
+          className={styles.rowCheck}
+          checked={enabled}
+          onChange={(on) => void plugin.setEnabled(on)}
+          aria-label={enabled ? tx`Disable ${name}` : tx`Enable ${name}`}
+        />
+      )}
     </li>
+  );
+}
+
+/** The plugin's progress hook, when it has one (a stable hook call either way). */
+const NO_PROGRESS = () => null;
+function useBundledProgress(plugin: BundledPluginContribution): BundledPluginProgress | null {
+  return (plugin.useProgress ?? NO_PROGRESS)();
+}
+
+const percent = (fraction: number | null) => (fraction == null ? null : `${Math.floor(fraction * 100)}%`);
+
+/** The list row is narrow: how far it is, else the step. */
+const progressSummary = (p: BundledPluginProgress): string => percent(p.fraction) ?? p.title;
+
+function ProgressPanel({ progress }: { progress: BundledPluginProgress }) {
+  const pct = percent(progress.fraction);
+  return (
+    <div
+      className={clsx(styles.progressPanel, progress.failed && styles.progressFailed)}
+      role="status"
+      aria-live="polite"
+    >
+      <div className={styles.progressHead}>
+        {!progress.failed && <Spinner size={14} />}
+        <span className={styles.progressTitle}>{progress.title}</span>
+        {pct && !progress.failed && <span className={styles.progressPct}>{pct}</span>}
+        {progress.cancel && !progress.failed && (
+          <Button size="small" variant="ghost" onClick={progress.cancel}>
+            Cancel
+          </Button>
+        )}
+        {progress.retry && progress.failed && (
+          <Button size="small" onClick={progress.retry}>
+            Retry
+          </Button>
+        )}
+      </div>
+      {!progress.failed && <ProgressBar value={progress.fraction ?? undefined} aria-label={progress.title} />}
+      {progress.detail && <span className={styles.progressDetail}>{progress.detail}</span>}
+    </div>
   );
 }
 
 function BundledDetails({ plugin }: { plugin: BundledPluginContribution }) {
   const enabled = plugin.useEnabled();
+  const progress = useBundledProgress(plugin);
+  const working = !!progress && !progress.failed;
   const name = tx(plugin.name);
   const overview = (
     <>
@@ -220,9 +280,7 @@ function BundledDetails({ plugin }: { plugin: BundledPluginContribution }) {
         <dt>
           <T>Code</T>
         </dt>
-        <dd>
-          <T>Bundled with Luma: no download, always up to date</T>
-        </dd>
+        <dd>{plugin.source ? tx(plugin.source) : <T>Bundled with Luma: no download, always up to date</T>}</dd>
       </dl>
       {plugin.features && plugin.features.length > 0 && (
         <Section title="Features">
@@ -255,9 +313,10 @@ function BundledDetails({ plugin }: { plugin: BundledPluginContribution }) {
           <Button
             size="small"
             variant={enabled ? "secondary" : "primary"}
+            disabled={working}
             onClick={() => void plugin.setEnabled(!enabled)}
           >
-            {enabled ? "Disable" : "Enable"}
+            {working ? "Enabling…" : enabled ? "Disable" : "Enable"}
           </Button>
           {plugin.settingsPage && (
             <Button size="small" onClick={() => void executeAction("file.settings", plugin.settingsPage)}>
@@ -266,6 +325,7 @@ function BundledDetails({ plugin }: { plugin: BundledPluginContribution }) {
           )}
         </div>
       </header>
+      {progress && <ProgressPanel progress={progress} />}
       <DetailTabs notes={null} overview={overview} />
     </div>
   );
@@ -322,8 +382,8 @@ function CatalogRow({ entry, selected, onSelect }: { entry: CatalogPlugin; selec
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className={styles.section} aria-label={title}>
-      <h3 className={styles.sectionTitle}>{title}</h3>
+    <section className={styles.section} aria-label={tx(title)}>
+      <h3 className={styles.sectionTitle}>{tx(title)}</h3>
       {children}
     </section>
   );

@@ -16,6 +16,8 @@ export async function promptInstall(name: string, sticky = true): Promise<boolea
   if (!useTools.getState().loaded) await refreshTools();
   const tool = toolByName(name);
   if (!tool || !tool.canInstall || tool.status !== "missing") return false;
+  // Analyzers install from their own page (with the runtime they need).
+  if (tool.kind === "analyzer") return false;
   // An installed alternative (typescript-language-server for vtsls) already serves these files.
   const served = useTools
     .getState()

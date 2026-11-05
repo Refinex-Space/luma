@@ -40,6 +40,7 @@ const KIND_LABEL: Record<ToolInfo["kind"], string> = {
   debugger: "Debugger",
   plugin: "Plugin",
   formatter: "Formatter",
+  analyzer: "Code analyzer",
 };
 
 export function filterTools(tools: readonly ToolInfo[], query: string, filter: Filter): ToolInfo[] {
@@ -265,7 +266,10 @@ export function LanguageServersPage() {
   // The backend's list, minus servers removed here and plus servers added here (until Apply).
   const { all, pending } = useMemo(() => {
     const isCustom = (e: ServerEntry | undefined) => (e?.languages?.length ?? 0) > 0;
-    const list = tools.filter((t) => !isCustom(applied?.[t.name]) || isCustom(servers[t.name]));
+    // Analyzers (SonarQube for IDE) are managed on their own plugin page.
+    const list = tools.filter(
+      (t) => t.kind !== "analyzer" && (!isCustom(applied?.[t.name]) || isCustom(servers[t.name])),
+    );
     const added = new Set<string>();
     for (const [name, entry] of Object.entries(servers)) {
       if (!isCustom(entry) || list.some((t) => t.name === name)) continue;

@@ -422,6 +422,33 @@ mod tests {
         assert!(openvsx_platform_url(&universal.replace("downloads", "unused"), assets, MAC_ARM).is_err());
     }
 
+    /// SonarSource publishes platform packages with a bundled JRE too; Luma takes the universal one.
+    #[test]
+    fn openvsx_sonarlint_universal_package() {
+        use crate::platform::{Arch, Os};
+        let base = "https://open-vsx.org/api/SonarSource/sonarlint-vscode";
+        let json = serde_json::json!({
+            "version": "6.2.0",
+            "files": {
+                "download": format!("{base}/6.2.0/file/SonarSource.sonarlint-vscode-6.2.0.vsix"),
+                "sha256": format!("{base}/6.2.0/file/SonarSource.sonarlint-vscode-6.2.0.sha256"),
+            },
+            "downloads": {
+                "darwin-arm64": format!("{base}/darwin-arm64/6.2.0/file/SonarSource.sonarlint-vscode-6.2.0@darwin-arm64.vsix"),
+                "universal": format!("{base}/6.2.0/file/SonarSource.sonarlint-vscode-6.2.0.vsix"),
+            },
+        })
+        .to_string();
+        let rules = find("sonarlint").unwrap().asset_rules();
+        for (os, arch) in [(Os::Mac, Arch::Arm64), (Os::Linux, Arch::X64), (Os::Windows, Arch::X64)] {
+            let platform = Platform { os, arch };
+            assert_eq!(openvsx_platform_url(&json, rules, platform).unwrap(), None);
+            let d = openvsx_pick(&json, rules, platform).unwrap();
+            assert_eq!(d.name, "SonarSource.sonarlint-vscode-6.2.0.vsix");
+            assert!(d.checksum_url.unwrap().ends_with("6.2.0.sha256"));
+        }
+    }
+
     #[test]
     fn maven_central() {
         let xml =

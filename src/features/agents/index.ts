@@ -24,6 +24,8 @@ import { sendPaths, sendSelection } from "./references";
 import { focusedSession } from "./sessionFocus";
 import { connect, disconnect, openHome, useAgents } from "./store";
 import { taskActions } from "./taskActions";
+import { agentProblemActions } from "./problems";
+import { registerProblemActions } from "@/editor/api";
 import { activatePrompts, registerPromptsPage } from "./prompts";
 import { syncPromptLibrary } from "./prompts/store";
 
@@ -52,6 +54,7 @@ export function activate(): () => void {
   };
   sync(useProject.getState().project?.root);
   const disposers = [
+    registerProblemActions(agentProblemActions),
     activateSettingsPages(),
     activatePrompts(),
     useProject.subscribe((s, prev) => {

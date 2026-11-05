@@ -448,6 +448,17 @@ export const commands = {
 	/**  Re-emits the language servers' current diagnostics (the UI loaded after they arrived). */
 	lspResendDiagnostics: () => typedError<null, IdeError>(__TAURI_INVOKE("lsp_resend_diagnostics")),
 	lspRestart: (server: ServerId) => typedError<null, IdeError>(__TAURI_INVOKE("lsp_restart", { server })),
+	/**  Whether SonarQube for IDE's engine and the runtimes it needs are installed. */
+	sonarStatus: () => typedError<SonarStatus, IdeError>(__TAURI_INVOKE("sonar_status")),
+	/**
+	 *  Installs (or updates) the engine and, when missing, a Java 21 runtime.
+	 *  Cancel with `cancel_request(request)`.
+	 */
+	sonarInstall: (request: RequestId, onEvent: Channel<InstallEvent>) => typedError<SonarStatus, IdeError>(__TAURI_INVOKE("sonar_install", { request, onEvent })),
+	/**  Every rule of the installed analyzers. */
+	sonarRules: () => typedError<SonarRule[], IdeError>(__TAURI_INVOKE("sonar_rules")),
+	/**  The description of rule `key` (`java:S1135`). */
+	sonarRuleDescription: (key: string) => typedError<SonarRuleDescription, IdeError>(__TAURI_INVOKE("sonar_rule_description", { key })),
 	/**  Applies a (previewed) workspace edit, e.g. after rename confirmation. */
 	applyWorkspaceEdit: (edit: WorkspaceEdit) => typedError<null, IdeError>(__TAURI_INVOKE("apply_workspace_edit", { edit })),
 	prepareWorkspaceEdit: (edit: WorkspaceEdit) => typedError<WorkspaceEdit, IdeError>(__TAURI_INVOKE("prepare_workspace_edit", { edit })),
@@ -3718,6 +3729,8 @@ cancellable: boolean } |
 remember: boolean } | 
 /**  Prompt `id` was answered (in any window) or gave up. */
 { type: "askpassDone"; id: number } | 
+/**  SonarQube for IDE asks to show a rule's description (Show issue details). */
+{ type: "sonarRuleDescription"; rule: SonarRuleDescription } | 
 /**
  *  The kernel of an open notebook changed state (`starting`, `idle`, `busy`,
  *  `dead`); `message` says why it failed to start or died.
@@ -5768,6 +5781,8 @@ export type Settings_Deserialize = {
 	languageServers?: { [key in string]: LanguageServerSettings_Deserialize },
 	/**  Editor › Inspections profiles. */
 	inspections?: InspectionSettings,
+	/**  Tools › SonarQube for IDE. */
+	sonarlint?: SonarLintSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -5824,6 +5839,8 @@ export type Settings_Serialize = {
 	languageServers: { [key in string]: LanguageServerSettings_Serialize },
 	/**  Editor › Inspections profiles. */
 	inspections: InspectionSettings,
+	/**  Tools › SonarQube for IDE. */
+	sonarlint: SonarLintSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -5892,6 +5909,103 @@ export type SmartKeysSettings = {
 	smartIndent?: boolean,
 	/**  Backspace › Unindent: `autoindent` (proper indent position) | `nearest` indent position | `none`. */
 	backspaceUnindent?: string,
+};
+
+export type SonarImpact = {
+	/**  `MAINTAINABILITY` | `RELIABILITY` | `SECURITY`. */
+	quality: string,
+	/**  `BLOCKER` | `HIGH` | `MEDIUM` | `LOW` | `INFO`. */
+	severity: string,
+};
+
+/**
+ *  Tools › SonarQube for IDE. The analysis engine is SonarSource's language
+ *  server, downloaded on demand; nothing runs while `enabled` is false.
+ */
+export type SonarLintSettings = {
+	enabled?: boolean,
+	/**  Rules whose activation or parameters differ from Sonar's way, by key (`java:S1135`). */
+	rules?: { [key in string]: SonarRuleSetting },
+	/**  Glob of test files (`**\/test/**`); empty: the analyzers' own detection. */
+	testFilePattern?: string,
+	/**  Comma-separated globs of files never analyzed. */
+	analysisExcludes?: string,
+	/**  Node.js (22.12+) for JavaScript, TypeScript and CSS; empty: found on `PATH`. */
+	nodePath?: string,
+	/**  Extra JVM options of the analysis engine (`-Xmx2g`). */
+	vmArgs?: string,
+};
+
+/**  One rule of the analyzers (`sonarlint/listAllRules`). */
+export type SonarRule = {
+	key: string,
+	name: string,
+	/**  The analyzer's language name (`Java`, `JavaScript`). */
+	language: string,
+	activeByDefault: boolean,
+};
+
+export type SonarRuleContext = {
+	key: string,
+	name: string,
+	html: string,
+};
+
+/**  A rule's description, as the engine renders it (`sonarlint/showRuleDescription`). */
+export type SonarRuleDescription = {
+	key: string,
+	name: string,
+	/**  Language key (`java`). */
+	language: string,
+	/**  The whole description when it has no tabs. */
+	html: string,
+	/**  "Why is this an issue?", "How can I fix it?", "More info". */
+	tabs: SonarRuleTab[],
+	/**  Standard mode: `BUG` | `VULNERABILITY` | `CODE_SMELL` | `SECURITY_HOTSPOT`. */
+	kind: string | null,
+	/**  Standard mode: `BLOCKER` … `INFO`. */
+	severity: string | null,
+	/**  Multi-quality mode: the clean code attribute (`CONVENTIONAL`) and its category. */
+	cleanCodeAttribute: string | null,
+	cleanCodeCategory: string | null,
+	impacts: SonarImpact[],
+	parameters: SonarRuleParameter[],
+};
+
+export type SonarRuleParameter = {
+	name: string,
+	description: string | null,
+	defaultValue: string | null,
+};
+
+export type SonarRuleSetting = {
+	/**  `on` | `off`. */
+	level?: string,
+	parameters?: { [key in string]: string },
+};
+
+export type SonarRuleTab = {
+	title: string,
+	html: string,
+	/**  Framework-specific variants of the tab (`spring`, `jakarta`). */
+	contexts: SonarRuleContext[],
+	defaultContext: string | null,
+};
+
+export type SonarRuntime = {
+	version: string,
+	path: string,
+};
+
+export type SonarStatus = {
+	/**  The analysis engine is installed (SonarSource's package, unpacked). */
+	installed: boolean,
+	/**  Its version (`6.2.0`). */
+	version: string | null,
+	/**  The Java 21+ it runs on: feature version and home. */
+	java: SonarRuntime | null,
+	/**  Node.js for JavaScript / TypeScript / CSS, when found. */
+	node: SonarRuntime | null,
 };
 
 export type SourceFolder = {
@@ -6354,7 +6468,12 @@ export type ToolInfo = {
 
 export type ToolKind = "languageServer" | "debugger" | 
 /**  Loaded into another tool's process, e.g. a jdtls agent. */
-"plugin" | "formatter";
+"plugin" | "formatter" | 
+/**
+ *  A code analysis engine with its own settings page (SonarQube for IDE),
+ *  started by the host rather than by a language definition.
+ */
+"analyzer";
 
 export type ToolSettings = {
 	/**  Executable to launch instead of the managed / `PATH` one; empty = auto-detect. */

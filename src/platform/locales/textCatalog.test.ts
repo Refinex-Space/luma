@@ -88,6 +88,7 @@ const UNTRANSLATED = new Set<string>([
   "CMake",
   "Prettier",
   "IntelliJ IDEA",
+  "SonarQube for IDE",
   // Go environment variables and placeholder values
   "CGO",
   "GOPROXY",

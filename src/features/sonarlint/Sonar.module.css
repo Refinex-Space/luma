@@ -1,0 +1,386 @@
+/* Settings › Tools › SonarQube for IDE, and the rule description (dialog and detail pane). */
+.page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.muted {
+  color: var(--fg-subtle);
+}
+.warning {
+  color: var(--warning);
+}
+.error {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.info {
+  display: inline-flex;
+  color: var(--fg-subtle);
+  cursor: help;
+}
+
+/* ---- engine */
+.engine {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.engineText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.engineTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.engineTitle .muted {
+  font-weight: normal;
+}
+.engineJob {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 420px;
+}
+.jobLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.engineActions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+.toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tabs {
+  flex: none;
+  border-bottom: 1px solid var(--border);
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- rules */
+.rules {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.rulesEmpty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.master {
+  flex: none;
+  width: 44%;
+  max-width: 380px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+.masterBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.search {
+  flex: 1;
+  min-width: 0;
+}
+.list {
+  flex: 1;
+  min-height: 0;
+}
+.masterFoot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 30px;
+  padding: 0 4px 0 10px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-small);
+}
+.section {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0 10px 3px;
+  color: var(--fg-muted);
+  font-weight: 600;
+  font-size: var(--fs-small);
+}
+.section .muted {
+  font-weight: normal;
+}
+.ruleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px 0 6px;
+}
+.ruleRow.dim .ruleName {
+  color: var(--fg-subtle);
+}
+.ruleName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A rule whose activation or parameters differ from Sonar's way. */
+.changed {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 16px;
+}
+.detailHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+.params {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 240px);
+  gap: 6px 12px;
+  align-items: center;
+  margin: 4px 0 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-subtle, var(--bg-tree-hover));
+}
+.param {
+  display: contents;
+}
+.paramName {
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+  color: var(--fg-muted);
+}
+
+/* ---- analysis options */
+.options {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 460px);
+  gap: 10px 16px;
+  align-items: center;
+  padding: 12px 2px;
+}
+.field {
+  display: contents;
+}
+.fieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+}
+
+/* ---- rule description */
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.ruleHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.ruleTitle {
+  margin: 0;
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  color: var(--fg-strong);
+  line-height: 1.35;
+}
+.ruleKey {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+  color: var(--fg-subtle);
+}
+.ruleFacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ruleAttribute {
+  color: var(--fg-subtle);
+  font-size: var(--fs-small);
+}
+.ruleTabs {
+  border-bottom: 1px solid var(--border);
+}
+.ruleContext {
+  display: flex;
+  justify-content: flex-end;
+}
+.ruleHtml {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.ruleHtml h2,
+.ruleHtml h3,
+.ruleHtml h4 {
+  margin: 14px 0 6px;
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.ruleHtml p,
+.ruleHtml ul,
+.ruleHtml ol {
+  margin: 6px 0;
+}
+.ruleHtml ul,
+.ruleHtml ol {
+  padding-left: 20px;
+}
+.ruleHtml a {
+  color: var(--accent);
+  cursor: pointer;
+}
+.ruleHtml code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--bg-subtle, var(--bg-tree-hover));
+}
+.ruleHtml pre {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--border);
+  background: var(--bg-subtle, var(--bg-tree-hover));
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+.ruleHtml pre code {
+  padding: 0;
+  background: none;
+}
+/* Sonar marks examples: noncompliant red, compliant green. */
+.ruleHtml pre[data-diff-type="noncompliant"] {
+  border-left-color: var(--danger);
+}
+.ruleHtml pre[data-diff-type="compliant"] {
+  border-left-color: var(--success, var(--accent));
+}
+.ruleHtml table {
+  border-collapse: collapse;
+}
+.ruleHtml th,
+.ruleHtml td {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.ruleParams h4 {
+  margin: 4px 0 6px;
+  font-weight: 600;
+}
+.ruleParams dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.ruleParams dl > div {
+  display: flex;
+  gap: 8px;
+}
+.ruleParams dt {
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-small, var(--fs-small));
+}
+.ruleParams dd {
+  margin: 0;
+}
+
+/* ---- dialog */
+.ruleDialog {
+  height: min(640px, calc(100vh - 64px));
+}
+.ruleDialogBody {
+  height: 100%;
+  overflow: auto;
+  padding: 14px 20px 18px;
+}
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}

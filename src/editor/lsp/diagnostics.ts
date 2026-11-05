@@ -120,6 +120,12 @@ export function installDiagnosticsEvents(): () => void {
 
 const SEVERITY_RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
+/** The backend diagnostic each shown one came from (its code, server and exact range). */
+const origins = new WeakMap<LintDiagnostic, Diagnostic>();
+
+/** The backend diagnostic `lint` was made from, when it came from one. */
+export const diagnosticOrigin = (lint: LintDiagnostic): Diagnostic | undefined => origins.get(lint);
+
 /** Backend diagnostics → lint diagnostics for `doc` (empty ranges widened to one character). */
 export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): LintDiagnostic[] {
   const out: LintDiagnostic[] = items.map((d) => {
@@ -134,7 +140,7 @@ export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): Lint
       d.deprecated && "cm-lsp-deprecated",
       isTypoStyled(d) && "cm-lsp-typo",
     ].filter(Boolean);
-    return {
+    const lint: LintDiagnostic = {
       from,
       to,
       severity: d.severity,
@@ -142,12 +148,14 @@ export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): Lint
       source: [d.source, isInternalCode(d.code) ? null : d.code].filter(Boolean).join(" ") || undefined,
       markClass: classes.length ? classes.join(" ") : undefined,
     };
+    origins.set(lint, d);
+    return lint;
   });
   return out.sort((a, b) => a.from - b.from || SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
 }
 
 /** Problem ids that mean nothing to a reader (jdtls: `67109264`); short ones (TS `2322`) stay. */
-const isInternalCode = (code: string | null | undefined) => !!code && /^\d{6,}$/.test(code);
+export const isInternalCode = (code: string | null | undefined) => !!code && /^\d{6,}$/.test(code);
 
 const MARK_COLOR: Partial<Record<Severity, string>> = {
   error: "var(--danger)",

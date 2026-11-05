@@ -34,6 +34,10 @@ export const VARIABLES: readonly PromptVariable[] = [
   { name: "RECENT_COMMITS", description: "The latest commit messages of the branch", example: "feat: add paging" },
   { name: "COMMITS", description: "The pull request's commits", example: "1a2b3c4 feat: add paging" },
   { name: "DATE", description: "Today's date (YYYY-MM-DD)", example: "2026-11-05" },
+  { name: "PROBLEM", description: "The problem's message", example: 'Remove this unused "total" local variable.' },
+  { name: "PROBLEM_ORIGIN", description: "What reported the problem, and its rule", example: "sonarqube java:S1481" },
+  { name: "PROBLEM_LOCATION", description: "The problem's file and range", example: "src/App.java:42:9-42:14" },
+  { name: "PROBLEM_CODE", description: "The problem's lines, numbered", example: "42 | int total = 0;" },
 ];
 
 export type VariableName = (typeof VARIABLES)[number]["name"];
@@ -49,6 +53,7 @@ export type PromptUse =
   | "unitTests"
   | "findProblems"
   | "newChat"
+  | "fixProblem"
   | "command";
 
 export interface Prompt {
@@ -191,6 +196,18 @@ const FIND_PROBLEMS = lines(
 
 const NEW_CHAT = "Look at the code I selected in `$FILE_PATH`. ";
 
+const FIX_PROBLEM = lines(
+  "Fix this $LANGUAGE problem reported at `$PROBLEM_LOCATION` ($PROBLEM_ORIGIN):",
+  "",
+  "$PROBLEM",
+  "",
+  "```",
+  "$PROBLEM_CODE",
+  "```",
+  "",
+  "Read the code around it first, then make the smallest change that resolves it without changing behavior elsewhere. If it is a false positive, say why instead of changing the code.",
+);
+
 const INSTRUCTIONS = lines(
   "Answer in the language I write in.",
   "Prefer small, focused changes that follow this project's conventions, and say what you verified and how.",
@@ -304,6 +321,22 @@ export const BUILTIN_GROUPS: readonly PromptGroup[] = [
         builtin: true,
         use: "findProblems",
         variables: CODE_VARS,
+      },
+      {
+        id: "chat.fix-problem",
+        name: "Fix Problem",
+        text: FIX_PROBLEM,
+        builtin: true,
+        use: "fixProblem",
+        variables: [
+          "PROBLEM",
+          "PROBLEM_ORIGIN",
+          "PROBLEM_LOCATION",
+          "PROBLEM_CODE",
+          "FILE_PATH",
+          "LANGUAGE",
+          "PROJECT_NAME",
+        ],
       },
       {
         id: "chat.new-chat-with-selection",

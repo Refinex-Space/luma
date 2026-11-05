@@ -18,6 +18,7 @@ pub mod jdtls;
 mod launch;
 mod scope;
 mod server;
+pub mod sonarlint;
 mod tcp;
 mod text;
 mod tsserver_bridge;
@@ -186,6 +187,9 @@ pub struct LspManager {
     virtual_origins: Mutex<HashMap<String, ide_core::ServerId>>,
     /// Contents fetched for virtual URIs.
     virtual_docs: Mutex<HashMap<String, VirtualDocument>>,
+    /// Callers waiting for SonarQube for IDE to show a rule, by rule key.
+    sonar_rule_waiters:
+        Mutex<HashMap<String, Vec<tokio::sync::oneshot::Sender<ide_core::sonar::SonarRuleDescription>>>>,
 }
 
 /// Fetched virtual documents kept before the cache is reset.
@@ -318,6 +322,7 @@ impl LspManager {
             shown_messages: Mutex::new(HashSet::new()),
             virtual_origins: Mutex::new(HashMap::new()),
             virtual_docs: Mutex::new(HashMap::new()),
+            sonar_rule_waiters: Mutex::new(HashMap::new()),
         })
     }
 

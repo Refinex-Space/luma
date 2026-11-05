@@ -39,6 +39,7 @@ ide-notebook.workspace = true
 ide-tools = { path = "../ide-tools" }
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
 specta.workspace = true
 specta-typescript.workspace = true
 tokio = { workspace = true, features = ["io-std"] }

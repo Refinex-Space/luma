@@ -147,6 +147,10 @@ pub enum IdeEvent {
     AskpassDone {
         id: u64,
     },
+    /// SonarQube for IDE asks to show a rule's description (Show issue details).
+    SonarRuleDescription {
+        rule: crate::sonar::SonarRuleDescription,
+    },
     /// The kernel of an open notebook changed state (`starting`, `idle`, `busy`,
     /// `dead`); `message` says why it failed to start or died.
     NotebookKernel {

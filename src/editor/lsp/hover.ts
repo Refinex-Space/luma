@@ -3,7 +3,6 @@
  * plus the explicit actions code.quickDocumentation (F1, sticky popup with
  * history, `docs.ts`) and code.quickDefinition (⌥Space, definition source popup).
  */
-import { EditorSelection } from "@codemirror/state";
 import { closeHoverTooltips, hasHoverTooltips, hoverTooltip, ViewPlugin, type EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import {
@@ -16,9 +15,8 @@ import {
   type Range,
   type RequestId,
 } from "@/platform/ipc";
-import { executeAction } from "@/platform/actions";
-import { shortcutLabel } from "@/platform/keymap";
-import { diagnosticsAt, type PlacedDiagnostic } from "./diagnostics";
+import { diagnosticsAt } from "./diagnostics";
+import { problemMenuKeepsHover, renderProblems } from "./problemCard";
 import { isEmptyMarkup, languageForPath, renderMarkup } from "./markdown";
 import { selectableText } from "@/ui/selectableText";
 import { docOf, lspRequest, reportLspError } from "./lsp";
@@ -30,8 +28,6 @@ import { readFileLines, targetLabel, withDocument } from "./files";
 import { docWindowVisible, moveDocPopupToWindow, showInDocWindow } from "./docs";
 import { structure } from "@/editor/structure";
 import { basename } from "@/platform/project";
-import { iconNode } from "./iconMarkup";
-import { applyCodeAction, quickFixesAt } from "./intentions";
 import { editorPrefs } from "@/platform/editorSettings";
 import { CONTRIBUTED_HOVER, contributedAt, type ContributedHover } from "@/editor/api";
 import { navigationModifierHeld, onNavigationModifier, pointerTarget } from "@/platform/navigationModifier";
@@ -66,72 +62,6 @@ export async function requestHover(view: EditorView, pos: number): Promise<Hover
   } finally {
     if (hoverRequest === id) hoverRequest = null;
   }
-}
-
-function renderDiagnostics(view: EditorView, diags: PlacedDiagnostic[]): HTMLElement {
-  const box = document.createElement("div");
-  box.className = "cm-lsp-hover-diagnostics";
-  for (const { diagnostic: d, from, to } of diags) {
-    const row = document.createElement("div");
-    row.className = `cm-lsp-diag cm-lsp-diag-${d.severity}`;
-    row.appendChild(
-      iconNode(
-        d.severity === "error" ? "error" : d.severity === "warning" ? "warning" : "info",
-        16,
-        "cm-lsp-diag-icon",
-      ),
-    );
-    const msg = document.createElement("div");
-    msg.className = "cm-lsp-diag-message";
-    msg.textContent = d.message;
-    row.appendChild(msg);
-    const meta = document.createElement("div");
-    meta.className = "cm-lsp-diag-meta";
-    if (d.source) {
-      const src = document.createElement("span");
-      src.className = "cm-lsp-diag-source";
-      src.textContent = d.source;
-      meta.appendChild(src);
-    }
-    const fix = document.createElement("button");
-    fix.type = "button";
-    fix.className = "cm-lsp-link-button";
-    const keys = shortcutLabel("code.showIntentions");
-    fix.textContent = keys ? `More actions… ${keys}` : "More actions…";
-    if (d.severity !== "hint") offerQuickFix(view, meta, fix, from, to);
-    fix.addEventListener("mousedown", (e) => e.preventDefault());
-    fix.addEventListener("click", () => {
-      view.dispatch({ selection: EditorSelection.cursor(from) });
-      view.focus();
-      void executeAction("code.showIntentions");
-    });
-    meta.appendChild(fix);
-    row.appendChild(meta);
-    box.appendChild(row);
-  }
-  return box;
-}
-
-/** IDEA's hover link to the problem's preferred quick fix, shown once the server named one. */
-function offerQuickFix(view: EditorView, meta: HTMLElement, before: HTMLElement, from: number, to: number) {
-  const doc = view.state.doc;
-  void quickFixesAt(view, from, to)
-    .then(([action]) => {
-      if (!action || view.state.doc !== doc || !before.isConnected) return;
-      const link = document.createElement("button");
-      link.type = "button";
-      link.className = "cm-lsp-link-button";
-      const keys = shortcutLabel("code.applyQuickFix");
-      link.textContent = keys ? `${action.title} ${keys}` : action.title;
-      link.addEventListener("mousedown", (e) => e.preventDefault());
-      link.addEventListener("click", () => {
-        view.dispatch({ effects: closeHoverTooltips });
-        view.focus();
-        void applyCodeAction(view, action);
-      });
-      meta.insertBefore(link, before);
-    })
-    .catch(() => {});
 }
 
 /**
@@ -173,7 +103,7 @@ export async function hoverSource(view: EditorView, pos: number) {
     create: () => {
       const dom = document.createElement("div");
       dom.className = `cm-lsp-hover ${selectableText}`;
-      if (diags.length) dom.appendChild(renderDiagnostics(view, diags));
+      if (diags.length) dom.appendChild(renderProblems(view, diags));
       if (hover) dom.appendChild(renderMarkup(hover.contents, lang));
       return { dom };
     },
@@ -205,6 +135,7 @@ export function hoverExtension(): Extension {
   return [
     hoverTooltip(hoverSource, { hoverTime: Math.max(100, editorPrefs().codeEditing.quickDocDelay) }),
     hoverYieldsToNavigation,
+    problemMenuKeepsHover,
   ];
 }
 

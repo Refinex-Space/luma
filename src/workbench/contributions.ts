@@ -866,11 +866,27 @@ export interface BundledPluginContribution {
   icon: string;
   /** What it adds, one line each (shown in its details). */
   features?: readonly string[];
+  /** Where its code comes from, when not entirely bundled (a download on enabling). */
+  source?: string;
+  /** React hook: a download or setup under way (or just failed), shown in its row and details. */
+  useProgress?: () => BundledPluginProgress | null;
   /** The settings page that configures it (a Configure… button). */
   settingsPage?: string;
   /** React hook: whether it is on. */
   useEnabled: () => boolean;
   setEnabled: (on: boolean) => void | Promise<void>;
+}
+
+export interface BundledPluginProgress {
+  /** What is happening ("Downloading the analysis engine"), or what failed. */
+  title: string;
+  /** 0..1, null while indeterminate. */
+  fraction: number | null;
+  /** Bytes so far, or the error. */
+  detail: string | null;
+  failed?: boolean;
+  cancel?: () => void;
+  retry?: () => void;
 }
 
 export const useBundledPlugins = create<{ plugins: Map<string, BundledPluginContribution> }>(() => ({

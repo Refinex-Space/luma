@@ -10,7 +10,7 @@ use ide_tools::{InstallEvent, ToolInfo, Tools};
 use std::path::PathBuf;
 
 /// The installer, reporting the executables chosen in the window's settings.
-fn tools(host: &Host, window: &str) -> IdeResult<Tools> {
+pub(crate) fn tools(host: &Host, window: &str) -> IdeResult<Tools> {
     host.require_trust(window)?;
     let data = host.local_data_dir.clone();
     let (settings, root) = match host.project(window) {
@@ -28,7 +28,7 @@ fn tools(host: &Host, window: &str) -> IdeResult<Tools> {
 }
 
 /// The language definitions plus the servers defined in the window's settings.
-fn languages(host: &Host, window: &str) -> Vec<ide_language::LanguageConfig> {
+pub(crate) fn languages(host: &Host, window: &str) -> Vec<ide_language::LanguageConfig> {
     let settings = match host.project(window) {
         Ok(project) => project.settings.effective(),
         Err(_) => host.global_settings.effective(),
@@ -38,11 +38,11 @@ fn languages(host: &Host, window: &str) -> Vec<ide_language::LanguageConfig> {
     langs
 }
 
-fn join_err(e: impl std::fmt::Display) -> IdeError {
+pub(crate) fn join_err(e: impl std::fmt::Display) -> IdeError {
     IdeError::internal(e.to_string())
 }
 
-fn reconfigure_servers(host: &Host) {
+pub(crate) fn reconfigure_servers(host: &Host) {
     for project in host.projects() {
         let lsp = project.lsp.clone();
         host.runtime.spawn(async move { lsp.reconfigure().await });

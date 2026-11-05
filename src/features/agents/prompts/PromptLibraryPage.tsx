@@ -52,6 +52,7 @@ const USES: Record<PromptUse, string> = {
   unitTests: "Used by AI Actions › Generate Unit Tests in the editor, for files in this language.",
   findProblems: "Used by AI Actions › Find Problems in the editor, and as /find-problems in the agent chat.",
   newChat: "Used by AI Actions › New Chat Using Selection: the message the new chat starts with.",
+  fixProblem: "Used by Fix with Agent on a problem in the editor (its hover card and ⌥↵).",
   command: "Typed as its /command in the agent chat.",
 };
 

@@ -9,6 +9,7 @@ pub use crate::editor_settings::*;
 pub use crate::inspection_settings::*;
 pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
+pub use crate::sonar::{SonarLintSettings, SonarRuleSetting};
 pub use crate::workflow_settings::*;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -50,6 +51,8 @@ pub struct Settings {
     pub language_servers: BTreeMap<String, LanguageServerSettings>,
     /// Editor › Inspections profiles.
     pub inspections: InspectionSettings,
+    /// Tools › SonarQube for IDE.
+    pub sonarlint: SonarLintSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -187,6 +190,7 @@ impl Default for Settings {
             tools: BTreeMap::new(),
             language_servers: BTreeMap::new(),
             inspections: InspectionSettings::default(),
+            sonarlint: SonarLintSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),

@@ -21,6 +21,7 @@ vi.mock("@/workbench/contributions", async (orig) => ({
   editorService: () => ({ openFile }),
 }));
 import { runInteractiveCodeAction } from "./interactiveCommand";
+import { registerCodeActionCommand } from "@/editor/api";
 import { InputDialogsHost } from "@/workbench/inputDialogs";
 
 const action: CodeAction = {
@@ -111,5 +112,23 @@ describe("interactive code actions", () => {
     expect(await runInteractiveCodeAction(7, action)).toBe(true);
     expect(execute.mock.calls[0]!.slice(1)).toEqual([7, action, []]);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("runs a client-side command itself, after the action's edit", async () => {
+    const run = vi.fn();
+    const off = registerCodeActionCommand("SonarLint.DeactivateRule", run);
+    const edit = { changes: [], files: [] } as unknown as NonNullable<CodeAction["edit"]>;
+    const deactivate: CodeAction = {
+      ...action,
+      title: "SonarQube: Deactivate rule 'java:S1135'",
+      kind: "quickfix",
+      edit,
+      command: { title: "Deactivate", command: "SonarLint.DeactivateRule", arguments: ['"java:S1135"'] },
+    };
+    await expect(runInteractiveCodeAction(7, deactivate)).resolves.toBe(true);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledWith(expect.any(Number), 7, { ...deactivate, command: null }, []);
+    expect(run).toHaveBeenCalledWith(["java:S1135"]);
+    off();
   });
 });

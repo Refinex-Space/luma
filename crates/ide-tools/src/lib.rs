@@ -1288,7 +1288,8 @@ fn fetch_verified(
     emit: Emit,
 ) -> IdeResult<PathBuf> {
     let archive = staging.join(&dl.name);
-    http.download(&dl.url, &archive, dl.size, cancel, emit)?;
+    let size = dl.size.or_else(|| http.content_length(&dl.url, cancel));
+    http.download(&dl.url, &archive, size, cancel, emit)?;
     let expected = match (&dl.sha256, &dl.checksum_url) {
         (Some(h), _) => Some(h.clone()),
         (None, Some(url)) => match http.get_text(url, cancel) {

@@ -254,7 +254,22 @@ impl Http {
         String::from_utf8(body).map_err(|_| IdeError::new(ErrorKind::Protocol, format!("{url}: response is not UTF-8")))
     }
 
-    /// Downloads `url` to `dest`, reporting progress against `size` when known.
+    /// What downloading `url` would transfer: the `Content-Length` of a HEAD
+    /// request (after redirects), so progress has a total when the publisher
+    /// lists no size (Open VSX). `None` when the server doesn't say.
+    pub fn content_length(&self, url: &str, cancel: &CancellationToken) -> Option<u64> {
+        if cancel.is_cancelled() {
+            return None;
+        }
+        let mut cmd = self.base(url);
+        cmd.args(["-I", "--max-time", "15"]).arg(url).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
+        let out = cmd.output().ok()?;
+        out.status.success().then(|| parse_content_length(&String::from_utf8_lossy(&out.stdout))).flatten()
+    }
+
+    /// Downloads `url` to `dest`, reporting progress against `size` when known. A
+    /// transfer cut off midway (large archives on a flaky connection) resumes where
+    /// it stopped, a few times.
     pub fn download(
         &self,
         url: &str,
@@ -263,7 +278,34 @@ impl Http {
         cancel: &CancellationToken,
         emit: Emit,
     ) -> IdeResult<()> {
+        let mut attempt = 0;
+        loop {
+            match self.download_once(url, dest, size, attempt > 0, cancel, emit) {
+                Err(e) if e.kind == ErrorKind::Io && attempt < RESUME_ATTEMPTS && interrupted(&e.message) => {
+                    attempt += 1;
+                    let bytes = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0);
+                    emit(InstallEvent::Line {
+                        text: format!("Connection interrupted after {:.1} MB; resuming…", bytes as f64 / 1_048_576.0),
+                    });
+                }
+                r => return r,
+            }
+        }
+    }
+
+    fn download_once(
+        &self,
+        url: &str,
+        dest: &Path,
+        size: Option<u64>,
+        resume: bool,
+        cancel: &CancellationToken,
+        emit: Emit,
+    ) -> IdeResult<()> {
         let mut cmd = self.base(url);
+        if resume {
+            cmd.args(["-C", "-"]);
+        }
         cmd.arg("-o").arg(dest).arg(url).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
         let mut child = cmd.spawn().map_err(|e| IdeError::unavailable(format!("cannot run curl: {e}")))?;
         let mut stderr = child.stderr.take().expect("piped");
@@ -303,6 +345,27 @@ impl Http {
         emit(progress_event(bytes, size.or(Some(bytes))));
         Ok(())
     }
+}
+
+/// The last `Content-Length` of `curl -IL` output: the redirect target's.
+fn parse_content_length(headers: &str) -> Option<u64> {
+    headers
+        .lines()
+        .rev()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.trim().eq_ignore_ascii_case("content-length").then(|| value.trim().parse::<u64>().ok()).flatten()
+        })
+        .filter(|n| *n > 0)
+}
+
+/// Resumed downloads after an interrupted transfer.
+const RESUME_ATTEMPTS: u32 = 3;
+
+/// curl's messages for a transfer that broke off midway: partial file (18), receive
+/// failure (56), stalled (28), HTTP/2 stream error (92).
+fn interrupted(message: &str) -> bool {
+    ["curl: (18)", "curl: (56)", "curl: (28)", "curl: (92)"].iter().any(|code| message.contains(code))
 }
 
 pub fn progress_event(bytes: u64, size: Option<u64>) -> InstallEvent {
@@ -436,6 +499,47 @@ mod tests {
         assert!(err.message.contains("failed"), "{}", err.message);
         let lines = lines.into_inner().unwrap();
         assert!(lines.contains(&"one".to_string()) && lines.contains(&"two".to_string()), "{lines:?}");
+    }
+
+    #[test]
+    fn content_length_of_the_redirect_target() {
+        let headers =
+            "HTTP/2 302\r\ncontent-length: 0\r\nlocation: x\r\n\r\nHTTP/2 200\r\nContent-Length: 176438164\r\n\r\n";
+        assert_eq!(parse_content_length(headers), Some(176438164));
+        assert_eq!(parse_content_length("HTTP/2 200\r\n"), None);
+    }
+
+    /// curl gives up halfway once; the download resumes (`-C -`) and appends the rest.
+    #[cfg(unix)]
+    #[test]
+    fn an_interrupted_download_resumes() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::tempdir().unwrap();
+        let curl = tmp.path().join("curl");
+        let dest = tmp.path().join("engine.vsix");
+        std::fs::write(
+            &curl,
+            r#"#!/bin/sh
+out=""; resume=0
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -C) resume=1; shift 2;; *) shift;; esac; done
+if [ $resume = 1 ]; then printf 'second' >> "$out"; exit 0; fi
+printf 'first-' > "$out"; echo 'curl: (18) end of response with 1000 bytes missing' >&2; exit 18
+"#,
+        )
+        .unwrap();
+        std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let http = Http { curl, https_only: false };
+        let lines = std::sync::Mutex::new(Vec::new());
+        let emit = |e: InstallEvent| {
+            if let InstallEvent::Line { text } = e {
+                lines.lock().unwrap().push(text);
+            }
+        };
+        http.download("https://example.test/engine.vsix", &dest, None, &CancellationToken::new(), &emit).unwrap();
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "first-second");
+        assert!(lines.into_inner().unwrap().iter().any(|l| l.contains("resuming")));
+        assert!(interrupted("download failed: curl: (56) Recv failure"));
+        assert!(!interrupted("curl: (22) The requested URL returned error: 404"));
     }
 
     #[cfg(unix)]

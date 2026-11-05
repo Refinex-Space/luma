@@ -643,14 +643,44 @@ export const setTaskConfig = (task: string, option: string, value: string) =>
  */
 export function addReferences(refs: Array<Extract<ContextItem, { kind: "file" }>>) {
   const s = useAgents.getState();
-  const key = s.lastComposer !== HOME && s.tasks.has(s.lastComposer) ? s.lastComposer : HOME;
-  const task = key === HOME ? null : s.tasks.get(key)!;
+  addToComposer(s.lastComposer !== HOME && s.tasks.has(s.lastComposer) ? s.lastComposer : HOME, refs);
+}
+
+/**
+ * Adds chips to composer `key` (a task, or `HOME` for a new one), shows that composer and
+ * puts the caret in it. Nothing is sent.
+ */
+export function addToComposer(key: string, items: readonly ContextItem[]) {
+  const task = key === HOME ? null : (useAgents.getState().tasks.get(key) ?? null);
   // A worktree task sees the same files under its own directory.
   const root = task?.isolation === "worktree" ? task.cwd : null;
-  const items = refs.map((r) => (root ? { ...r, path: `${root}/${r.rel}` } : r));
-  updateComposer(key, { context: addContext(composerDraft(key).context ?? [], items) });
+  const placed = items.map((r) => (root && r.kind === "file" ? { ...r, path: `${root}/${r.rel}` } : r));
+  updateComposer(task ? key : HOME, { context: addContext(composerDraft(task ? key : HOME).context ?? [], placed) });
   if (task) openTask(task.id);
   else openHome();
+  focusComposer(task ? key : HOME);
+}
+
+/**
+ * The conversation the user has open: the one in the Agents tool window when it is shown,
+ * else the last one with an editor tab. `null` when none is open (archived ones don't count).
+ */
+export function openConversation(): string | null {
+  const s = useAgents.getState();
+  const live = (id: string | null | undefined) =>
+    id && s.tasks.has(id) && s.tasks.get(id)!.status !== "archived" ? id : null;
+  if (s.docked && toolWindowService().isVisible(TOOL_WINDOW)) return live(s.docked);
+  const tabs = (editorService().openTabs?.() ?? [])
+    .filter(({ input }) => input.kind === SESSION_KIND)
+    .map(({ input }) => (input.data as { task: string }).task);
+  if (s.lastTask && tabs.includes(s.lastTask)) return live(s.lastTask);
+  return tabs.map(live).find(Boolean) ?? null;
+}
+
+/** Sends `prompt` to conversation `task` (queued while the agent works) and shows it. */
+export async function sendToConversation(task: string, prompt: AgentPrompt): Promise<void> {
+  await call(commands.agentPrompt(task, prompt, false));
+  openTask(task);
 }
 
 /** Stops the task's turn, or with `subagent` only that subagent's work. */

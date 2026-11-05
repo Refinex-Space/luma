@@ -38,6 +38,7 @@ pub mod run;
 pub mod screen;
 pub mod sdk;
 pub mod search;
+pub mod sonar;
 pub mod spell;
 pub mod ssh;
 pub mod syntax;
@@ -233,6 +234,10 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         lsp::lsp_servers,
         lsp::lsp_resend_diagnostics,
         lsp::lsp_restart,
+        sonar::sonar_status,
+        sonar::sonar_install,
+        sonar::sonar_rules,
+        sonar::sonar_rule_description,
         lsp::apply_workspace_edit,
         lsp::prepare_workspace_edit,
         lsp::undo_workspace_edit,

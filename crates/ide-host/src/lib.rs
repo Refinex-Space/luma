@@ -15,6 +15,7 @@ mod proxy;
 mod requests;
 pub mod rpc;
 pub mod shell_env;
+mod sonarlint;
 pub mod trust;
 
 pub use project::{Project, apply_git_executable, apply_workspace_edit, history_retention};

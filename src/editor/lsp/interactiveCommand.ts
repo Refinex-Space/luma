@@ -4,6 +4,7 @@ import { editorService } from "@/workbench/contributions";
 import { promptInput } from "@/workbench/inputDialogs";
 import { ask } from "@/workbench/messages";
 import { tx } from "@/platform/i18n";
+import { codeActionCommand } from "@/editor/api";
 import { lspRequest } from "./lsp";
 
 type Result<T> = { status: "ok"; data: T } | { status: "error"; error: IdeError };
@@ -41,9 +42,26 @@ async function request<T>(title: string, run: (id: number) => Promise<Result<T>>
 }
 
 /** Interactive resolution starts on invocation only, never while rendering a preview. */
+/** Command arguments travel as JSON text. */
+const decodeArgument = (arg: string): unknown => {
+  try {
+    return JSON.parse(arg);
+  } catch {
+    return arg;
+  }
+};
+
 export async function runInteractiveCodeAction(doc: number, selected: CodeAction): Promise<boolean> {
   let action = selected;
   if (!action.edit && !action.command) action = await lspRequest(() => commands.lspResolveCodeAction(doc, action));
+  const client = action.command ? codeActionCommand(action.command.command) : undefined;
+  if (client && action.command) {
+    const command = action.command;
+    if (action.edit)
+      await request(action.title, (r) => commands.lspExecuteCodeAction(r, doc, { ...action, command: null }, []));
+    await client(command.arguments.map(decodeArgument));
+    return true;
+  }
   let answers: FormAnswer[] = [];
   if (action.command) {
     let form = await request(action.title, (r) =>

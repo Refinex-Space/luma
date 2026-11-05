@@ -142,6 +142,10 @@ impl Host {
                 let root = member.as_ref().unwrap_or(&root);
                 ide_sdk::apply::server_launch_overrides(cfg, &effective);
                 ide_sdk::apply::configure_server(cfg, root, server_root, &effective);
+                if cfg.name == crate::sonarlint::SERVER {
+                    crate::sonarlint::configure(cfg, &data_dir, root, &effective);
+                    return;
+                }
                 ide_sdk::java::cap_java_home(cfg, &ide_sdk::java::installed_jdks());
                 if cfg.name == "jdtls" {
                     let problem = ide_lsp::jdtls::configure_formatter(
@@ -233,7 +237,9 @@ impl Host {
         {
             let settings = settings.clone();
             lsp.set_servers_hook(Box::new(move |language, defined| {
-                ide_sdk::apply::language_servers(language.as_str(), defined, &settings.effective())
+                let effective = settings.effective();
+                let servers = ide_sdk::apply::language_servers(language.as_str(), defined, &effective);
+                crate::sonarlint::with_engine(language.as_str(), servers, &effective)
             }));
         }
         {
