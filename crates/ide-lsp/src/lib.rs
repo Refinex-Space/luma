@@ -636,6 +636,12 @@ impl LspManager {
             message.push_str(":\n");
             message.push_str(&tail);
         }
+        // What really ran, when it isn't obviously the server (a wrong path in settings).
+        if let Some(binary) = server.resolved_binary.read().as_deref()
+            && !launched_as(&server.name, &cfg.command, binary)
+        {
+            message.push_str(&format!("\nStarted: {}", binary.display()));
+        }
         match server.record_crash() {
             Some(delay) => {
                 server.set_status(&self.sink, ServerStatus::Crashed, Some(format!("{message}\nRestarting…")));
@@ -2602,6 +2608,20 @@ impl Drop for LspManager {
 }
 
 /// Up to `limit` files below `dir` (hidden folders, `node_modules` and `target` skipped).
+/// Runtimes servers are commonly launched through (jdtls on `java`, Node servers on `node`).
+const RUNTIMES: &[&str] =
+    &["java", "javaw", "node", "python", "python3", "py", "dotnet", "ruby", "bun", "deno", "sh", "bash", "cmd"];
+
+/// Whether `binary` is plainly server `name`: its own command, or a runtime it runs on.
+fn launched_as(name: &str, command: &str, binary: &Path) -> bool {
+    let stem = |s: &str| {
+        let file = s.rsplit(['/', '\\']).next().unwrap_or(s);
+        file.split('.').next().unwrap_or(file).to_ascii_lowercase()
+    };
+    let ran = stem(&binary.to_string_lossy());
+    ran == stem(name) || ran == stem(command) || RUNTIMES.contains(&ran.as_str())
+}
+
 fn sample_files(dir: &Path, limit: usize) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
@@ -2659,6 +2679,20 @@ mod send_check {
         assert_send(m.semantic_tokens(doc));
         assert_send(m.code_actions(doc, Range::default(), vec![]));
         assert_send(m.will_rename_files(&[], CancellationToken::new()));
+    }
+}
+
+#[cfg(test)]
+mod launched_as_tests {
+    use super::launched_as;
+    use std::path::Path;
+
+    #[test]
+    fn names_only_a_binary_that_is_not_plainly_the_server() {
+        assert!(launched_as("jdtls", "jdtls", Path::new(r"C:\tools\jdtls\bin\jdtls.cmd")));
+        assert!(launched_as("jdtls", "/jdk/bin/java", Path::new("/jdk/bin/java")));
+        assert!(launched_as("vtsls", "vtsls", Path::new("/usr/local/bin/node")));
+        assert!(!launched_as("jdtls", "jdtls", Path::new(r"C:\tools\sqls\bin\sqls.exe")));
     }
 }
 

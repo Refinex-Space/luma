@@ -140,8 +140,14 @@ impl Host {
                     .map(|p| SettingsStore::load(&config_dir, Some(p)).effective())
                     .unwrap_or_else(|| settings.effective());
                 let root = member.as_ref().unwrap_or(&root);
+                let defined = cfg.command.clone();
                 ide_sdk::apply::server_launch_overrides(cfg, &effective);
                 ide_sdk::apply::configure_server(cfg, root, server_root, &effective);
+                // A path from settings that runs another tool (jdtls → sqls.exe): say so, don't launch it.
+                crate::server_path::check(cfg, &defined);
+                if cfg.launch_error.is_some() {
+                    return;
+                }
                 if cfg.name == crate::sonarlint::SERVER {
                     crate::sonarlint::configure(cfg, &data_dir, root, &effective);
                     return;

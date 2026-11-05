@@ -14,6 +14,7 @@ mod project;
 mod proxy;
 mod requests;
 pub mod rpc;
+mod server_path;
 pub mod shell_env;
 mod sonarlint;
 pub mod trust;
