@@ -312,9 +312,31 @@ describe("split areas", () => {
     expect(useToolWindowLayout.getState().sizes.left).toBe(300);
     showToolWindow("project");
     expect(JSON.parse(localStorage.getItem("luma.layout.v1:/work/old")!)).toMatchObject({
-      v: 2,
+      v: 3,
       visible: { left: "project", "left-split": "bookmarks", "right-split": "terminal" },
     });
+  });
+
+  it("sends Services moved to a side back to the bottom once", () => {
+    disposers.push(
+      registerToolWindow({ id: "services", title: "Services", icon: "x", anchor: "bottom", component: Empty }),
+    );
+    const saved = (v: number) =>
+      JSON.stringify({
+        v,
+        visible: { left: "services" },
+        placements: { services: { anchor: "left", order: 50 }, structure: { anchor: "right" } },
+      });
+    localStorage.setItem("luma.layout.v1:/work/side", saved(2));
+    loadToolWindowLayout("/work/side");
+    expect(slotOfId("services")).toBe("bottom");
+    expect(useToolWindowLayout.getState().visible).toMatchObject({ left: null, bottom: "services" });
+    // Other windows keep their place.
+    expect(slotOfId("structure")).toBe("right");
+    // Moved again after the migration: the user's choice stands.
+    localStorage.setItem("luma.layout.v1:/work/side", saved(3));
+    loadToolWindowLayout("/work/side");
+    expect(slotOfId("services")).toBe("left");
   });
 
   it("moves a late-registered window recorded in the wrong area to its own", () => {

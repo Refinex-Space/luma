@@ -46,8 +46,17 @@ const NONE: SlotRecord = {
 };
 const DEFAULT_VISIBLE: SlotRecord = { ...NONE, left: "project" };
 const STORAGE_PREFIX = "luma.layout.v1:";
-/** Stored layout format: 1 = one area per side (no `v` field), 2 = primary + split areas. */
-const LAYOUT_VERSION = 2;
+/**
+ * Stored layout format: 1 = one area per side (no `v` field), 2 = primary + split areas,
+ * 3 = Services back at the bottom (see `HOMECOMING`).
+ */
+const LAYOUT_VERSION = 3;
+/**
+ * Windows sent back to their contributed area once, when loading a layout older than the
+ * version: the place they had moved to served them badly. Services on a side panel squeezes
+ * its consoles into a sliver; like IDEA, it belongs at the bottom.
+ */
+const HOMECOMING: ReadonlyArray<{ version: number; ids: readonly string[] }> = [{ version: 3, ids: ["services"] }];
 
 /** User placement of a tool window (dragged on the stripes / "Move To"), overriding the contribution. */
 export interface ToolWindowPlacement {
@@ -269,7 +278,9 @@ function sanitizeSplits(splits: unknown): Record<ToolWindowAnchor, number> {
 export function sanitizePlacements(raw: unknown, version = LAYOUT_VERSION): Record<string, ToolWindowPlacement> {
   const out: Record<string, ToolWindowPlacement> = {};
   if (!raw || typeof raw !== "object") return out;
+  const home = new Set(HOMECOMING.filter((h) => version < h.version).flatMap((h) => h.ids));
   for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (home.has(id)) continue;
     const p = v as { anchor?: unknown; split?: unknown; secondary?: unknown; order?: unknown } | null;
     if (!p || !ANCHORS.includes(p.anchor as ToolWindowAnchor)) continue;
     const anchor = p.anchor as ToolWindowAnchor;
