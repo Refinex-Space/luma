@@ -13,6 +13,7 @@ import DOMPurify from "dompurify";
 import { Marked } from "marked";
 import { tx } from "@/platform/i18n";
 import { showContextMenu, type MenuItem } from "@/ui/Menu";
+import { liveState } from "./state";
 import {
   alignColumn,
   cellText,
@@ -41,6 +42,17 @@ function cellHtml(src: string): string {
   purifier ??= DOMPurify(window);
   const html = inline.parseInline(src.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1"), { async: false }) as string;
   return purifier.sanitize(html, { USE_PROFILES: { html: true }, FORBID_TAGS: ["img", "style"] });
+}
+
+/** Runs `f` once the pointer press in progress ends (after the editor has placed its selection). */
+function afterPointerRelease(f: () => void) {
+  const done = () => {
+    window.removeEventListener("mouseup", done, true);
+    window.removeEventListener("blur", done);
+    requestAnimationFrame(f);
+  };
+  window.addEventListener("mouseup", done, true);
+  window.addEventListener("blur", done);
 }
 
 function renderCell(cell: HTMLElement, raw: string) {
@@ -290,13 +302,26 @@ class TableController {
       if (cell.textContent !== raw || cell.childElementCount) {
         cell.textContent = raw;
         placeCaret(cell, "end");
+        // The table's height may have changed behind the editor's back: its height map must
+        // follow, or the next click in the text resolves against stale line positions.
+        this.view.requestMeasure();
       }
     });
     d.addEventListener("focusout", (e) => {
       const cell = e.target as HTMLElement;
       if (!cell.classList.contains("cm-md-cell")) return;
       delete d.dataset.editing;
-      renderCell(cell, cell.dataset.raw ?? "");
+      const render = () => {
+        // Clicked back into the cell meanwhile: it keeps showing the source.
+        if (document.activeElement === cell) return;
+        renderCell(cell, cell.dataset.raw ?? "");
+        this.view.requestMeasure();
+      };
+      // A click in the text takes focus from the cell while the editor works out where it landed:
+      // re-rendering now would move the text under the pointer between the press and its first
+      // selection, turning the click into a selection. Like the reveal, wait for the release.
+      if (this.view.state.field(liveState, false)?.selecting) afterPointerRelease(render);
+      else render();
     });
     d.addEventListener("keydown", (e) => this.keydown(e));
     d.addEventListener("paste", (e) => {

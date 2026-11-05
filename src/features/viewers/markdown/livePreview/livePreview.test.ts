@@ -6,7 +6,8 @@ import { inlineMathEnd, markdownSupport } from "@/editor/core/cm/markdownLang";
 import { slashGroups } from "./catalog";
 import { codeBlockKeys, fenceShape, languageSuggestions } from "./codeBlocks";
 import { insertBlock, lineShape, setBlock, toggleInline } from "./commands";
-import { liveState, setLiveFocus, setLivePreview, touches } from "./state";
+import { blockLayer } from "./blocks";
+import { liveState, setLiveFocus, setLivePreview, setPointerSelecting, touches } from "./state";
 import {
   alignColumn,
   cellSource,
@@ -218,5 +219,48 @@ describe("code cards", () => {
     key(w, "Backspace");
     expect(w.state.doc.toString()).toBe("```\ncode\n```\nafter");
     expect(w.state.selection.main.head).toBe(8);
+  });
+});
+
+describe("table cells", () => {
+  let view: EditorView | null = null;
+  afterEach(() => view?.destroy());
+
+  const table = () => {
+    const doc = "| Name | Starter |\n|---|---|\n| tools | `spring-ai` |";
+    view = new EditorView({
+      state: EditorState.create({ doc, extensions: [markdownSupport(), liveState, blockLayer("/doc.md")] }),
+      parent: document.body,
+    });
+    ensureSyntaxTree(view.state, doc.length, 5000);
+    view.dispatch({ effects: setLivePreview.of(true) });
+    const cell = [...view.dom.querySelectorAll<HTMLElement>(".cm-md-cell")].find(
+      (c) => c.dataset.raw === "`spring-ai`",
+    )!;
+    expect(cell.querySelector("code")).not.toBeNull();
+    return { view, cell };
+  };
+  const focus = (cell: HTMLElement, type: "focusin" | "focusout") =>
+    cell.dispatchEvent(new FocusEvent(type, { bubbles: true }));
+  const frame = () => new Promise((r) => requestAnimationFrame(r));
+
+  it("shows a cell's source while editing and renders it again on leaving", () => {
+    const { cell } = table();
+    focus(cell, "focusin");
+    expect(cell.textContent).toBe("`spring-ai`");
+    focus(cell, "focusout");
+    expect(cell.querySelector("code")?.textContent).toBe("spring-ai");
+  });
+
+  it("keeps the layout still while a click in the text takes focus from a cell", async () => {
+    const { view, cell } = table();
+    focus(cell, "focusin");
+    // The press in the text: the editor resolves the click while the cell loses focus.
+    view.dispatch({ effects: setPointerSelecting.of(true) });
+    focus(cell, "focusout");
+    expect(cell.textContent).toBe("`spring-ai`");
+    window.dispatchEvent(new MouseEvent("mouseup"));
+    await frame();
+    expect(cell.querySelector("code")?.textContent).toBe("spring-ai");
   });
 });
