@@ -9,6 +9,7 @@ import { activeEditor, registerEditorContribution } from "@/editor/api";
 import { registerActions } from "@/platform/actions";
 import { useProject } from "@/platform/project";
 import {
+  registerCodeStyleSection,
   registerEditorKind,
   registerOverlay,
   registerToolWindow,
@@ -17,6 +18,7 @@ import {
 } from "@/workbench/contributions";
 import { SQL_LANGUAGE, consoleExtension, executeInView, explainInView } from "./console";
 import { DatabaseDialogs } from "./Dialogs";
+import { SQL_LANGUAGE_ID } from "./sqlStyle";
 import { TABLE_KIND, tableTitle } from "./tableInput";
 import { nodeTarget, type DbNode } from "./nodes";
 import { registerDatabaseTreeActions } from "./treeActions";
@@ -62,6 +64,11 @@ export function activate(): () => void {
       icon: () => "database",
     }),
     registerOverlay({ id: "database.dialogs", component: DatabaseDialogs }),
+    registerCodeStyleSection({
+      id: "database.sqlFormatting",
+      language: SQL_LANGUAGE_ID,
+      component: lazyComponent(() => import("./SqlStyleSettings").then((m) => m.SqlStyleSettings)),
+    }),
     registerEditorContribution({ id: "database.console", order: 57, extensions: consoleExtension }),
     // A reopened project starts with a fresh backend: forget the old one's state.
     useProject.subscribe((s, prev) => {

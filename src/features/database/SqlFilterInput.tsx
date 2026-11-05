@@ -5,6 +5,7 @@ import { editorPrefs } from "@/platform/editorSettings";
 import { analyze } from "./sql/analyze";
 import { quoteIdent, shouldAutoCompleteSql, sqlCandidates } from "./sql/complete";
 import { inLiteral, lex } from "./sql/lexer";
+import { currentSqlStyle } from "./sqlStyle";
 import styles from "./Database.module.css";
 import { SqlHighlight } from "./SqlHighlight";
 
@@ -68,7 +69,7 @@ export function SqlFilterInput({
   const analysis = analyze(prefix + value, prefix.length + caret, driver);
   const from = Math.max(0, analysis.prefix.from - prefix.length);
   const typed = value.slice(from, caret).toLowerCase();
-  const candidates = sqlCandidates({ model, analysis, driver }).filter(
+  const candidates = sqlCandidates({ model, analysis, driver, keywordCase: currentSqlStyle().keywordCase }).filter(
     (c) => c.kind === "column" || (kind === "where" && ["keyword", "function"].includes(c.kind)),
   );
   if (kind === "order")

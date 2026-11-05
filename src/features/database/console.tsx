@@ -40,6 +40,7 @@ import { sourceLabel, splitTarget, targetOf } from "./model";
 import { analyze, templateContexts, valuesSlot } from "./sql/analyze";
 import { shouldAutoCompleteSql, sqlCandidates, type CandidateKind, type SqlCandidate } from "./sql/complete";
 import { sqlSupport } from "./sqlSupport";
+import { recased } from "./sql/format";
 import {
   bindConsole,
   cancelConsole,
@@ -59,11 +60,31 @@ import {
   targetLabel,
   useDatabase,
 } from "./store";
+import { currentSqlStyle } from "./sqlStyle";
 import styles from "./Database.module.css";
 import { tx } from "@/platform/i18n";
 
 /** `templates` feature's language-data key for finer template contexts. */
 const TEMPLATE_CONTEXT_KEY = "lumaTemplateContexts";
+/** `templates` feature's language-data key restyling a template before it expands. */
+const TEMPLATE_STYLE_KEY = "lumaTemplateStyle";
+
+/** SQL live templates follow the code style's keyword case (`sel` → `SELECT *` / `FROM …`). */
+function styleTemplate() {
+  return <T extends { body: string; variables?: Array<{ defaultValue?: string }> }>(t: T): T => {
+    const { keywordCase } = currentSqlStyle();
+    if (keywordCase === "preserve") return t;
+    // `$var$` placeholders would read as PostgreSQL dollar quotes: templates lex as plain SQL.
+    const driver = "sqlite";
+    const literal = (v: string | undefined) =>
+      v && /^".*"$/.test(v) ? `"${recased(v.slice(1, -1), driver, keywordCase, true)}"` : v;
+    return {
+      ...t,
+      body: recased(t.body, driver, keywordCase),
+      variables: t.variables?.map((v) => ({ ...v, defaultValue: literal(v.defaultValue) })),
+    };
+  };
+}
 
 export const SQL_LANGUAGE = "sql";
 const ROW_LIMITS = ["100", "500", "1000", "5000", "50000"];
@@ -412,7 +433,9 @@ function applyCandidate(c: SqlCandidate, driver: DbDriver) {
     // Re-read the statement as it is now: the user may have typed on since the popup opened.
     const a = analyze(view.state.doc.toString(), to, driver);
     if (a.fromInsert !== null) {
-      const clause = ` ${a.lowerKeywords ? "from" : "FROM"} ${c.addFrom}`;
+      const keywordCase = currentSqlStyle().keywordCase;
+      const lower = keywordCase === "lower" || (keywordCase === "preserve" && a.lowerKeywords);
+      const clause = ` ${lower ? "from" : "FROM"} ${c.addFrom}`;
       if (a.fromInsert <= to) changes[0]!.insert += clause;
       else changes.push({ from: a.fromInsert, insert: clause });
     }
@@ -450,7 +473,13 @@ function completionSource(path: string): CompletionSource {
       ? analyze(doc.slice(0, sel.from) + doc.slice(sel.to), sel.from, driver)
       : analyze(doc, ctx.pos, driver);
     if (!ctx.explicit && !shouldAutoCompleteSql(analysis)) return null;
-    const candidates = sqlCandidates({ model, analysis, driver, sourceName: source?.name ?? undefined });
+    const candidates = sqlCandidates({
+      model,
+      analysis,
+      driver,
+      sourceName: source?.name ?? undefined,
+      keywordCase: currentSqlStyle().keywordCase,
+    });
     if (!candidates.length) return null;
     return {
       from: analysis.prefix.from,
@@ -545,7 +574,11 @@ export function consoleExtension(ctx: EditorDocContext): Extension {
     runGutter,
     showPanel.of(consolePanel(ctx.path)),
     EditorState.languageData.of(() => [
-      { lumaCompletion: completionSource(ctx.path), [TEMPLATE_CONTEXT_KEY]: templateContextsAt(ctx.path) },
+      {
+        lumaCompletion: completionSource(ctx.path),
+        [TEMPLATE_CONTEXT_KEY]: templateContextsAt(ctx.path),
+        [TEMPLATE_STYLE_KEY]: styleTemplate(),
+      },
     ]),
     completeAfterTemplate,
     valuesInfo(ctx.path),

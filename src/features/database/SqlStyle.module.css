@@ -1,0 +1,35 @@
+/* Editor › Code Style › SQL › SQL Formatting: three choices over the live preview. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.title {
+  margin: 18px 0 2px;
+  color: var(--fg-strong);
+}
+.options {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 260px);
+  align-items: center;
+  gap: 6px 12px;
+}
+.label {
+  color: var(--fg);
+  white-space: nowrap;
+}
+.label::after {
+  content: ":";
+}
+.wide {
+  grid-column: 1 / -1;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+}
+.preview {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}

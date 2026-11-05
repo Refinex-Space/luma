@@ -34,6 +34,12 @@ export interface LanguageCodeStyle {
   /** Code Generation › Comment Code (unset: the language's default, see `lineCommentDefaults`). */
   lineCommentAtFirstColumn?: boolean;
   lineCommentAddSpace?: boolean;
+  /** SQL: case of keywords, built-in types and functions (unset: upper). */
+  keywordCase?: "upper" | "lower" | "preserve";
+  /** SQL: clause items after their keyword (`aligned`, unset) or on lines of their own under it. */
+  listLayout?: "aligned" | "indented";
+  /** SQL: align the `AS` of select items (unset: on). */
+  alignAliases?: boolean;
 }
 
 /**

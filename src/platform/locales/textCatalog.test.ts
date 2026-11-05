@@ -165,6 +165,9 @@ const UNTRANSLATED = new Set<string>([
   "TimescaleDB",
   "TSV",
   "XML",
+  // SQL keyword case choices show the case itself.
+  "UPPER",
+  "lower",
   "ty",
   "TypeScript",
   "Vim",

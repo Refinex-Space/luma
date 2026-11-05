@@ -169,6 +169,15 @@ describe("completion candidates", () => {
     expect(labels(complete("select 1; ins|"))).toContain("insert into");
   });
 
+  it("takes the code style's keyword case over what is typed", () => {
+    const styled = (sql: string, keywordCase: "upper" | "lower") =>
+      labels(sqlCandidates({ model, analysis: at(sql), driver: "sqlite", keywordCase }));
+    expect(styled("select 1; ins|", "upper")).toContain("INSERT INTO");
+    expect(styled("select * fr|", "upper")).toContain("FROM");
+    expect(styled("SELECT 1; INS|", "lower")).toContain("insert into");
+    expect(styled("select coun|", "upper")).toContain("COUNT");
+  });
+
   it("offers tables after FROM, with schema and data source", () => {
     const c = complete("select * from |");
     expect(labels(c, "table")).toEqual(expect.arrayContaining(["users", "orders", "order_items", "products"]));

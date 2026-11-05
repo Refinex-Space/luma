@@ -92,6 +92,13 @@ function needsClipboard(t: Pick<LiveTemplate, "variables">): boolean {
   );
 }
 
+/**
+ * Language-data key of a function restyling a template before it expands (the SQL
+ * console applies the code style's keyword case to body and default values).
+ */
+export const TEMPLATE_STYLE_KEY = "lumaTemplateStyle";
+export type TemplateStyler = (t: Pick<LiveTemplate, "body" | "variables">) => Pick<LiveTemplate, "body" | "variables">;
+
 export interface ExpandOptions {
   /** Text for `$SELECTION$` and the indentation of its first line. */
   selection?: string;
@@ -120,7 +127,11 @@ export async function expandInto(
     user: userName(),
     expression: opts.expression,
   });
-  const exp = expandTemplate(t, {
+  // The language may restyle the template first (SQL: its keyword case).
+  const styled = state
+    .languageDataAt<TemplateStyler>(TEMPLATE_STYLE_KEY, from)
+    .reduce<Pick<LiveTemplate, "body" | "variables">>((acc, f) => f(acc), t);
+  const exp = expandTemplate(styled, {
     fns,
     selection: opts.selection,
     selectionIndent: opts.selectionIndent,

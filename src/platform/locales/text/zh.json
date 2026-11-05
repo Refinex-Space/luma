@@ -6017,5 +6017,12 @@
   "Unpin Columns": "取消固定列",
   "{n} unsubmitted change(s) of {title} will be lost.": "{title} 中 {n} 项未提交的更改将会丢失。",
   "Sequential": "顺序",
-  "Diverging": "发散"
+  "Diverging": "发散",
+  "Align column aliases": "对齐列别名",
+  "Aligned after the keyword": "在关键字后对齐",
+  "Clause layout": "子句布局",
+  "Indented under the keyword": "在关键字下方缩进",
+  "Keyword case": "关键字大小写",
+  "SQL Formatting": "SQL 格式化",
+  "SQL formatting preview": "SQL 格式化预览"
 }

@@ -145,3 +145,35 @@ test("edits a single-table result, pins columns, colours numbers and aggregates"
   await expect(window.getByRole("button", { name: /^Sum: / })).toBeVisible();
   if (SHOTS) await window.screenshot({ path: `${SHOTS}/db-edit-pin-heat.png`, animations: "disabled" });
 });
+
+test("Code Style › SQL: three choices over a live preview", async ({ workbench: page }) => {
+  await page.evaluate(async () => {
+    const contributions = "/src/workbench/contributions.ts";
+    const section = "/src/features/database/SqlStyleSettings.tsx";
+    const actions = "/src/platform/actions.ts";
+    const { registerSettingsPage } = await import(contributions);
+    const { SqlStyleSettings } = await import(section);
+    const { executeAction } = await import(actions);
+    // Language pages need the desktop backend; the section is the same on its own page.
+    registerSettingsPage({
+      id: "editor.codeStyle.sqlPreview",
+      title: "SQL",
+      group: "Editor",
+      component: SqlStyleSettings,
+    });
+    void executeAction("file.settings", "editor.codeStyle.sqlPreview");
+  });
+  const dialog = page.getByRole("dialog");
+  const preview = dialog.getByLabel("SQL formatting preview");
+  await expect(preview).toContainText("SELECT o.id,");
+  await expect(preview).toContainText("COUNT(i.id)          AS items,");
+  await expect(preview).toContainText("    id         BIGINT");
+  if (SHOTS) await dialog.screenshot({ path: `${SHOTS}/sql-style.png`, animations: "disabled" });
+
+  await dialog.getByRole("button", { name: "Clause layout" }).click();
+  await page.getByRole("option", { name: "Indented under the keyword" }).click();
+  await dialog.getByRole("button", { name: "Keyword case" }).click();
+  await page.getByRole("option", { name: "lower" }).click();
+  await expect(preview).toContainText("select\n    o.id,");
+  if (SHOTS) await dialog.screenshot({ path: `${SHOTS}/sql-style-indented.png`, animations: "disabled" });
+});

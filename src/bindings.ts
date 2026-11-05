@@ -4049,6 +4049,12 @@ export type LanguageCodeStyle_Deserialize = {
 	lineCommentAtFirstColumn?: boolean | null,
 	/**  Comment Code › Add a space at line comment start. */
 	lineCommentAddSpace?: boolean | null,
+	/**  SQL › Case › Keywords, built-in types and functions: `upper` | `lower` | `preserve`. */
+	keywordCase?: string | null,
+	/**  SQL › Layout of clause items: `aligned` (after the keyword) | `indented` (under it). */
+	listLayout?: string | null,
+	/**  SQL › Align column aliases. */
+	alignAliases?: boolean | null,
 };
 
 /**  Editor › Code Style › <Language> › Tabs and Indents (unset fields inherit). */
@@ -4065,6 +4071,12 @@ export type LanguageCodeStyle_Serialize = {
 	lineCommentAtFirstColumn?: boolean | null,
 	/**  Comment Code › Add a space at line comment start. */
 	lineCommentAddSpace?: boolean | null,
+	/**  SQL › Case › Keywords, built-in types and functions: `upper` | `lower` | `preserve`. */
+	keywordCase?: string | null,
+	/**  SQL › Layout of clause items: `aligned` (after the keyword) | `indented` (under it). */
+	listLayout?: string | null,
+	/**  SQL › Align column aliases. */
+	alignAliases?: boolean | null,
 };
 
 /**  Language identifier, e.g. `rust`, `typescript`, `kotlin`. Matches LSP `languageId`. */

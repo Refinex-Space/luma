@@ -440,6 +440,15 @@ pub struct LanguageCodeStyle {
     /// Comment Code › Add a space at line comment start.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_comment_add_space: Option<bool>,
+    /// SQL › Case › Keywords, built-in types and functions: `upper` | `lower` | `preserve`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keyword_case: Option<String>,
+    /// SQL › Layout of clause items: `aligned` (after the keyword) | `indented` (under it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_layout: Option<String>,
+    /// SQL › Align column aliases.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub align_aliases: Option<bool>,
 }
 
 /// Editor › Code Style (General tab + per-language overrides).

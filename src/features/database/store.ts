@@ -47,6 +47,7 @@ import { mapResultColumns, queryTableOf, type EditMapping } from "./sql/editable
 import { editCount } from "./rowEdits";
 import type { DbObjectRef } from "./objects";
 import { formatted } from "./sql/format";
+import { currentSqlStyle } from "./sqlStyle";
 import { bindParams, findParams } from "./sql/params";
 import { tx } from "@/platform/i18n";
 
@@ -773,7 +774,7 @@ export async function openConsoleWith(id: string, text: string): Promise<void> {
 
 /** DDL laid out like IDEA's: SQLite returns the statements as they were typed. */
 export function readableDdl(text: string, driver: DbDriver | undefined): string {
-  return driver === "sqlite" ? formatted(text, driver) : text;
+  return driver === "sqlite" ? formatted(text, driver, currentSqlStyle()) : text;
 }
 
 /** Go to DDL: the definition of a table / view, in a SQL file next to the data source's console. */

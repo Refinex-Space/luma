@@ -12,6 +12,7 @@ import { Button, Checkbox, Input, type SelectOption, T } from "@/ui";
 import { commands, isTauri, type LanguageInfo_Serialize as LanguageInfo } from "@/platform/ipc";
 import { ENCODING_CHOICES, lineCommentDefaults, type LanguageCodeStyle } from "@/platform/editorSettings";
 import { NATIVE_TO_ASCII_ACTION } from "../../nativeToAscii";
+import { useCodeStyleSections } from "@/workbench/contributions";
 import { NumberInput, Row, Section, Select } from "../../components/Form";
 import { useSetting } from "../../components/context";
 import type { PageSpec } from "../spec";
@@ -137,6 +138,8 @@ function LanguageStyle({ lang }: { lang: LanguageInfo }) {
   const [tabSize] = useSetting<number>("editor.tabSize");
   const [spaces] = useSetting<boolean>("editor.insertSpaces");
   const [wrap] = useSetting<number>("editor.codeStyle.hardWrapAt");
+  const sections = useCodeStyleSections((s) => s.sections);
+  const contributed = sections.filter((c) => c.language === lang.id);
   const own = all?.[lang.id] ?? {};
   const base = { useTab: !(lang.indent?.insertSpaces ?? spaces), tabSize: lang.indent?.tabSize ?? tabSize };
   const eff = {
@@ -162,6 +165,9 @@ function LanguageStyle({ lang }: { lang: LanguageInfo }) {
         <SchemeRow />
       </Section>
       {lang.id === "java" && <JavaFormatter style={own} onChange={set} />}
+      {contributed.map((c) => (
+        <c.component key={c.id} />
+      ))}
       <section aria-label={tx("Tabs and Indents")}>
         <div className={styles.previewTitle}>
           <T>Tabs and Indents</T>
@@ -322,6 +328,9 @@ export async function codeStyleLanguagePages(): Promise<PageSpec[]> {
         "Line comment at first column",
         ...(lang.id === "java"
           ? ["Formatting profile", "IntelliJ IDEA", "Custom Eclipse formatter XML", "Eclipse formatter XML"]
+          : []),
+        ...(lang.id === "sql"
+          ? ["Keyword case", "Upper case", "Clause layout", "Align column aliases", "Reformat Code", "Formatter"]
           : []),
       ],
       component: () => <LanguageStyle lang={lang} />,

@@ -7,6 +7,7 @@
  */
 import type { DbCompletion, DbCompletionColumn, DbCompletionTable, DbDriver } from "@/platform/ipc";
 import type { Analysis, Clause, TableRef } from "./analyze";
+import type { KeywordCase } from "./keywords";
 import { DATA_TYPES, functions, isReserved, joinKeywords, predicateKeywords, statementStarters } from "./dialect";
 
 export type CandidateKind =
@@ -91,14 +92,24 @@ export interface CompletionInput {
   driver: DbDriver;
   /** Data source name, shown next to tables like IDEA does. */
   sourceName?: string;
+  /** Code Style › SQL › keyword case; `preserve` (or unset) follows what is typed and the statement. */
+  keywordCase?: KeywordCase;
 }
 
-export function sqlCandidates({ model, analysis: a, driver, sourceName }: CompletionInput): SqlCandidate[] {
+export function sqlCandidates({
+  model,
+  analysis: a,
+  driver,
+  sourceName,
+  keywordCase = "preserve",
+}: CompletionInput): SqlCandidate[] {
   const ctx = a.context;
   if (ctx.kind === "none") return [];
   const typedLower = /[a-z]/.test(a.prefix.text) && !/[A-Z]/.test(a.prefix.text);
   const typedUpper = /[A-Z]/.test(a.prefix.text) && !/[a-z]/.test(a.prefix.text);
-  const lower = typedLower || (!typedUpper && a.lowerKeywords);
+  // IDEA: a keyword case in the code style wins over what is typed.
+  const lower =
+    keywordCase === "upper" ? false : keywordCase === "lower" ? true : typedLower || (!typedUpper && a.lowerKeywords);
   const kw = (k: string) => (lower ? k.toLowerCase() : k);
   const tables = model?.tables ?? [];
   const defaultSchema = model?.defaultSchema ?? "";

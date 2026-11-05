@@ -19,6 +19,7 @@ import { showHint } from "@/editor/lsp/hint";
 import { offsetToPos } from "@/editor/lsp/positions";
 import type { DbCompletion, DbCompletionTable, DbDriver } from "@/platform/ipc";
 import { formatSql } from "./sql/format";
+import { currentSqlStyle } from "./sqlStyle";
 import { SqlResolver, type SqlSymbol } from "./sql/resolve";
 import { consoleSource, revealInTree, sourceById, useDatabase } from "./store";
 
@@ -177,7 +178,7 @@ function hover(path: string): ContributedHover {
 }
 
 function formatter(path: string): ContributedFormatter {
-  return (state, range) => formatSql(state.doc.toString(), sourceOf(path).driver, range);
+  return (state, range) => formatSql(state.doc.toString(), sourceOf(path).driver, range, currentSqlStyle());
 }
 
 export function sqlSupport(path: string): Extension {

@@ -858,6 +858,32 @@ export function registerSettingsPage(page: SettingsPageContribution): () => void
 }
 
 /**
+ * A section a feature adds to Editor › Code Style › <language> (the SQL formatter's
+ * case and layout, from the Database feature), above Tabs and Indents. It edits through
+ * `useSettingsForm`, in the page's scheme.
+ */
+export interface CodeStyleSectionContribution {
+  id: string;
+  /** Language id (`sql`). */
+  language: string;
+  order?: number;
+  component: ComponentType;
+}
+
+export const useCodeStyleSections = create<{ sections: readonly CodeStyleSectionContribution[] }>(() => ({
+  sections: [],
+}));
+
+export function registerCodeStyleSection(section: CodeStyleSectionContribution): () => void {
+  useCodeStyleSections.setState((s) => ({
+    sections: [...s.sections.filter((x) => x.id !== section.id), section].sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0),
+    ),
+  }));
+  return () => useCodeStyleSections.setState((s) => ({ sections: s.sections.filter((x) => x !== section) }));
+}
+
+/**
  * A capability that ships with Luma, listed in Settings › Plugins › Installed › Bundled like
  * IDEA's bundled plugins: it can be turned off, never uninstalled, and needs no download.
  */
