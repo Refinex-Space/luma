@@ -12,6 +12,35 @@ export interface LocalSort {
   descending: boolean;
 }
 
+/** A sort key by column name, the primary first (IDEA's ORDER BY priority). */
+export interface SortKey {
+  column: string;
+  descending: boolean;
+}
+
+/**
+ * IDEA's sort change (`TableResultPanel.changeSortOrder` / `toggleSortColumns`):
+ * `direction` sets the column's direction (`null` removes it); left out, a click cycles
+ * it ascending → descending → unsorted. Without `add` the column becomes the only key
+ * (a click on another column starts ascending); with it, a sorted column keeps its
+ * priority and a new one is appended.
+ */
+export function nextSort(
+  sort: readonly SortKey[],
+  column: string,
+  add: boolean,
+  direction?: "asc" | "desc" | null,
+): SortKey[] {
+  const cur = sort.find((k) => k.column === column);
+  let next: SortKey | null;
+  if (direction !== undefined) next = direction === null ? null : { column, descending: direction === "desc" };
+  else if (!add && sort.some((k) => k.column !== column)) next = { column, descending: false };
+  else next = !cur ? { column, descending: false } : !cur.descending ? { column, descending: true } : null;
+  if (!add) return next ? [next] : [];
+  if (!next) return sort.filter((k) => k.column !== column);
+  return cur ? sort.map((k) => (k.column === column ? next : k)) : [...sort, next];
+}
+
 const NUMBER = /^-?\d+(\.\d+)?(e[+-]?\d+)?$/i;
 
 /** Numbers by value, then text; NULL first (as most databases sort ascending). */
@@ -32,7 +61,7 @@ export function visibleRows(
   rowCount: number,
   value: (row: number, col: number) => Cell,
   filter: LocalFilter,
-  sort: LocalSort | null,
+  sort: LocalSort | readonly LocalSort[] | null,
   fixed = rowCount,
 ): number[] {
   const rows: number[] = [];
@@ -46,9 +75,15 @@ export function visibleRows(
     }
     if (shown) rows.push(r);
   }
-  if (sort) {
-    const dir = sort.descending ? -1 : 1;
-    rows.sort((a, b) => dir * compareCells(value(a, sort.column), value(b, sort.column)) || a - b);
+  const keys = sort === null ? [] : Array.isArray(sort) ? sort : [sort as LocalSort];
+  if (keys.length) {
+    rows.sort((a, b) => {
+      for (const k of keys) {
+        const d = compareCells(value(a, k.column), value(b, k.column));
+        if (d) return k.descending ? -d : d;
+      }
+      return a - b;
+    });
   }
   for (let r = fixed; r < rowCount; r++) rows.push(r);
   return rows;
@@ -191,4 +226,101 @@ export function niceTicks(min: number, max: number, count = 5): number[] {
   for (let t = Math.floor(lo / step) * step; t <= hi + step * 1e-9; t += step) out.push(Number(t.toPrecision(12)));
   if (out.at(-1)! < hi) out.push(Number((out.at(-1)! + step).toPrecision(12)));
   return out;
+}
+
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+const WORD_CHAR = /[\p{L}\p{N}_$]/u;
+
+/**
+ * Find on Current Page: whether a cell's text matches `query` (Match Case / Words /
+ * Regex as in the find bar); `null` without a query, `"invalid"` for a bad regex.
+ * NULL cells match their `<null>` text.
+ */
+export function cellMatcher(
+  query: string,
+  options: { caseSensitive: boolean; wholeWord: boolean; regex: boolean },
+): ((v: Cell) => boolean) | "invalid" | null {
+  if (!query) return null;
+  let re: RegExp;
+  try {
+    re = new RegExp(
+      options.regex ? query : query.replace(REGEX_SPECIALS, "\\$&"),
+      options.caseSensitive ? "gu" : "giu",
+    );
+  } catch {
+    return "invalid";
+  }
+  return (v) => {
+    const text = v ?? "<null>";
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      const end = m.index + m[0].length;
+      if (end === m.index) {
+        re.lastIndex = m.index + 1;
+        continue;
+      }
+      if (!options.wholeWord || (!WORD_CHAR.test(text[m.index - 1] ?? "") && !WORD_CHAR.test(text[end] ?? "")))
+        return true;
+    }
+    return false;
+  };
+}
+
+/**
+ * Go to Row's input (IDEA's `row[:column]`, `row,column`): a 1-based row number and an
+ * optional column, by 1-based number or name (case-insensitive). `null` when unparsable.
+ */
+export function parseGoTo(text: string, columns: readonly string[]): { row: number; column: number | null } | null {
+  const m = /^\s*(\d+)\s*(?:[:,]\s*(.+?))?\s*$/.exec(text);
+  if (!m) return null;
+  const row = Number(m[1]) - 1;
+  if (row < 0) return null;
+  if (m[2] === undefined) return { row, column: null };
+  const byNumber = /^\d+$/.test(m[2]) ? Number(m[2]) - 1 : -1;
+  const column =
+    byNumber >= 0 && byNumber < columns.length
+      ? byNumber
+      : columns.findIndex((c) => c.toLowerCase() === m[2]!.toLowerCase());
+  return column < 0 ? null : { row, column };
+}
+
+/**
+ * IDEA's heatmap (`TableHeatmapColorLayer`): where `v` lies in its column, 0 at the
+ * minimum and 1 at the maximum; `null` for non-numbers or a column of one value.
+ */
+export function heat(v: Cell, range: { min: number; max: number } | null): number | null {
+  if (!range || v === null || !NUMBER.test(v) || range.max === range.min) return null;
+  return (Number(v) - range.min) / (range.max - range.min);
+}
+
+/** Min and max of the numbers among `values` (`null` without two distinct ones). */
+export function numberRange(values: Iterable<Cell>): { min: number; max: number } | null {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v === null || !NUMBER.test(v)) continue;
+    const n = Number(v);
+    if (n < min) min = n;
+    if (n > max) max = n;
+  }
+  return max > min ? { min, max } : null;
+}
+
+const IMAGE_MAGIC: ReadonlyArray<[prefix: string, mime: string]> = [
+  ["89504e470d0a1a0a", "image/png"],
+  ["ffd8ff", "image/jpeg"],
+  ["474946383", "image/gif"],
+  ["52494646", "image/webp"],
+];
+
+/** A `data:` URL for a binary cell (`0x…` hex) holding a PNG, JPEG, GIF or WebP image. */
+export function imageUrl(v: Cell): string | null {
+  if (!v || !/^0x[0-9a-f]+$/i.test(v) || v.length % 2) return null;
+  const hex = v.slice(2).toLowerCase();
+  const mime = IMAGE_MAGIC.find(([magic]) => hex.startsWith(magic))?.[1];
+  if (!mime || (mime === "image/webp" && hex.slice(16, 24) !== "57454250")) return null;
+  let binary = "";
+  for (let i = 0; i < hex.length; i += 2) binary += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+  return `data:${mime};base64,${btoa(binary)}`;
 }

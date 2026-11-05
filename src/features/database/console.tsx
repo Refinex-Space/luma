@@ -51,7 +51,9 @@ import {
   loadCompletion,
   listsDatabases,
   loadDatabases,
+  loadSchemas,
   loadSources,
+  picksDatabase,
   setManualCommit,
   sourceById,
   targetLabel,
@@ -226,10 +228,23 @@ function ConsoleBar({ path, view }: { path: string; view: EditorView }) {
   const pending = useDatabase((s) => !!bound && s.pendingTx.has(bound));
   const databases = useDatabase((s) => s.databases);
   const boundId = bound ? splitTarget(bound).id : null;
+  const source = sources.find((s) => s.id === boundId);
+  const picks = picksDatabase(source);
+  const schemas = useDatabase((s) => (picks && boundId ? s.schemas[boundId] : undefined));
   useEffect(() => {
-    if (boundId && listsDatabases(sourceById(boundId)) && !useDatabase.getState().databases[boundId])
-      void loadDatabases(boundId);
+    const st = useDatabase.getState();
+    if (!boundId) return;
+    if (listsDatabases(sourceById(boundId)) && !st.databases[boundId]) void loadDatabases(boundId);
+    if (picksDatabase(sourceById(boundId)) && !st.schemas[boundId]) void loadSchemas(boundId);
   }, [boundId]);
+  // The configured database is the data source's own target (`targetOf`).
+  const configured = source?.database?.trim() || null;
+  const database = bound ? (splitTarget(bound).database ?? configured) : null;
+  const databaseOptions = useMemo(() => {
+    const names = schemas?.status === "ok" ? [...schemas.value] : [];
+    if (database && !names.includes(database)) names.unshift(database);
+    return names.map((name) => ({ value: name, label: name, icon: "db-schema" }));
+  }, [schemas, database]);
   const targets = useMemo(() => {
     const out: Array<{ value: string; label: string; detail?: string; icon: string }> = [];
     for (const s of sources) {
@@ -247,10 +262,10 @@ function ConsoleBar({ path, view }: { path: string; view: EditorView }) {
       } else out.push({ value: id, label: s.name ?? "", detail: host, icon: "db-schema" });
     }
     // A console bound to a database whose list is not loaded yet still shows it.
-    if (bound && !out.some((o) => o.value === bound))
+    if (bound && !picks && !out.some((o) => o.value === bound))
       out.push({ value: bound, label: targetLabel(bound), icon: "database" });
     return out;
-  }, [sources, databases, bound]);
+  }, [sources, databases, bound, picks]);
   useEffect(() => {
     if (!loaded) void loadSources();
   }, [loaded]);
@@ -317,12 +332,23 @@ function ConsoleBar({ path, view }: { path: string; view: EditorView }) {
       <span className={styles.spacer} />
       <Select
         aria-label="Data source"
-        value={bound ?? null}
+        value={(picks ? boundId : bound) ?? null}
         placeholder={sources.length ? "<data source>" : "None configured"}
         options={targets}
         onChange={(id) => bindConsole(path, id)}
         disabled={!sources.length}
       />
+      {picks && boundId && (
+        <Select
+          aria-label="Database"
+          value={database}
+          placeholder={schemas?.status === "error" ? "Cannot list databases" : "<database>"}
+          options={databaseOptions}
+          searchable={databaseOptions.length > 10}
+          onChange={(name) => bindConsole(path, targetOf(boundId, name, configured))}
+          disabled={!databaseOptions.length}
+        />
+      )}
     </div>
   );
 }

@@ -5,14 +5,14 @@
  */
 import { call, commands, type DataSource, type DbDriver, type DbTableInfo } from "@/platform/ipc";
 import { registerActions, type Action } from "@/platform/actions";
-import { editorService, notifications, showServiceView, toolWindowService } from "@/workbench/contributions";
+import { editorService, notifications, toolWindowService } from "@/workbench/contributions";
 import { splitTarget } from "./model";
 import { nodeTarget, objectOf, schemaObjectOf, tableFolder, tableOf, type DbNode } from "./nodes";
 import { canDrop, canRename, reference, scriptSql, type ScriptKind } from "./objects";
 import {
   DB_TOOL_WINDOW,
   OUTPUT_TAB,
-  RESULTS_VIEW,
+  RESULTS_WINDOW,
   detailsKey,
   disconnect,
   duplicateSource,
@@ -151,7 +151,7 @@ async function runScriptFile(id: string) {
     const text = await call(commands.fsReadText(file));
     const statements = await call(commands.dbStatements(id, text, 0, text.length));
     useDatabase.setState({ activeResult: OUTPUT_TAB });
-    showServiceView(RESULTS_VIEW, false);
+    toolWindowService().show(RESULTS_WINDOW, false);
     if (
       await runSql(
         id,

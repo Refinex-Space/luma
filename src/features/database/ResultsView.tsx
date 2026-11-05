@@ -7,17 +7,40 @@ import { copySelectionOnKeyDown } from "@/ui/selectableText";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import type { DbPlanNode } from "@/platform/ipc";
-import { EmptyState, Icon, IconButton, Spinner, Tabs, Tree, showContextMenu, T } from "@/ui";
+import { Button, EmptyState, Icon, IconButton, Spinner, Tabs, Tree, showContextMenu, T, type MenuItem } from "@/ui";
 import { ChartView } from "./ChartView";
-import { DataView, ExtractorSelect, PanelToggle, exportMenu, type DataPanel } from "./DataView";
-import type { ExportData, ExportFormat } from "./export";
+import {
+  DataView,
+  ExtractorSelect,
+  PanelToggle,
+  exportMenu,
+  shownData,
+  useGridView,
+  viewMenu,
+  type DataPanel,
+} from "./DataView";
+import type { ExportData } from "./export";
+import { emptyEdits, hasEdits, type Cell, type PendingEdits } from "./model";
+import { addRow, deleteRows, editedValue, isModified, revertCells, rowState, setCell } from "./rowEdits";
+
+const NO_EDITS = emptyEdits();
+const NO_ROWS: ReadonlyArray<readonly Cell[]> = [];
 import { analyze } from "./sql/analyze";
 import {
+  MAX_ALL_ROWS,
   OUTPUT_TAB,
   clearOutput,
   closeResult,
+  countResult,
+  fetchAllRows,
   outcomeSummary,
+  pageResult,
   rerunResult,
+  resolveResultEdit,
+  setResultEdits,
+  setResultPageSize,
+  sortResult,
+  submitResultEdits,
   sourceById,
   targetLabel,
   useDatabase,
@@ -66,71 +89,256 @@ function Output() {
   );
 }
 
-/** The table a query reads (target of exported SQL inserts), else IDEA's placeholder. */
+/** The table a query reads (target of SQL extractors), else IDEA's placeholder. */
 function queryTable(text: string, data: Pick<ExportData, "driver">): string {
   const a = analyze(text, text.length, data.driver);
   return a.refs.find((r) => r.depth === 0 && r.kind === "table")?.name ?? "MY_TABLE";
 }
 
+const PAGE_SIZES = [10, 100, 500, 1000];
+
+/** IDEA's pagination: ⏮ ◀ "1–500 ▾" (page size, Count Rows) "of N" ▶ ⏭. */
+function Pager({ tab, shown }: { tab: ResultTab; shown: number }) {
+  const shape = tab.shape!;
+  const { offset, pageSize, total } = shape;
+  const last = total !== null && offset + shown >= total;
+  const more = !!tab.outcome.result?.hasMore;
+  const label = shown ? `${offset + 1}–${offset + shown}` : "0";
+  const totalText = total?.toLocaleString("en") ?? "";
+  // IDEA: "of 500+" until the rows are counted.
+  const atLeast = (offset + shown).toLocaleString("en");
+  const busy = !!tab.busy;
+  return (
+    <div className={styles.pager}>
+      <IconButton
+        icon="page-first"
+        title="First Page"
+        disabled={busy || offset === 0}
+        onClick={() => void pageResult(tab.id, "first")}
+      />
+      <IconButton
+        icon="chevron-left"
+        title="Previous Page"
+        disabled={busy || offset === 0}
+        onClick={() => void pageResult(tab.id, "previous")}
+      />
+      <button
+        type="button"
+        className={styles.pageRange}
+        aria-haspopup="menu"
+        title={tx("Page size")}
+        onClick={(e) =>
+          showContextMenu(e, [
+            {
+              label: "Count Rows",
+              disabled: busy || total !== null || !!shape.counting,
+              run: () => void countResult(tab.id),
+            },
+            { kind: "header", label: "Page Size" },
+            ...PAGE_SIZES.map((n): MenuItem => ({
+              label: n.toLocaleString("en"),
+              checked: n === pageSize,
+              run: () => void setResultPageSize(tab.id, n),
+            })),
+            { label: "All", checked: pageSize >= MAX_ALL_ROWS, run: () => void setResultPageSize(tab.id, 0) },
+          ])
+        }
+      >
+        {label}
+        <Icon name="chevron-down" size={12} className={styles.pageRangeChevron} />
+      </button>
+      <button
+        type="button"
+        className={styles.pageTotal}
+        disabled={busy || total !== null || !!shape.counting || !more}
+        title={total === null ? tx("Count rows (SELECT COUNT(*))") : undefined}
+        onClick={() => void countResult(tab.id)}
+      >
+        {shape.counting ? <Spinner size={10} /> : total !== null ? tx`of ${totalText}` : tx`of ${atLeast}+`}
+      </button>
+      <IconButton
+        icon="chevron-right"
+        title="Next Page"
+        disabled={busy || !more || last}
+        onClick={() => void pageResult(tab.id, "next")}
+      />
+      <IconButton
+        icon="page-last"
+        title="Last Page"
+        disabled={busy || (!more && total !== null && last) || (!more && total === null)}
+        onClick={() => void pageResult(tab.id, "last")}
+      />
+    </div>
+  );
+}
+
 function Result({ tab }: { tab: ResultTab }) {
-  const [view, setView] = useState<"table" | "chart">("table");
+  const [mode, setMode] = useState<"table" | "chart">("table");
   const [panel, setPanel] = useState<DataPanel | null>(null);
-  const [extractor, setExtractor] = useState<ExportFormat>("csv");
   const r = tab.outcome.result;
-  const columns = useMemo(() => (r ? r.columns.map((c) => ({ name: c.name, type: c.typeName })) : []), [r]);
-  const value = useCallback((row: number, col: number) => r?.rows[row]?.[col] ?? null, [r]);
+  const edit = tab.edit ?? null;
+  const edits = tab.edits ?? NO_EDITS;
+  const names = useMemo(() => edit?.columns ?? [], [edit]);
+  const columns = useMemo(
+    () =>
+      r
+        ? r.columns.map((c, i) => ({
+            name: c.name,
+            type: c.typeName,
+            primaryKey: !!names[i] && !!edit?.primaryKey.includes(names[i]!),
+          }))
+        : [],
+    [r, names, edit],
+  );
+  const view = useGridView(columns);
+  const rows = r?.rows ?? NO_ROWS;
+  const value = useCallback(
+    (row: number, col: number) => editedValue(edits, rows, names, row, col),
+    [edits, rows, names],
+  );
+  useEffect(() => {
+    if (tab.edit === undefined && r) void resolveResultEdit(tab.id);
+  }, [tab.edit, tab.id, r]);
   if (!r) return null;
   const driver = sourceById(tab.sourceId)?.driver ?? "sqlite";
-  const data = (): ExportData => ({
-    columns,
-    rows: r.rows,
-    driver,
-    table: queryTable(tab.outcome.statement.text, { driver }),
-  });
+  const target = edit
+    ? { table: edit.table, schema: edit.schema, driver }
+    : { table: queryTable(tab.outcome.statement.text, { driver }), driver };
+  const loaded = r.rows.length;
+  const update = (f: (e: PendingEdits) => PendingEdits) => setResultEdits(tab.id, f(tab.edits ?? emptyEdits()));
+  const dirty = hasEdits(edits);
+  const shape = tab.shape;
+  const paged = !!shape && !shape.fixed;
+  const data = (): ExportData => shownData({ ...target, columns, rows: r.rows }, view);
+  const loadAll =
+    paged && (r.hasMore || shape.offset > 0)
+      ? async () => {
+          const all = await fetchAllRows(tab.id);
+          return all && shownData({ ...target, columns, rows: all.rows }, view);
+        }
+      : undefined;
+  const firstRow = (shape?.offset ?? 0) + 1;
   return (
     <div className={styles.view}>
       <div className={styles.toolbar}>
-        <IconButton icon="db-table" title="Table" aria-pressed={view === "table"} onClick={() => setView("table")} />
-        <IconButton icon="db-chart" title="Chart" aria-pressed={view === "chart"} onClick={() => setView("chart")} />
+        <IconButton icon="db-table" title="Table" aria-pressed={mode === "table"} onClick={() => setMode("table")} />
+        <IconButton icon="db-chart" title="Chart" aria-pressed={mode === "chart"} onClick={() => setMode("chart")} />
         <span className={styles.toolbarSeparator} />
+        {paged && (
+          <>
+            <Pager tab={tab} shown={r.rows.length} />
+            <span className={styles.toolbarSeparator} />
+          </>
+        )}
         <IconButton icon="refresh" title="Rerun Query" disabled={tab.busy} onClick={() => void rerunResult(tab.id)} />
+        {edit && mode === "table" && (
+          <>
+            <IconButton
+              icon="plus"
+              title="Add Row"
+              disabled={tab.busy}
+              onClick={() => update((e) => addRow(e, names))}
+            />
+            <Button
+              size="small"
+              variant="primary"
+              disabled={!dirty || tab.busy}
+              title={tx`Submit changes to ${edit.table}`}
+              onClick={() => void submitResultEdits(tab.id)}
+            >
+              <T>Submit</T>
+            </Button>
+            <Button size="small" disabled={!dirty} onClick={() => setResultEdits(tab.id, emptyEdits())}>
+              <T>Revert</T>
+            </Button>
+          </>
+        )}
+        {mode === "table" && (
+          <IconButton
+            icon="settings"
+            title="View Options"
+            aria-haspopup="menu"
+            onClick={(e) => showContextMenu(e, viewMenu(view, columns))}
+          />
+        )}
         {tab.busy && <Spinner size={12} />}
         <span className={styles.spacer} />
         <span className={styles.resultSource} title={tab.outcome.statement.text}>
           {targetLabel(tab.sourceId)}
         </span>
-        <ExtractorSelect value={extractor} onChange={setExtractor} />
+        <ExtractorSelect />
         <IconButton
           icon="export"
           title="Export Data"
-          onClick={(e) =>
-            showContextMenu(e, exportMenu(data(), queryTable(tab.outcome.statement.text, { driver }), extractor))
-          }
+          aria-haspopup="menu"
+          onClick={(e) => showContextMenu(e, exportMenu(data(), target.table, loadAll))}
         />
-        {view === "table" && <PanelToggle panel={panel} onChange={setPanel} />}
+        {mode === "table" && <PanelToggle panel={panel} onChange={setPanel} />}
       </div>
-      {view === "chart" ? (
+      {mode === "chart" ? (
         <div className={styles.fill}>
           <ChartView columns={columns} rows={r.rows} />
         </div>
       ) : (
-        <div className={clsx(styles.fill, styles.gridHost)}>
+        <div className={clsx(styles.fill, styles.gridHost, tab.busy && styles.gridBusy)}>
           <DataView
             columns={columns}
-            rowCount={r.rows.length}
+            rowCount={loaded + edits.inserts.length}
+            fixedRows={loaded}
             value={value}
+            firstRowNumber={firstRow}
+            editable={!!edit && !tab.busy}
+            cellEditable={(_, c) => !!names[c]}
+            onEdit={(row, col, v) => update((e) => setCell(e, rows, names, row, col, v))}
+            rowState={edit ? (row) => rowState(edits, loaded, row) : undefined}
+            isModified={edit ? (row, col) => isModified(edits, names, row, col) : undefined}
+            onRevert={edit ? (rs, cs) => update((e) => revertCells(e, names, loaded, rs, cs)) : undefined}
+            onDeleteRows={edit ? (rs) => update((e) => deleteRows(e, loaded, rs)) : undefined}
+            rowMenu={
+              edit
+                ? (rs) => [
+                    { label: "Add Row", icon: "plus", run: () => update((e) => addRow(e, names)) },
+                    {
+                      label: "Clone Row",
+                      disabled: rs.length !== 1,
+                      run: () => update((e) => addRow(e, names, (c) => value(rs[0]!, c))),
+                    },
+                    {
+                      label: "Delete Rows",
+                      icon: "trash",
+                      shortcut: "⌘⌫",
+                      run: () => update((e) => deleteRows(e, loaded, rs)),
+                    },
+                  ]
+                : undefined
+            }
+            sort={paged ? shape.sort : undefined}
+            onSortChange={paged ? (next) => void sortResult(tab.id, next) : undefined}
+            target={target}
+            view={view}
             panel={panel}
             onPanelChange={setPanel}
             aria-label={tab.title}
           />
           <div className={styles.rowPill} role="status" title={outcomeSummary(tab.outcome)}>
-            {r.rows.length === 1 ? tx`${r.rows.length} row` : tx`${r.rows.length} rows`}
-            {r.hasMore ? ` ${tx("(limit reached)")}` : ""}
+            {rowsLabel(r.rows.length, shape, r.hasMore)}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+/** "4 rows", "500 of 1,204 rows", "500+ rows" (more not counted yet). */
+function rowsLabel(shown: number, shape: ResultTab["shape"], more: boolean): string {
+  const total = shape?.total ?? null;
+  const count = shown.toLocaleString("en");
+  if (total !== null && total !== shown) {
+    const [visible, rowCount] = [count, total.toLocaleString("en")];
+    return tx`${visible} of ${rowCount} rows`;
+  }
+  if (more) return tx`${count}+ rows`;
+  return shown === 1 ? tx`${shown} row` : tx`${count} rows`;
 }
 
 interface PlanRow {
@@ -242,6 +450,35 @@ function PlanResult({ tab }: { tab: ResultTab }) {
   );
 }
 
+/** Output and the `Result N` tabs, in the Database Console tool window's header (like Run's sessions). */
+export function ResultTabs() {
+  const results = useDatabase((s) => s.results);
+  const active = useDatabase((s) => s.activeResult);
+  const hasOutput = useDatabase((s) => s.output.length > 0);
+  if (!results.length && !hasOutput) return null;
+  const tab = results.find((r) => r.id === active);
+  return (
+    <Tabs
+      variant="compact"
+      className={styles.resultTabs}
+      aria-label="Results"
+      activeId={tab ? String(tab.id) : String(OUTPUT_TAB)}
+      onSelect={(id) => useDatabase.setState({ activeResult: Number(id) })}
+      onClose={(id) => closeResult(Number(id))}
+      items={[
+        { id: String(OUTPUT_TAB), label: "Output", icon: "db-console", closable: false },
+        ...results.map((r) => ({
+          id: String(r.id),
+          label: r.title,
+          icon: r.plan ? "db-plan" : "db-table",
+          closable: true,
+          tooltip: r.outcome.statement.text,
+        })),
+      ]}
+    />
+  );
+}
+
 export function ResultsView() {
   const results = useDatabase((s) => s.results);
   const active = useDatabase((s) => s.activeResult);
@@ -253,28 +490,5 @@ export function ResultsView() {
       </EmptyState>
     );
   const tab = results.find((r) => r.id === active);
-  return (
-    <div className={styles.view}>
-      <Tabs
-        variant="compact"
-        aria-label="Results"
-        activeId={tab ? String(tab.id) : String(OUTPUT_TAB)}
-        onSelect={(id) => useDatabase.setState({ activeResult: Number(id) })}
-        onClose={(id) => closeResult(Number(id))}
-        items={[
-          { id: String(OUTPUT_TAB), label: "Output", icon: "db-console", closable: false },
-          ...results.map((r) => ({
-            id: String(r.id),
-            label: r.title,
-            icon: r.plan ? "db-plan" : "db-table",
-            closable: true,
-            tooltip: r.outcome.statement.text,
-          })),
-        ]}
-      />
-      <div className={styles.fill}>
-        {!tab ? <Output /> : tab.plan ? <PlanResult key={tab.id} tab={tab} /> : <Result key={tab.id} tab={tab} />}
-      </div>
-    </div>
-  );
+  return !tab ? <Output /> : tab.plan ? <PlanResult key={tab.id} tab={tab} /> : <Result key={tab.id} tab={tab} />;
 }

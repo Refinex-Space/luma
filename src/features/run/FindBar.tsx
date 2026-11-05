@@ -1,5 +1,5 @@
 /** ⌘F in the Run console: the IDEA find bar (Match Case / Words / Regex, n/m, previous/next). */
-import { type KeyboardEvent, type RefObject } from "react";
+import { type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import clsx from "clsx";
 import { IconButton, SearchField } from "@/ui";
 import { hasPrimaryModifier } from "@/platform/keymap";
@@ -24,6 +24,10 @@ export interface ConsoleFindBarProps {
   onNext: () => void;
   onPrevious: () => void;
   onClose: () => void;
+  /** What is searched (the field's placeholder and the bar's name); "Find in console" by default. */
+  label?: string;
+  /** Extra controls after the navigation buttons (the data grid's Filter Rows). */
+  children?: ReactNode;
 }
 
 export function ConsoleFindBar({
@@ -39,6 +43,8 @@ export function ConsoleFindBar({
   onNext,
   onPrevious,
   onClose,
+  label = "Find in console",
+  children,
 }: ConsoleFindBarProps) {
   const none = !!query && !invalid && count === 0;
   const counter = invalid
@@ -77,20 +83,14 @@ export function ConsoleFindBar({
   };
 
   return (
-    <div
-      className={styles.find}
-      role="search"
-      aria-label={tx("Find in console")}
-      data-run-find=""
-      onKeyDown={onKeyDown}
-    >
+    <div className={styles.find} role="search" aria-label={tx(label)} data-run-find="" onKeyDown={onKeyDown}>
       <SearchField
         ref={inputRef}
         className={styles.findField}
         value={query}
         onChange={onChange}
-        placeholder="Find in console"
-        aria-label="Find in console"
+        placeholder={label}
+        aria-label={label}
         invalid={invalid || none}
         toggles={[
           {
@@ -138,6 +138,7 @@ export function ConsoleFindBar({
         disabled={count === 0}
         onClick={onNext}
       />
+      {children}
       <span className={styles.findSpacer} />
       <IconButton icon="close" title="Close" shortcut="⎋" size="small" onClick={onClose} />
     </div>

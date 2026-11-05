@@ -11,7 +11,6 @@ import { useProject } from "@/platform/project";
 import {
   registerEditorKind,
   registerOverlay,
-  registerServiceView,
   registerToolWindow,
   setFileDecorations,
   toolWindowService,
@@ -23,7 +22,7 @@ import { nodeTarget, type DbNode } from "./nodes";
 import { registerDatabaseTreeActions } from "./treeActions";
 import {
   DB_TOOL_WINDOW,
-  RESULTS_VIEW,
+  RESULTS_WINDOW,
   consoleSource,
   consoleTints,
   loadSources,
@@ -46,13 +45,15 @@ export function activate(): () => void {
       component: lazyComponent(() => import("./DatabaseView").then((m) => m.DatabaseView)),
       headerActions: lazyComponent(() => import("./DatabaseView").then((m) => m.DatabaseHeaderActions)),
     }),
-    registerServiceView({
-      id: RESULTS_VIEW,
-      title: "Database",
-      icon: "database",
-      order: 20,
-      onUse: true,
+    registerToolWindow({
+      id: RESULTS_WINDOW,
+      title: "Database Console",
+      icon: "db-console",
+      anchor: "bottom",
+      stripe: "onUse",
+      order: 9,
       component: lazyComponent(() => import("./ResultsView").then((m) => m.ResultsView)),
+      headerContent: lazyComponent(() => import("./ResultsView").then((m) => m.ResultTabs)),
     }),
     registerEditorKind({
       kind: TABLE_KIND,

@@ -164,6 +164,7 @@ const UNTRANSLATED = new Set<string>([
   "TiDB",
   "TimescaleDB",
   "TSV",
+  "XML",
   "ty",
   "TypeScript",
   "Vim",

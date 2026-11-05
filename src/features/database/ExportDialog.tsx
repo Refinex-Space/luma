@@ -10,6 +10,8 @@ import {
   DEFAULT_EXPORT_OPTIONS,
   EXPORT_FORMATS,
   exportData,
+  extractorOf,
+  extractorOptions,
   type ExportData,
   type ExportFormat,
   type ExportOptions,
@@ -17,10 +19,9 @@ import {
 import { CodePreview } from "./CodePreview";
 import { closeDialog } from "./store";
 import styles from "./Database.module.css";
+import { tx } from "@/platform/i18n";
 
 const PREVIEW_ROWS = 100;
-/** Formats with a tabular layout (the options apply). */
-const TABULAR: ReadonlySet<ExportFormat> = new Set(["csv", "tsv", "markdown"]);
 
 function joinPath(dir: string, name: string): string {
   return `${dir.replace(/[\\/]+$/, "")}/${name}`;
@@ -30,11 +31,16 @@ export function ExportDialog({
   data,
   source,
   initialFormat = "csv",
+  loadAll,
 }: {
   data: ExportData;
   source: string;
   initialFormat?: ExportFormat;
+  /** Re-runs the query for every row (a result with more rows than were fetched). */
+  loadAll?: () => Promise<ExportData | null>;
 }) {
+  const [all, setAll] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [format, setFormat] = useState<ExportFormat>(initialFormat);
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
   const ext = EXPORT_FORMATS.find((f) => f.id === format)!.extension;
@@ -56,13 +62,22 @@ export function ExportDialog({
     setFile((path) => path.replace(/\.[^./\\]*$/, `.${next}`));
   };
 
-  const tabular = TABULAR.has(format);
+  const tabular = extractorOf(format).tabular;
   const effective = tabular ? options : DEFAULT_EXPORT_OPTIONS;
   const preview = useMemo(
     () => exportData(format, { ...data, rows: data.rows.slice(0, PREVIEW_ROWS) }, effective),
     [format, data, effective],
   );
-  const text = () => exportData(format, data, effective);
+  /** The rows to write: fetched, or all of the query's. */
+  const rows = async (): Promise<ExportData | null> => {
+    if (!all || !loadAll) return data;
+    setBusy(true);
+    try {
+      return await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  };
   const set = (k: keyof ExportOptions) => (v: boolean) => setOptions((o) => ({ ...o, [k]: v }));
 
   const browse = async () => {
@@ -81,10 +96,12 @@ export function ExportDialog({
     if (!path) return;
     const target = /^([a-zA-Z]:)?[\\/]/.test(path) || !dir ? path : joinPath(dir, path);
     try {
-      await call(commands.dbExportFile(target, text()));
+      const d = await rows();
+      if (!d) return;
+      await call(commands.dbExportFile(target, exportData(format, d, effective)));
       notifications().notify({
         level: "info",
-        title: `${data.rows.length} rows exported`,
+        title: `${d.rows.length} rows exported`,
         body: target,
         key: "db-export",
       });
@@ -108,12 +125,20 @@ export function ExportDialog({
         { label: "Cancel", role: "cancel" },
         {
           label: "Copy to Clipboard",
-          onClick: () => {
-            void navigator.clipboard?.writeText(text());
-            closeDialog();
-          },
+          disabled: busy,
+          onClick: () =>
+            void rows().then((d) => {
+              if (!d) return;
+              void navigator.clipboard?.writeText(exportData(format, d, effective));
+              closeDialog();
+            }),
         },
-        { label: "Export to File", role: "default", disabled: !file.trim(), onClick: () => void toFile() },
+        {
+          label: "Export to File",
+          role: "default",
+          disabled: !file.trim() || busy,
+          onClick: () => void toFile(),
+        },
       ]}
     >
       <div className={styles.exportDialog}>
@@ -128,9 +153,12 @@ export function ExportDialog({
           <Select
             aria-label="Extractor"
             value={format}
-            options={EXPORT_FORMATS.map((f) => ({ value: f.id, label: f.label }))}
+            options={extractorOptions()}
             onChange={(v) => changeFormat(v as ExportFormat)}
           />
+          {loadAll && (
+            <Checkbox checked={all} onChange={setAll} label={tx`All rows of the query (${data.rows.length} fetched)`} />
+          )}
           <Checkbox checked={effective.transpose} disabled={!tabular} onChange={set("transpose")} label="Transpose" />
           <Checkbox
             checked={effective.columnHeader}
@@ -159,7 +187,7 @@ export function ExportDialog({
           <CodePreview
             className={styles.exportPreviewText}
             aria-label="Export preview"
-            sql={format === "sql"}
+            sql={extractorOf(format).extension === "sql"}
             text={preview + (data.rows.length > PREVIEW_ROWS ? `\n… ${data.rows.length - PREVIEW_ROWS} more rows` : "")}
           />
         </div>

@@ -80,6 +80,13 @@ async fn metadata_names_are_text_whatever_the_column_collation() -> IdeResult<()
     let r = db.execute("m", "SELECT name, raw FROM `oi_数据`.`用户`", 10, &CancellationToken::new()).await?;
     assert_eq!(r.rows, vec![vec![Some("ann".to_owned()), Some("0xCAFE".to_owned())]]);
 
+    // A console's database (`m:<database>`): unqualified names resolve in it.
+    let c = CancellationToken::new();
+    assert!(db.execute("m", "SELECT name FROM `用户`", 10, &c).await.is_err(), "no database selected");
+    let r = db.execute("m:oi_数据", "SELECT name FROM `用户`", 10, &c).await?;
+    assert_eq!(r.rows, vec![vec![Some("ann".to_owned())]]);
+    assert_eq!(db.completion("m:oi_数据").await?.default_schema, "oi_数据");
+
     // Every text column arrives with the `binary` collation.
     let tmp = tempfile::tempdir().unwrap();
     let raw = manager(&tmp, "SET character_set_results = binary").await.unwrap();

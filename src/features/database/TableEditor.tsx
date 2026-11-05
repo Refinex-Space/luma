@@ -16,8 +16,16 @@ import {
 import { Button, EmptyState, Icon, IconButton, Select, Spinner, T, showContextMenu } from "@/ui";
 import { notifications, type EditorInput } from "@/workbench/contributions";
 import { SqlFilterInput } from "./SqlFilterInput";
-import { DataView, ExtractorSelect, PanelToggle, exportMenu, type DataPanel } from "./DataView";
-import type { ExportFormat } from "./export";
+import {
+  DataView,
+  ExtractorSelect,
+  PanelToggle,
+  exportMenu,
+  shownData,
+  useGridView,
+  viewMenu,
+  type DataPanel,
+} from "./DataView";
 import {
   buildRowEdits,
   emptyEdits,
@@ -27,14 +35,17 @@ import {
   type Cell,
   type PendingEdits,
 } from "./model";
-import { openDialog, sourceById, withConnection } from "./store";
+import { countTableRows, openDialog, sourceById, withConnection } from "./store";
 import type { TableRef } from "./tableInput";
+import { addRow, deleteRows as removeRows, editedValue, isModified, revertCells, rowState, setCell } from "./rowEdits";
 import styles from "./Database.module.css";
 import { tx } from "@/platform/i18n";
 
 const PAGE_SIZES = ["100", "500", "1000", "5000"];
 
 export { tableTitle } from "./tableInput";
+
+const NO_ROWS: ReadonlyArray<readonly Cell[]> = [];
 
 export function TableEditor({ input }: { input: EditorInput }) {
   const ref = input.data as TableRef;
@@ -46,7 +57,6 @@ export function TableEditor({ input }: { input: EditorInput }) {
   const [nonce, setNonce] = useState(0);
   const [edits, setEdits] = useState<PendingEdits>(emptyEdits);
   const [panel, setPanel] = useState<DataPanel | null>(null);
-  const [extractor, setExtractor] = useState<ExportFormat>("csv");
   // The ORDER BY field while it's being edited; it shows the sort otherwise.
   const [orderDraft, setOrderDraft] = useState<string | null>(null);
   // The page for the current parameters (`key`); stale while loading.
@@ -105,48 +115,18 @@ export function TableEditor({ input }: { input: EditorInput }) {
     [page],
   );
 
+  const rows = page?.result.rows ?? NO_ROWS;
   const value = useCallback(
-    (row: number, col: number): Cell => {
-      const name = names[col]!;
-      if (row >= loaded) {
-        const ins = edits.inserts[row - loaded];
-        return ins?.has(name) ? ins.get(name)! : null;
-      }
-      const upd = edits.updates.get(row);
-      if (upd?.has(name)) return upd.get(name)!;
-      return page?.result.rows[row]?.[col] ?? null;
-    },
-    // `names` / `loaded` derive from `page`.
+    (row: number, col: number): Cell => editedValue(edits, rows, names, row, col),
+    // `names` derives from `page`, like `rows`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [page, edits],
+    [rows, edits],
   );
-
-  const onEdit = (row: number, col: number, v: Cell) => {
-    const name = names[col]!;
-    setEdits((e) => {
-      const next: PendingEdits = { updates: new Map(e.updates), deletes: new Set(e.deletes), inserts: [...e.inserts] };
-      if (row >= loaded) {
-        const ins = new Map(next.inserts[row - loaded]);
-        ins.set(name, v);
-        next.inserts[row - loaded] = ins;
-      } else {
-        const upd = new Map(next.updates.get(row));
-        if ((page?.result.rows[row]?.[col] ?? null) === v) upd.delete(name);
-        else upd.set(name, v);
-        if (upd.size) next.updates.set(row, upd);
-        else next.updates.delete(row);
-      }
-      return next;
-    });
-  };
-
-  const deleteRows = (rows: number[]) =>
-    setEdits((e) => {
-      const deletes = new Set(e.deletes);
-      const insertsGone = new Set(rows.filter((r) => r >= loaded).map((r) => r - loaded));
-      for (const r of rows) if (r < loaded) deletes.add(r);
-      return { ...e, deletes, inserts: e.inserts.filter((_, i) => !insertsGone.has(i)) };
-    });
+  const onEdit = (row: number, col: number, v: Cell) => setEdits((e) => setCell(e, rows, names, row, col, v));
+  const view = useGridView(gridColumns);
+  const revert = (targets: number[], cols: number[]) => setEdits((e) => revertCells(e, names, loaded, targets, cols));
+  const cloneRow = (row: number) => setEdits((e) => addRow(e, names, (c) => value(row, c)));
+  const deleteRows = (targets: number[]) => setEdits((e) => removeRows(e, loaded, targets));
 
   const submit = async () => {
     if (!page) return;
@@ -166,37 +146,74 @@ export function TableEditor({ input }: { input: EditorInput }) {
     }
   };
 
-  const onSort = (column: string, add: boolean) =>
-    setSort((s) => {
-      const cur = s.find((k) => k.column === column);
-      // asc → desc → none.
-      const next = !cur ? { column, descending: false } : !cur.descending ? { column, descending: true } : null;
-      const rest = add ? s.filter((k) => k.column !== column) : [];
-      return next ? [...rest, next] : rest;
-    });
+  // Count Rows: of the table with the current filter (exact once counted, or when one page holds all).
+  const countKey = JSON.stringify([ref.id, ref.schema, ref.table, filter, nonce]);
+  const [counted, setCounted] = useState<{ key: string; n: number | null; busy: boolean } | null>(null);
+  const counting = counted?.key === countKey && counted.busy;
+  const total =
+    counted?.key === countKey && counted.n !== null
+      ? counted.n
+      : page && !page.result.hasMore && !loading
+        ? offset + loaded
+        : null;
+  const totalText = total?.toLocaleString("en") ?? "";
+  const atLeast = (offset + loaded).toLocaleString("en");
+  const count = async (): Promise<number | null> => {
+    setCounted({ key: countKey, n: null, busy: true });
+    const n = await countTableRows(ref.id, ref.schema, ref.table, filter);
+    setCounted({ key: countKey, n, busy: false });
+    return n;
+  };
+  const lastPage = async () => {
+    const n = total ?? (await count());
+    if (n !== null) setOffset(Math.max(0, Math.floor((n - 1) / limit) * limit));
+  };
+
+  const onSortChange = (next: DbSortKey[]) => {
+    setOffset(0);
+    setSort(next);
+  };
 
   const dirty = hasEdits(edits);
+  const target = { table: ref.table, schema: ref.schema, driver: sourceById(ref.id)?.driver ?? "sqlite" };
   const orderInvalid = orderDraft !== null && !parseOrderBy(orderDraft, names);
   return (
     <div className={styles.view}>
       <div className={styles.toolbar}>
-        <IconButton icon="refresh" title="Reload Page" onClick={reload} disabled={loading} />
         <div className={styles.pager}>
+          <IconButton
+            icon="page-first"
+            title="First Page"
+            disabled={offset === 0 || loading}
+            onClick={() => setOffset(0)}
+          />
           <IconButton
             icon="chevron-left"
             title="Previous Page"
             disabled={offset === 0 || loading}
             onClick={() => setOffset(Math.max(0, offset - limit))}
           />
-          <span>
-            {loaded ? `${offset + 1}–${offset + loaded}` : "0"}
-            {page?.result.hasMore ? " of more" : ""}
-          </span>
+          <span className={styles.pageRange}>{loaded ? `${offset + 1}–${offset + loaded}` : "0"}</span>
+          <button
+            type="button"
+            className={styles.pageTotal}
+            disabled={total !== null || counting || !page?.result.hasMore}
+            title={total === null ? tx("Count rows (SELECT COUNT(*))") : undefined}
+            onClick={() => void count()}
+          >
+            {counting ? <Spinner size={10} /> : total !== null ? tx`of ${totalText}` : tx`of ${atLeast}+`}
+          </button>
           <IconButton
             icon="chevron-right"
             title="Next Page"
             disabled={!page?.result.hasMore || loading}
             onClick={() => setOffset(offset + limit)}
+          />
+          <IconButton
+            icon="page-last"
+            title="Last Page"
+            disabled={!page?.result.hasMore || loading}
+            onClick={() => void lastPage()}
           />
           <Select
             aria-label="Page size"
@@ -208,13 +225,11 @@ export function TableEditor({ input }: { input: EditorInput }) {
             }}
           />
         </div>
+        <span className={styles.toolbarSeparator} />
+        <IconButton icon="refresh" title="Reload Page" onClick={reload} disabled={loading} />
         {editable && (
           <>
-            <IconButton
-              icon="plus"
-              title="Add Row"
-              onClick={() => setEdits((e) => ({ ...e, inserts: [...e.inserts, new Map()] }))}
-            />
+            <IconButton icon="plus" title="Add Row" onClick={() => setEdits((e) => addRow(e, names))} />
             <Button size="small" variant="primary" disabled={!dirty} onClick={() => void submit()}>
               <T>Submit</T>
             </Button>
@@ -225,24 +240,19 @@ export function TableEditor({ input }: { input: EditorInput }) {
         )}
         {loading && <Spinner size={12} />}
         <span className={styles.spacer} />
-        <ExtractorSelect value={extractor} onChange={setExtractor} />
+        <ExtractorSelect />
         <IconButton
           icon="export"
           title="Export Data"
+          aria-haspopup="menu"
           disabled={!page}
           onClick={(e) =>
             page &&
             showContextMenu(
               e,
               exportMenu(
-                {
-                  columns: gridColumns,
-                  rows: page.result.rows,
-                  table: ref.table,
-                  driver: sourceById(ref.id)?.driver ?? "sqlite",
-                },
+                shownData({ ...target, columns: gridColumns, rows: page.result.rows }, view),
                 `${ref.schema}.${ref.table}`,
-                extractor,
               ),
             )
           }
@@ -252,6 +262,12 @@ export function TableEditor({ input }: { input: EditorInput }) {
           title="Import Data from File…"
           disabled={!editable}
           onClick={() => openDialog({ kind: "import", id: ref.id, schema: ref.schema, table: ref.table })}
+        />
+        <IconButton
+          icon="settings"
+          title="View Options"
+          aria-haspopup="menu"
+          onClick={(e) => showContextMenu(e, viewMenu(view, gridColumns))}
         />
         <PanelToggle panel={panel} onChange={setPanel} />
       </div>
@@ -318,21 +334,26 @@ export function TableEditor({ input }: { input: EditorInput }) {
             panel={panel}
             onPanelChange={setPanel}
             firstRowNumber={offset + 1}
-            rowState={(r) => (r >= loaded ? "inserted" : edits.deletes.has(r) ? "deleted" : null)}
-            isModified={(r, c) => !!edits.updates.get(r)?.has(names[c]!)}
+            rowState={(r) => rowState(edits, loaded, r)}
+            isModified={(r, c) => isModified(edits, names, r, c)}
             editable={editable}
             onEdit={onEdit}
             sort={sort}
-            onSort={onSort}
+            onSortChange={onSortChange}
+            target={target}
+            view={view}
+            onRevert={editable ? revert : undefined}
+            onDeleteRows={editable ? deleteRows : undefined}
             rowMenu={(rows) =>
               editable
                 ? [
-                    { label: "Delete Rows", icon: "trash", run: () => deleteRows(rows) },
                     {
-                      label: "Restore Rows",
-                      run: () =>
-                        setEdits((e) => ({ ...e, deletes: new Set([...e.deletes].filter((d) => !rows.includes(d))) })),
+                      label: "Add Row",
+                      icon: "plus",
+                      run: () => setEdits((e) => addRow(e, names)),
                     },
+                    { label: "Clone Row", disabled: rows.length !== 1, run: () => cloneRow(rows[0]!) },
+                    { label: "Delete Rows", icon: "trash", shortcut: "⌘⌫", run: () => deleteRows(rows) },
                   ]
                 : []
             }

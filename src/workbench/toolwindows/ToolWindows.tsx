@@ -82,6 +82,8 @@ function staticHeaderMenu(items: MenuItem[] | undefined): (id: string) => MenuIt
 }
 
 const noTitleMenu = (): { label: string; items: MenuItem[] } | null => null;
+const always = () => true;
+const never = () => false;
 
 function ToolWindowView({
   tw,
@@ -127,6 +129,9 @@ function ToolWindowView({
   const useTitleMenu = tw.titleMenu ?? noTitleMenu;
   const titleMenu = useTitleMenu(tw.id);
   const titleItems = titleMenu?.items ?? (tw.headerMenuInTitle === false ? [] : own);
+  const useTabsReplaceTitle =
+    typeof tw.tabsReplaceTitle === "function" ? tw.tabsReplaceTitle : tw.tabsReplaceTitle ? always : never;
+  const tabsReplaceTitle = useTabsReplaceTitle();
   const more: MenuItem[] = [
     ...own,
     ...(own.length ? [{ kind: "separator" } as MenuItem] : []),
@@ -159,7 +164,7 @@ function ToolWindowView({
           active={tw}
           activeContent={
             <>
-              {Tabs && tw.tabsReplaceTitle ? null : titleItems.length > 0 ? (
+              {Tabs && tabsReplaceTitle ? null : titleItems.length > 0 ? (
                 <>
                   <button
                     ref={titleRef}

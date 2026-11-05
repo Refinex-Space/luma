@@ -24,25 +24,35 @@ import {
   type SqlStatement,
 } from "@/platform/ipc";
 import { editorsFor } from "@/editor/api";
-import {
-  editorService,
-  notifications,
-  showServiceView,
-  toolWindowService,
-  type FileDecoration,
-} from "@/workbench/contributions";
+import { editorService, notifications, toolWindowService, type FileDecoration } from "@/workbench/contributions";
 import { workflowSettings } from "@/platform/workflowSettings";
 import { ask, confirm } from "@/workbench/messages";
-import { colorVar, connectRemedy, databaseKey, effectiveSsh, idleTargets, newSourceId, splitTarget } from "./model";
+import {
+  buildRowEdits,
+  colorVar,
+  connectRemedy,
+  databaseKey,
+  effectiveSsh,
+  idleTargets,
+  newSourceId,
+  splitTarget,
+  type PendingEdits,
+} from "./model";
 import { tableFolder, type DbNode } from "./nodes";
 import type { ExportData, ExportFormat } from "./export";
+import type { SortKey } from "./resultView";
+import { canReshape, countQuery, reshapeQuery } from "./sql/reshape";
+import { quoteIdent } from "./sql/complete";
+import { mapResultColumns, queryTableOf, type EditMapping } from "./sql/editable";
+import { editCount } from "./rowEdits";
 import type { DbObjectRef } from "./objects";
 import { formatted } from "./sql/format";
 import { bindParams, findParams } from "./sql/params";
 import { tx } from "@/platform/i18n";
 
 export const DB_TOOL_WINDOW = "database";
-export const RESULTS_VIEW = "dbResults";
+/** The Database Console tool window: Output and the result tabs of the query consoles. */
+export const RESULTS_WINDOW = "dbConsole";
 const BINDINGS_KEY = "luma.database.consoles";
 const MAX_TABS = 12;
 
@@ -58,6 +68,34 @@ export interface ResultTab {
   plan?: DbPlanNode[];
   /** Being re-run. */
   busy?: boolean;
+  /** Sort (ORDER BY) and page of the rows shown; re-queried when they change. */
+  shape?: ResultShape;
+  /** The table edits go to (`null`: read-only; absent: not resolved yet). */
+  edit?: ResultEditTarget | null;
+  /** Pending cell edits, added and deleted rows (Submit applies them). */
+  edits?: PendingEdits;
+}
+
+/** An editable result's table and how its columns map to the table's. */
+export interface ResultEditTarget extends EditMapping {
+  schema: string;
+  table: string;
+}
+
+/**
+ * IDEA's paging and "Sort via ORDER BY" of a console result: the statement is
+ * re-queried as a derived table (see `sql/reshape`) when it can be.
+ */
+export interface ResultShape {
+  sort: SortKey[];
+  /** First row of the page (0-based). */
+  offset: number;
+  pageSize: number;
+  /** Rows of the whole query: exact once counted (or when one page holds all). */
+  total: number | null;
+  counting?: boolean;
+  /** The statement cannot be re-queried: sorting is local, there is one page. */
+  fixed: boolean;
 }
 
 /** One line of the consoles' Output log (IDEA's Database Console output). */
@@ -97,7 +135,13 @@ export type DialogState =
   /** Values of query parameters (`null`: cancelled). */
   | { kind: "params"; names: string[]; resolve: (values: Record<string, string> | null) => void }
   /** Export Data of a result or table page; `source` names it (`main.customers`). */
-  | { kind: "export"; data: ExportData; source: string; format?: ExportFormat }
+  | {
+      kind: "export";
+      data: ExportData;
+      source: string;
+      format?: ExportFormat;
+      loadAll?: () => Promise<ExportData | null>;
+    }
   /** Browse Query History of target `id`; Paste goes to console `path`. */
   | { kind: "history"; id: string; path: string | null }
   /** Import Data from File into a table. */
@@ -430,6 +474,14 @@ export function listsDatabases(source: DataSource | undefined): boolean {
 }
 
 /**
+ * MySQL and MariaDB consoles pick the database unqualified names resolve in (a schema of the
+ * tree): the console runs on target `<id>:<database>`, whose connections open in it.
+ */
+export function picksDatabase(source: DataSource | undefined): boolean {
+  return source?.driver === "mysql";
+}
+
+/**
  * Re-reads the metadata of target `id` (a data source id: all its databases),
  * reloading the levels that were loaded so the tree keeps its expanded nodes.
  */
@@ -640,11 +692,14 @@ function promptOf(id: string): string {
 }
 
 /** Runs `statements` on `id`, logging to Output; errors stop the batch (backend). */
-async function run(id: string, statements: SqlStatement[], request: RequestId): Promise<DbStatementOutcome[]> {
+async function run(
+  id: string,
+  statements: SqlStatement[],
+  request: RequestId,
+  maxRows = useDatabase.getState().maxRows,
+): Promise<DbStatementOutcome[]> {
   const wasConnected = useDatabase.getState().connected.has(id);
-  const outcomes = await withConnection(id, () =>
-    call(commands.dbExecute(request, id, statements, useDatabase.getState().maxRows)),
-  );
+  const outcomes = await withConnection(id, () => call(commands.dbExecute(request, id, statements, maxRows)));
   if (!wasConnected) log("info", "Connected");
   for (const o of outcomes) {
     log("statement", o.statement.text, `${promptOf(id)}>`);
@@ -792,14 +847,14 @@ export async function executeConsole(
       .filter((o) => o.result?.columns.length)
       .map((outcome) => {
         const n = nextTab++;
-        return { id: n, title: tx`Result ${n}`, path, sourceId: id, outcome };
+        return { id: n, title: tx`Result ${n}`, path, sourceId: id, outcome, shape: initialShape(id, outcome) };
       });
     const failed = outcomes.some((o) => o.error);
     useDatabase.setState((s) => ({
       results: [...s.results, ...tabs].slice(-MAX_TABS),
       activeResult: failed || !tabs.length ? OUTPUT_TAB : tabs.at(-1)!.id,
     }));
-    showServiceView(RESULTS_VIEW, false);
+    toolWindowService().show(RESULTS_WINDOW, false);
     return outcomes;
   } catch (e) {
     if (!isCancelled(e)) {
@@ -848,7 +903,7 @@ function showPlan(path: string, id: string, statement: SqlStatement, plan: DbPla
     const results = old ? s.results.map((r) => (r === old ? tab : r)) : [...s.results, tab].slice(-MAX_TABS);
     return { results, activeResult: tab.id };
   });
-  showServiceView(RESULTS_VIEW, false);
+  toolWindowService().show(RESULTS_WINDOW, false);
 }
 
 async function explain(id: string, statement: SqlStatement): Promise<DbPlanNode[]> {
@@ -904,28 +959,267 @@ export async function openObjectDdl(id: string, schema: string, kind: DbObjectKi
   }
 }
 
+function initialShape(id: string, outcome: DbStatementOutcome): ResultShape {
+  const r = outcome.result!;
+  const driver = sourceById(id)?.driver ?? "sqlite";
+  return {
+    sort: [],
+    offset: 0,
+    pageSize: useDatabase.getState().maxRows,
+    total: r.hasMore ? null : r.rows.length,
+    fixed: !canReshape(
+      outcome.statement.text,
+      r.columns.map((c) => c.name),
+      driver,
+    ),
+  };
+}
+
+function patchResult(tabId: number, p: Partial<ResultTab> | ((t: ResultTab) => Partial<ResultTab>)) {
+  useDatabase.setState((s) => ({
+    results: s.results.map((r) => (r.id === tabId ? { ...r, ...(typeof p === "function" ? p(r) : p) } : r)),
+  }));
+}
+
+/** Fetches the page `shape` names of `tab`'s statement (its sort, from its offset). */
+async function fetchShaped(tab: ResultTab, shape: ResultShape): Promise<DbStatementOutcome | undefined> {
+  const statement = tab.outcome.statement;
+  const columns = tab.outcome.result?.columns.map((c) => c.name) ?? [];
+  const order = shape.sort
+    .map((k) => ({ column: columns.indexOf(k.column), descending: k.descending }))
+    .filter((k) => k.column >= 0);
+  const plain = shape.fixed || (!order.length && !shape.offset);
+  const driver = sourceById(tab.sourceId)?.driver ?? "sqlite";
+  // One row past the page tells whether another follows.
+  const text = plain ? statement.text : reshapeQuery(driver, statement.text, order, shape.offset, shape.pageSize + 1);
+  const [outcome] = await run(tab.sourceId, [{ ...statement, text }], nextRequestId(), shape.pageSize);
+  return outcome && { ...outcome, statement };
+}
+
+/** Re-queries result tab `tabId` with `shape` (a new sort or page), keeping its rows on failure. */
+async function reshapeResult(tabId: number, shape: ResultShape): Promise<void> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab || tab.busy || !(await discardEdits(tab))) return;
+  patchResult(tabId, { busy: true, edits: undefined });
+  try {
+    const outcome = await fetchShaped(tab, shape);
+    if (outcome?.result) {
+      const r = outcome.result;
+      const total = shape.total ?? (r.hasMore ? null : shape.offset + r.rows.length);
+      patchResult(tabId, { outcome, shape: { ...shape, total }, busy: false });
+    } else {
+      patchResult(tabId, { busy: false });
+      if (outcome?.error) {
+        notifications().notify({
+          level: "error",
+          title: "Cannot load the rows",
+          body: outcome.error,
+          key: "db-reshape",
+        });
+      }
+    }
+  } catch (e) {
+    patchResult(tabId, { busy: false });
+    if (!isCancelled(e)) log("error", message(e));
+  }
+}
+
+/** Sorts result `tabId` with ORDER BY over all its rows (from the first page). */
+export function sortResult(tabId: number, sort: SortKey[]): Promise<void> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab?.shape || tab.shape.fixed) return Promise.resolve();
+  return reshapeResult(tabId, { ...tab.shape, sort, offset: 0 });
+}
+
+/** Moves result `tabId` to another page: first, previous, next or last (counting the rows first). */
+export async function pageResult(tabId: number, to: "first" | "previous" | "next" | "last"): Promise<void> {
+  let tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab?.shape || tab.shape.fixed) return;
+  if (to === "last" && tab.shape.total === null) {
+    await countResult(tabId);
+    tab = useDatabase.getState().results.find((r) => r.id === tabId);
+    if (!tab?.shape || tab.shape.total === null) return;
+  }
+  const { offset, pageSize, total } = tab.shape;
+  const next =
+    to === "first"
+      ? 0
+      : to === "previous"
+        ? Math.max(0, offset - pageSize)
+        : to === "next"
+          ? offset + pageSize
+          : Math.max(0, Math.floor(((total ?? 1) - 1) / pageSize) * pageSize);
+  if (next === offset) return;
+  await reshapeResult(tabId, { ...tab.shape, offset: next });
+}
+
+/** Changes the page size of result `tabId` (`0`: all rows), from the first page. */
+export function setResultPageSize(tabId: number, pageSize: number): Promise<void> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab?.shape) return Promise.resolve();
+  const size = pageSize > 0 ? pageSize : Math.max(MAX_ALL_ROWS, tab.shape.total ?? 0);
+  return reshapeResult(tabId, { ...tab.shape, pageSize: size, offset: 0 });
+}
+
+/** Rows "All" fetches at most. */
+export const MAX_ALL_ROWS = 100_000;
+
+/** IDEA's Count Rows: `SELECT COUNT(*)` over the statement of result `tabId`. */
+export async function countResult(tabId: number): Promise<void> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab?.shape || tab.shape.fixed || tab.shape.counting) return;
+  patchResult(tabId, (t) => ({ shape: t.shape && { ...t.shape, counting: true } }));
+  try {
+    const statement = tab.outcome.statement;
+    const [outcome] = await run(tab.sourceId, [{ ...statement, text: countQuery(statement.text) }], nextRequestId(), 1);
+    const n = Number(outcome?.result?.rows[0]?.[0]);
+    patchResult(tabId, (t) => ({
+      shape: t.shape && { ...t.shape, counting: false, total: Number.isFinite(n) ? n : t.shape.total },
+    }));
+    if (outcome?.error)
+      notifications().notify({ level: "error", title: "Cannot count the rows", body: outcome.error, key: "db-count" });
+  } catch (e) {
+    patchResult(tabId, (t) => ({ shape: t.shape && { ...t.shape, counting: false } }));
+    if (!isCancelled(e)) log("error", message(e));
+  }
+}
+
+/**
+ * All rows of result `tabId` (Export Data of the whole query, in its sort), at most
+ * `MAX_ALL_ROWS`; `null` when it fails (notified).
+ */
+export async function fetchAllRows(tabId: number): Promise<DbStatementOutcome["result"] | null> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab?.shape) return null;
+  try {
+    const outcome = await fetchShaped(tab, { ...tab.shape, offset: 0, pageSize: MAX_ALL_ROWS });
+    if (outcome?.error) throw new Error(outcome.error);
+    return outcome?.result ?? null;
+  } catch (e) {
+    if (!isCancelled(e)) notifications().notify({ level: "error", title: "Cannot export the rows", body: message(e) });
+    return null;
+  }
+}
+
+/** Count Rows of the table editor: the rows of `schema.table` passing `filter` (a WHERE condition). */
+export async function countTableRows(
+  id: string,
+  schema: string,
+  table: string,
+  filter: string,
+): Promise<number | null> {
+  const driver = sourceById(id)?.driver ?? "sqlite";
+  const text = `SELECT COUNT(*) FROM ${quoteIdent(schema, driver)}.${quoteIdent(table, driver)}${filter ? ` WHERE ${filter}` : ""}`;
+  try {
+    const [outcome] = await withConnection(id, () =>
+      call(commands.dbExecute(nextRequestId(), id, [{ from: 0, to: text.length, text }], 1)),
+    );
+    if (outcome?.error) throw new Error(outcome.error);
+    const n = Number(outcome?.result?.rows[0]?.[0]);
+    return Number.isFinite(n) ? n : null;
+  } catch (e) {
+    if (!isCancelled(e)) notifications().notify({ level: "error", title: "Cannot count the rows", body: message(e) });
+    return null;
+  }
+}
+
+/** IDEA asks before a reload drops unsubmitted changes. */
+async function discardEdits(tab: ResultTab): Promise<boolean> {
+  const n = tab.edits ? editCount(tab.edits) : 0;
+  if (!n) return true;
+  return confirm({
+    title: "Discard Changes",
+    message: tx`${n} unsubmitted change(s) of ${tab.title} will be lost.`,
+    ok: "Discard",
+  });
+}
+
+/**
+ * Whether result `tabId` can be edited (DataGrip's editable results): a plain query
+ * over one table of a writable data source, the table's primary key in the result.
+ */
+export async function resolveResultEdit(tabId: number): Promise<void> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  if (!tab || tab.edit !== undefined || !tab.outcome.result) return;
+  const source = sourceById(tab.sourceId);
+  const driver = source?.driver ?? "sqlite";
+  const ref = source?.readOnly ? null : queryTableOf(tab.outcome.statement.text, driver);
+  let target: ResultEditTarget | null = null;
+  if (ref) {
+    const schema =
+      ref.schema ?? (await loadCompletion(tab.sourceId))?.defaultSchema ?? (driver === "sqlite" ? "main" : "");
+    if (schema) {
+      const key = detailsKey(tab.sourceId, schema, ref.name);
+      if (useDatabase.getState().details[key]?.status !== "ok") await loadDetails(tab.sourceId, schema, ref.name);
+      const details = useDatabase.getState().details[key];
+      const mapping =
+        details?.status === "ok"
+          ? mapResultColumns(
+              tab.outcome.result.columns.map((c) => c.name),
+              details.value.columns,
+            )
+          : null;
+      if (mapping) target = { ...mapping, schema, table: ref.name };
+    }
+  }
+  patchResult(tabId, { edit: target });
+}
+
+export function setResultEdits(tabId: number, edits: PendingEdits) {
+  patchResult(tabId, { edits });
+}
+
+/** Applies the pending edits of result `tabId` in one transaction, then re-queries its page. */
+export async function submitResultEdits(tabId: number): Promise<boolean> {
+  const tab = useDatabase.getState().results.find((r) => r.id === tabId);
+  const target = tab?.edit;
+  if (!tab || !target || !tab.edits || !tab.outcome.result) return false;
+  // Columns that are no table column never carry edits; their name only has to be unique.
+  const names = target.columns.map((c, i) => c ?? `\u0000${i}`);
+  try {
+    const n = await call(
+      commands.dbApplyEdits(
+        tab.sourceId,
+        target.schema,
+        target.table,
+        buildRowEdits(names, tab.outcome.result.rows, target.primaryKey, tab.edits),
+      ),
+    );
+    log("info", `${target.table}: ${n} row(s) changed`);
+    notifications().notify({ level: "info", title: `${target.table}: ${n} row(s) changed`, key: "db-submit" });
+    patchResult(tabId, { edits: undefined });
+    await rerunResult(tabId);
+    return true;
+  } catch (e) {
+    notifications().notify({ level: "error", title: "Changes were not submitted", body: message(e), key: "db-submit" });
+    return false;
+  }
+}
+
 /** Re-runs the statement of result tab `tabId`, replacing its rows (a plan tab explains it again). */
 export async function rerunResult(tabId: number): Promise<void> {
   const tab = useDatabase.getState().results.find((r) => r.id === tabId);
   if (!tab || tab.busy) return;
-  const patch = (p: Partial<ResultTab>) =>
-    useDatabase.setState((s) => ({ results: s.results.map((r) => (r.id === tabId ? { ...r, ...p } : r)) }));
-  patch({ busy: true });
   if (tab.plan) {
+    patchResult(tabId, { busy: true });
     try {
-      patch({ plan: await explain(tab.sourceId, tab.outcome.statement), busy: false });
+      patchResult(tabId, { plan: await explain(tab.sourceId, tab.outcome.statement), busy: false });
     } catch (e) {
-      patch({ busy: false });
+      patchResult(tabId, { busy: false });
       if (!isCancelled(e)) log("error", `[${targetLabel(tab.sourceId)}] ${message(e)}`);
     }
     return;
   }
+  // The same sort and page; the row count may have changed.
+  if (tab.shape) return reshapeResult(tabId, { ...tab.shape, total: null });
+  if (!(await discardEdits(tab))) return;
+  patchResult(tabId, { busy: true, edits: undefined });
   try {
     const [outcome] = await run(tab.sourceId, [tab.outcome.statement], nextRequestId());
-    patch(outcome?.result ? { outcome, busy: false } : { busy: false });
+    patchResult(tabId, outcome?.result ? { outcome, busy: false } : { busy: false });
     if (outcome?.error) useDatabase.setState({ activeResult: OUTPUT_TAB });
   } catch (e) {
-    patch({ busy: false });
+    patchResult(tabId, { busy: false });
     if (!isCancelled(e)) log("error", message(e));
   }
 }

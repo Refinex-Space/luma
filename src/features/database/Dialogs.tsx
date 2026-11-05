@@ -184,7 +184,9 @@ export function DatabaseDialogs() {
     );
   if (dialog.kind === "params") return <ParamsDialog names={dialog.names} resolve={dialog.resolve} />;
   if (dialog.kind === "export")
-    return <ExportDialog data={dialog.data} source={dialog.source} initialFormat={dialog.format} />;
+    return (
+      <ExportDialog data={dialog.data} source={dialog.source} initialFormat={dialog.format} loadAll={dialog.loadAll} />
+    );
   if (dialog.kind === "history") return <HistoryDialog key={dialog.id} id={dialog.id} path={dialog.path} />;
   if (dialog.kind === "import")
     return (

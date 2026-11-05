@@ -25,6 +25,11 @@ function useCurrentView(): ServiceViewContribution | null {
   return views.find((v) => v.id === active) ?? views[0] ?? null;
 }
 
+/** With a second view the tabs stand in for the window title, which would repeat the first tab. */
+export function useServicesTabsShown(): boolean {
+  return useVisibleViews().length > 1;
+}
+
 export function ServicesTabs() {
   const views = useVisibleViews();
   const current = useCurrentView();
@@ -36,7 +41,7 @@ export function ServicesTabs() {
       aria-label="Services"
       activeId={current.id}
       onSelect={(active) => useActiveServiceView.setState({ active })}
-      items={views.map((v) => ({ id: v.id, label: v.title, text: v.title, icon: v.icon }))}
+      items={views.map((v) => ({ id: v.id, label: v.title, text: v.title }))}
     />
   );
 }

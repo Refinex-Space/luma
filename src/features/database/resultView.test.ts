@@ -110,14 +110,14 @@ describe("export options", () => {
 
   it("leaves the header out, adds row numbers and transposes", () => {
     const opts = { columnHeader: false, rowHeader: false, transpose: false };
-    expect(exportData("csv", data, opts)).toBe("1,Shanghai\r\n2,");
+    expect(exportData("csv", data, opts)).toBe("1,Shanghai\n2,");
     expect(exportData("csv", data, { ...opts, rowHeader: true, columnHeader: true })).toBe(
-      "#,id,city\r\n1,1,Shanghai\r\n2,2,",
+      "#,id,city\n1,1,Shanghai\n2,2,",
     );
     expect(exportData("tsv", data, { ...opts, columnHeader: true, transpose: true })).toBe(
       "id\t1\t2\ncity\tShanghai\t",
     );
-    expect(exportData("csv", data)).toBe("id,city\r\n1,Shanghai\r\n2,");
+    expect(exportData("csv", data)).toBe("id,city\n1,Shanghai\n2,");
   });
 });
 

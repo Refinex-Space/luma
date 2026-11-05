@@ -36,7 +36,7 @@ import {
   stop,
 } from "./ops";
 import { SERVICES_VIEW_FOCUS, ServicesTreeView, showAddServiceMenu } from "./ServicesTree";
-import { ServicesHeaderActions, ServicesHost, ServicesTabs } from "./ServicesHost";
+import { ServicesHeaderActions, ServicesHost, ServicesTabs, useServicesTabsShown } from "./ServicesHost";
 import { connections, refresh } from "./store";
 import { SERVICES_TREE_VIEW } from "./tree";
 import { isRunning } from "./model";
@@ -58,6 +58,7 @@ export function activate(): () => void {
       stripe: "onUse",
       component: ServicesHost,
       headerContent: ServicesTabs,
+      tabsReplaceTitle: useServicesTabsShown,
       headerActions: ServicesHeaderActions,
     }),
     registerServiceView({

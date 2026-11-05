@@ -244,6 +244,8 @@ const ICONS = {
   "chevron-down": "general/chevronDown",
   "chevron-up": "general/chevronUp",
   "chevron-left": "general/chevronLeft",
+  "page-first": "actions/playFirst",
+  "page-last": "actions/playLast",
   close: "general/close",
   plus: "general/add",
   minus: "general/remove",

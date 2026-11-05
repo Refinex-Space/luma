@@ -1,5 +1,9 @@
 /* ---- Grid ---------------------------------------------------------------- */
 .grid {
+  /* IDEA's heatmap: sequential is one hue, diverging runs green → clear → red. */
+  --heat-high: var(--success);
+  --heat-low: var(--success);
+  --heat-high-diverging: var(--danger);
   position: relative;
   height: 100%;
   overflow: auto;
@@ -53,10 +57,43 @@
   flex: none;
   color: var(--fg-secondary);
 }
-.headerSort {
+/* IDEA: the sort icon sorts, the rest of the header selects the column. */
+.headerSortButton {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 18px;
   margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
   color: var(--fg-muted);
+  cursor: pointer;
+}
+.headerSortButton:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+.headerSortOn {
+  color: var(--accent);
+}
+/* The sort priority, once several columns sort. */
+.headerSortRank {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.headerCell.headerSelected {
+  background: var(--bg-tree-selected-inactive, var(--bg-hover));
+}
+.cornerCell {
+  cursor: cell;
+}
+.rowNumber.rowNumberSelected {
+  color: var(--fg);
+  background: var(--bg-tree-selected-inactive, var(--bg-hover));
 }
 .cellNumber {
   justify-content: flex-end;
@@ -69,7 +106,11 @@
   height: 100%;
   cursor: col-resize;
 }
+/* Row numbers stay in view while the grid scrolls sideways, as in IDEA. */
 .rowNumber {
+  position: sticky;
+  left: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -89,6 +130,29 @@
   white-space: pre;
   text-overflow: ellipsis;
   user-select: none;
+}
+/* Pinned columns: opaque, above the scrolled ones; the last one draws the edge. */
+.pinnedCell {
+  position: sticky;
+  z-index: 1;
+  background: var(--bg-editor);
+}
+.gridHeader .pinnedCell {
+  background: var(--bg-island);
+}
+.pinnedLast {
+  box-shadow: 2px 0 0 var(--border);
+}
+/* The heatmap: under matches and the selection. */
+.cellTinted {
+  background: var(--cell-tint);
+}
+.cellMatch {
+  background: var(--bg-search-match);
+}
+.cellMatchCurrent {
+  background: var(--bg-search-match-current);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
 }
 .cellSelected {
   background: var(--bg-editor-selection);
@@ -822,6 +886,82 @@
 .dataView > .fill {
   min-width: 0;
 }
+.dataMain {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.findFilterRows {
+  margin-left: 6px;
+  white-space: nowrap;
+}
+/* IDEA's Go to Row: a small field over the grid's top left. */
+.goToRow {
+  position: absolute;
+  top: 30px;
+  left: 56px;
+  z-index: 3;
+  padding: 6px 8px;
+  border: 1px solid var(--border-popup, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--bg-popup);
+  box-shadow: var(--shadow-popup, none);
+  animation: goToIn 120ms ease-out;
+}
+.goToLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+@keyframes goToIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .goToRow {
+    animation: none;
+  }
+}
+/* Rows being re-queried (sort, page) stay readable but quiet. */
+.gridBusy .grid {
+  opacity: 0.6;
+  transition: opacity 120ms;
+}
+.pageRange,
+.pageTotal {
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.pageRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.pageRangeChevron {
+  color: var(--fg-secondary);
+}
+.pageTotal {
+  color: var(--fg-secondary);
+}
+.pageRange:hover,
+.pageTotal:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.pageTotal:disabled {
+  cursor: default;
+}
 .headerFilter {
   flex: none;
   display: inline-flex;
@@ -842,10 +982,37 @@
 .headerFilterOn {
   color: var(--accent);
 }
-.filterPill {
+/* IDEA's aggregator widget, bottom left of the grid. */
+/* Bottom right of the grid, where a result's columns rarely reach. */
+.gridPills {
   position: absolute;
   right: 12px;
   bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.gridPills > * {
+  pointer-events: auto;
+}
+.aggregatePill {
+  padding: 3px 10px;
+  border: 1px solid var(--border-popup, var(--border));
+  border-radius: var(--radius-small);
+  background: var(--bg-popup);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-popup, none);
+  cursor: pointer;
+}
+.aggregatePill:hover {
+  background: var(--bg-hover);
+}
+.filterPill {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -958,6 +1125,38 @@
   color: var(--fg-strong);
   font-family: var(--luma-editor-font, var(--font-mono));
   font-size: var(--fs-code);
+}
+.valueTools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 22px;
+}
+/* IDEA's image viewer for binary values, on a checkerboard for transparency. */
+.valueImage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 55%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: repeating-conic-gradient(var(--bg-hover) 0 25%, transparent 0 50%) 0 0 / 16px 16px;
+  overflow: auto;
+}
+.valueImage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.valueTextSmall {
+  min-height: 60px;
+}
+.valueNoWrap {
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
 }
 .valueText:focus {
   outline: none;
@@ -1258,4 +1457,10 @@
   content: "";
   flex: none;
   width: 2px;
+}
+
+.resultTabs {
+  min-width: 0;
+  border: 0;
+  background: none;
 }

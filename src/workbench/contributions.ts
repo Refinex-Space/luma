@@ -47,8 +47,11 @@ export interface ToolWindowContribution {
    * Run sessions…).
    */
   headerContent?: ComponentType<{ id: string }>;
-  /** The content tabs name the window themselves (IDEA's Commit | Shelf | Stash): no title. */
-  tabsReplaceTitle?: boolean;
+  /**
+   * The content tabs name the window themselves (IDEA's Commit | Shelf | Stash): no title.
+   * A hook says so while the tabs are shown (Services: once it hosts a second view).
+   */
+  tabsReplaceTitle?: boolean | (() => boolean);
   /**
    * The title bar's layout group gets a hidden / docked / maximized control for this window
    * (the agent panel).
