@@ -96,3 +96,97 @@ pub fn transfer_fullscreen(from: &WebviewWindow, to: &WebviewWindow) -> tauri::R
         native.toggleFullScreen(None);
     })
 }
+
+/// Space between the longest label of a menu and its shortcut column, in points.
+const SHORTCUT_GAP: f64 = 24.0;
+
+/// Where a menu's right-aligned shortcut column ends: after its longest label, a gap, and its
+/// longest shortcut.
+pub(crate) fn shortcut_column(label_widths: &[f64], shortcut_widths: &[f64]) -> f64 {
+    let widest = |w: &[f64]| w.iter().copied().fold(0.0, f64::max);
+    (widest(label_widths) + SHORTCUT_GAP + widest(shortcut_widths)).ceil()
+}
+
+/// Lines up the shortcuts of the app menu in a right-aligned column.
+///
+/// Menu items carry their shortcut as display text after a tab (`Save All\t⌘S`, see `menu.rs`:
+/// native key equivalents would take keys before the webview). AppKit draws that tab as plain
+/// text, so each shortcut followed its label's length. Here every item of a menu gets an
+/// attributed title with one right-aligned tab stop shared by the whole menu: the shortcuts end
+/// on the same edge, as the system's own key equivalents do. No colour is set, so highlighting
+/// and the disabled state still draw as for a plain title.
+pub fn align_menu_shortcuts(mtm: MainThreadMarker) {
+    use objc2_app_kit::NSApplication;
+    if let Some(menu) = NSApplication::sharedApplication(mtm).mainMenu() {
+        align_menu(&menu);
+    }
+}
+
+fn align_menu(menu: &objc2_app_kit::NSMenu) {
+    use objc2::{AnyThread, runtime::AnyObject};
+    use objc2_app_kit::{
+        NSAttributedStringNSStringDrawing, NSFont, NSFontAttributeName, NSMenuItem, NSMutableParagraphStyle,
+        NSParagraphStyleAttributeName, NSTextAlignment, NSTextTab,
+    };
+    use objc2_foundation::{NSArray, NSAttributedString, NSAttributedStringKey, NSDictionary, NSString};
+
+    let font = NSFont::menuFontOfSize(0.0);
+    // SAFETY: AppKit's attribute key constants, valid for the process lifetime.
+    let (font_key, style_key): (&NSAttributedStringKey, &NSAttributedStringKey) =
+        unsafe { (NSFontAttributeName, NSParagraphStyleAttributeName) };
+    let measure = |text: &str| {
+        let font_obj: &AnyObject = &font;
+        let attrs = NSDictionary::from_slices(&[font_key], &[font_obj]);
+        // SAFETY: a font attribute dictionary, as NSStringDrawing expects.
+        let s = unsafe { NSAttributedString::new_with_attributes(&NSString::from_str(text), &attrs) };
+        s.size().width
+    };
+
+    let mut items: Vec<(objc2::rc::Retained<NSMenuItem>, String)> = Vec::new();
+    let (mut labels, mut shortcuts) = (Vec::new(), Vec::new());
+    for item in menu.itemArray().iter() {
+        if let Some(sub) = item.submenu() {
+            align_menu(&sub);
+        }
+        let title = item.title().to_string();
+        if let Some((label, shortcut)) = title.split_once('\t') {
+            labels.push(measure(label));
+            shortcuts.push(measure(shortcut));
+            items.push((item.clone(), title));
+        }
+    }
+    if items.is_empty() {
+        return;
+    }
+    let column = shortcut_column(&labels, &shortcuts);
+    // SAFETY: a right-aligned tab stop without options.
+    let tab = unsafe {
+        NSTextTab::initWithTextAlignment_location_options(
+            NSTextTab::alloc(),
+            NSTextAlignment::Right,
+            column,
+            &NSDictionary::new(),
+        )
+    };
+    let style = NSMutableParagraphStyle::new();
+    style.setTabStops(Some(&NSArray::from_retained_slice(&[tab])));
+    let font_obj: &AnyObject = &font;
+    let style_obj: &AnyObject = &style;
+    let attrs = NSDictionary::from_slices(&[font_key, style_key], &[font_obj, style_obj]);
+    for (item, title) in items {
+        // SAFETY: font and paragraph style attributes, as a menu title takes.
+        let s = unsafe { NSAttributedString::new_with_attributes(&NSString::from_str(&title), &attrs) };
+        item.setAttributedTitle(Some(&s));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shortcut_column;
+
+    #[test]
+    fn shortcut_column_ends_after_the_longest_label_and_shortcut() {
+        assert_eq!(shortcut_column(&[60.0, 112.4], &[30.0, 41.0]), 178.0);
+        assert_eq!(shortcut_column(&[], &[]), 24.0);
+    }
+}

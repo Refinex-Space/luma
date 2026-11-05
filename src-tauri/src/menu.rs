@@ -1192,7 +1192,15 @@ pub fn install<R: Runtime>(app: &AppHandle<R>, menu_state: &MenuState, recent: &
     let config = menu_state.config.lock().clone();
     let disabled = menu_state.disabled.lock().clone();
     match build(app, Os::current(), &config, &items, &disabled).and_then(|m| app.set_menu(m)) {
-        Ok(_) => {}
+        Ok(_) => {
+            // Shortcuts in a right-aligned column (they are display text, see the module docs).
+            #[cfg(target_os = "macos")]
+            let _ = app.run_on_main_thread(|| {
+                if let Some(mtm) = objc2::MainThreadMarker::new() {
+                    crate::macos::align_menu_shortcuts(mtm);
+                }
+            });
+        }
         Err(e) => tracing::warn!("failed to build the app menu: {e}"),
     }
 }
