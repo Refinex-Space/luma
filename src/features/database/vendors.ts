@@ -86,7 +86,6 @@ export const VENDORS: readonly DbVendor[] = [
     icon: "db-timescale",
     scheme: "postgresql",
   },
-  { id: "valkey", label: "Valkey", driver: "redis", port: 6379, icon: "db-redis", scheme: "redis", ssl: "disable" },
   { id: "yugabytedb", label: "YugabyteDB", driver: "postgres", port: 5433, icon: "db-yugabyte", scheme: "postgresql" },
 ];
 
@@ -128,8 +127,9 @@ const SCHEMES: Record<string, string> = {
   mssql: "sqlServer",
   redis: "redis",
   rediss: "redis",
-  valkey: "valkey",
-  valkeys: "valkey",
+  // Valkey speaks Redis: one type for both (old `valkey` presets fall back to it).
+  valkey: "redis",
+  valkeys: "redis",
 };
 
 export const vendorOfScheme = (scheme: string): DbVendor | undefined => BY_ID.get(SCHEMES[scheme.toLowerCase()] ?? "");

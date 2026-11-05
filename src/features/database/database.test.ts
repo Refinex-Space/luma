@@ -185,12 +185,9 @@ describe("data source types", () => {
     expect(vendorPreset(vendorById("postgres")!)).toEqual({ driver: "postgres", vendor: "", port: 5432 });
     expect(vendorPreset(vendorById("supabase")!).ssl).toBe("require");
     expect(VENDORS.every((v) => ["postgres", "mysql", "sqlite", "sqlServer", "redis"].includes(v.driver))).toBe(true);
-    expect(vendorPreset(vendorById("valkey")!)).toEqual({
-      driver: "redis",
-      vendor: "valkey",
-      port: 6379,
-      ssl: "disable",
-    });
+    // Valkey is Redis: no type of its own; a source saved as one reads as Redis.
+    expect(vendorById("valkey")).toBeUndefined();
+    expect(vendorOf({ driver: "redis", vendor: "valkey" }).label).toBe("Redis");
     const labels = VENDORS.map((v) => v.label);
     expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
   });

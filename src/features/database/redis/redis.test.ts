@@ -16,7 +16,9 @@ describe("Redis data sources", () => {
       ssl: "require",
       user: "ops",
     });
-    expect(parseSourceUrl("valkey://localhost")?.source).toMatchObject({ driver: "redis", vendor: "valkey" });
+    const valkey = parseSourceUrl("valkeys://localhost")?.source;
+    expect(valkey).toMatchObject({ driver: "redis", ssl: "require" });
+    expect(valkey?.vendor).toBeUndefined();
     expect(
       sourceUrl({ driver: "redis", host: "cache", port: 6380, database: "3", ssl: "require", user: "ops" } as never),
     ).toBe("rediss://ops@cache:6380/3");
