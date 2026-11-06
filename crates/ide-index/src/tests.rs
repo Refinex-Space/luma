@@ -543,3 +543,61 @@ fn workspace_scope_excludes_state_from_scans_updates_and_cached_results() {
     assert!(idx.wait_idle(WAIT));
     assert!(idx.find_files("", 100).is_empty());
 }
+
+/// `LUMA_JAVA_BENCH=/path/to/project cargo test -p ide-index --release java_index_on_a_real_project -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn java_index_on_a_real_project() {
+    let Ok(root) = std::env::var("LUMA_JAVA_BENCH") else { return };
+    let root = PathBuf::from(root);
+    let cache = tempfile::tempdir().unwrap();
+    let open = || {
+        ProjectIndex::open(
+            &root,
+            cache.path(),
+            Vec::new(),
+            vec!["**/target".into(), "**/node_modules".into()],
+            Arc::new(LanguageRegistry::load(None).unwrap()),
+            Arc::new(Syntax::new()),
+            Arc::new(NullSink),
+        )
+        .unwrap()
+    };
+    let started = std::time::Instant::now();
+    let idx = open();
+    assert!(idx.wait_idle(Duration::from_secs(600)));
+    let java = idx.shared.data.read().java.files;
+    println!("cold index: {:?}, {} files, {} java", started.elapsed(), idx.status().files, java);
+    drop(idx);
+    let started = std::time::Instant::now();
+    let idx = open();
+    assert!(idx.wait_idle(Duration::from_secs(600)));
+    println!("warm open: {:?}", started.elapsed());
+    for rel in std::env::var("LUMA_JAVA_BENCH_FILES").unwrap_or_default().split(',').filter(|s| !s.is_empty()) {
+        let path = root.join(rel);
+        let text = std::fs::read_to_string(&path).unwrap();
+        let started = std::time::Instant::now();
+        let m = idx.java_markers(&path, &text);
+        let markers = started.elapsed();
+        let targets: usize = m.markers.iter().map(|m| m.targets.len()).sum();
+        let started = std::time::Instant::now();
+        let stub = idx.with_java(&path, &text, |v| v.stub(v.overlay_file().unwrap()).unwrap().clone()).unwrap();
+        let positions: Vec<_> =
+            stub.types.iter().flat_map(|t| std::iter::once(t.at).chain(t.members.iter().map(|m| m.at))).collect();
+        let scopes: Vec<usize> =
+            idx.java_usage_scopes(&path, &text, &positions).into_iter().flatten().map(|s| s.files.len()).collect();
+        println!(
+            "{rel}: markers {markers:?} ({} markers, {targets} targets, {} unresolved); {} usage scopes in {:?}, candidate files max {} / median {}",
+            m.markers.len(),
+            m.unresolved.len(),
+            scopes.len(),
+            started.elapsed(),
+            scopes.iter().max().unwrap_or(&0),
+            {
+                let mut s = scopes.clone();
+                s.sort();
+                s.get(s.len() / 2).copied().unwrap_or(0)
+            },
+        );
+    }
+}

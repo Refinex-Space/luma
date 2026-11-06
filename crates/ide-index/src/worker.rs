@@ -308,7 +308,7 @@ impl Shared {
                     Extracted::Unchanged => {
                         // Same content, new mtime: keep the symbols, refresh metadata.
                         let d = self.data.read();
-                        let mut rec = d.get(&f.path)?.record();
+                        let mut rec = d.record(&f.path)?;
                         rec.mtime = f.mtime;
                         rec.size = f.size;
                         Some((rel, rec, f.path.clone()))
@@ -371,6 +371,9 @@ impl Shared {
                 .into_iter()
                 .map(|t| StoredSymbol { name: t.name, kind: t.kind, container: t.container, range: t.range })
                 .collect();
+        }
+        if lang.as_str() == "java" {
+            rec.java = self.syntax.with_parsed(&lang, &text, &|| false, |p| crate::java::extract(p.tree, p.text)).ok();
         }
         Extracted::New(rec)
     }

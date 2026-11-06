@@ -1,5 +1,6 @@
 //! In-memory index: one slot per file, symbols stored with their file.
 
+use crate::java::{JavaGraph, JavaStub};
 use ide_core::{Range, SymbolKind};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -40,6 +41,8 @@ pub(crate) struct FileRecord {
     pub size: u64,
     pub hash: [u8; 32],
     pub symbols: Vec<StoredSymbol>,
+    /// Java files: declarations and identifiers.
+    pub java: Option<JavaStub>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -72,6 +75,10 @@ pub(crate) struct FileEntry {
     pub size: u64,
     pub hash: [u8; 32],
     pub symbols: Box<[Sym]>,
+    /// Java files: declarations (its words moved to [`IndexData::java`]).
+    pub java: Option<Box<JavaStub>>,
+    /// Ids of the words of `java` in [`IndexData::java`].
+    pub java_words: Box<[u32]>,
 }
 
 impl FileEntry {
@@ -100,6 +107,8 @@ impl FileEntry {
             size: record.size,
             hash: record.hash,
             symbols,
+            java: record.java.map(Box::new),
+            java_words: Box::default(),
         }
     }
 
@@ -126,6 +135,7 @@ impl FileEntry {
                     range: s.range,
                 })
                 .collect(),
+            java: self.java.as_deref().cloned(),
         }
     }
 }
@@ -137,6 +147,7 @@ pub(crate) struct IndexData {
     free: Vec<u32>,
     pub file_count: u32,
     pub symbol_count: u32,
+    pub java: JavaGraph,
 }
 
 impl IndexData {
@@ -148,13 +159,35 @@ impl IndexData {
         self.by_path.get(path).copied()
     }
 
-    pub(crate) fn insert(&mut self, entry: FileEntry) {
+    /// The persisted record of a file, its Java words included.
+    pub(crate) fn record(&self, path: &Path) -> Option<FileRecord> {
+        let e = self.get(path)?;
+        let mut rec = e.record();
+        if let Some(java) = &mut rec.java {
+            java.words = self.java.word_names(&e.java_words);
+        }
+        Some(rec)
+    }
+
+    pub(crate) fn insert(&mut self, mut entry: FileEntry) {
         let symbols = entry.symbols.len() as u32;
         if let Some(&slot) = self.by_path.get(&entry.path) {
+            if let Some(old) = &self.files[slot as usize]
+                && let Some(java) = &old.java
+            {
+                self.java.remove(slot, java, &old.java_words);
+            }
+            if let Some(java) = &mut entry.java {
+                entry.java_words = self.java.add(slot, java);
+            }
             let old = self.files[slot as usize].replace(entry);
             self.symbol_count -= old.map_or(0, |o| o.symbols.len() as u32);
             self.symbol_count += symbols;
             return;
+        }
+        let next = self.free.last().copied().unwrap_or(self.files.len() as u32);
+        if let Some(java) = &mut entry.java {
+            entry.java_words = self.java.add(next, java);
         }
         let slot = match self.free.pop() {
             Some(slot) => {
@@ -175,6 +208,9 @@ impl IndexData {
     pub(crate) fn remove(&mut self, path: &Path) -> Option<FileEntry> {
         let slot = self.by_path.remove(path)?;
         let old = self.files[slot as usize].take()?;
+        if let Some(java) = &old.java {
+            self.java.remove(slot, java, &old.java_words);
+        }
         self.free.push(slot);
         self.file_count -= 1;
         self.symbol_count -= old.symbols.len() as u32;

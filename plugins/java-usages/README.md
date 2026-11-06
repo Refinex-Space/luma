@@ -12,6 +12,28 @@ The Rust bridge logs the failure once per project session. Cancelled requests an
 changed source documents remain cancelled and do not start a fallback search.
 No global `includeAccessors` preference is changed.
 
+## Usage counts (`luma.java.usageCounts`)
+
+Backs the "N usages" inlay. Arguments: the declaring file's URI and the targets
+`[{line, character, files?}]`. Each target is resolved like `luma.java.usages` and searched with
+the same plan (a field with its getter, setter, builder and explicit `@Accessors` methods), but
+matches are only counted, per file, without access classification. Returns per target
+`{resolved, files: {uri: count}}`.
+
+- Without `files`, a target is counted over the source folders of every Java project
+  (`IJavaSearchScope.SOURCES`): libraries cannot refer to project code, and leaving their jars
+  out is what makes common names (`get`, `list`, `create`) cheap.
+- With `files` (the files the caller found changed), only those are counted; each is refreshed
+  from disk first unless open, and every requested file is answered, with 0 when unused.
+- Targets whose search names are unique within the request are searched together in one OR
+  pattern, so each candidate file is parsed and resolved once. A match is credited to the target
+  its identifier names (the last identifier before an argument list); if any match cannot be
+  credited, those targets are searched one by one instead. Equal names (overloads, a class and
+  its constructors) are always searched one by one.
+
+The Rust side (`ide-host` `ops::java::usages`) keeps the counts per referencing file and asks
+only for files whose content or name dependencies changed.
+
 ## Search plan and access semantics
 
 For source fields on the verified JDT LS implementation, a single plan merges
@@ -70,6 +92,8 @@ and compare SHA-256. The prior 1.1.1 output was
 `1e569939cba22c7db6e2c9b53de2a4c10ccaabe762a51427119a04af3d974ae4`.
 Version 1.2.0 adds the configuration command; its reproducible SHA-256 is
 `9140f1d2ecf27eadfe66b40a17daa18a08a65927ebef79456ba55d486ce5eeba`.
+Version 1.3.0 adds `luma.java.usageCounts`; it was built against the locally installed
+JDT LS 1.62.0 (Homebrew), so its hash is not a reproducible-build reference.
 Version 1.2.1 keeps the configuration snapshot across editor open/close, saves of
 unrelated content and non-Java resource changes; its reproducible SHA-256 is
 `cbae3e3a0bcf2818b4cc9d98998bd9b81f92e1ae7803dc757134485f9776a4e1`.

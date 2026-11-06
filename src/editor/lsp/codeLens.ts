@@ -5,6 +5,10 @@
  * debounced pass after edits / scrolling, results cached per document text
  * and symbol, and at most a few reference requests in flight. Beside each
  * count, the declaration's last author from VCS blame (`authorLens`).
+ *
+ * Java files ask the backend's incremental counts instead (`javaUsageCounts`): the counts
+ * known from before show at once, then the ones whose files changed are recounted, cheap
+ * ones first and costly ones (names found in very many files) one by one.
  */
 import { EditorSelection, MapMode, StateEffect, StateField, type Extension, type Text } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
@@ -18,7 +22,16 @@ import {
 import { declarationStart } from "@/editor/core/cm/codeLens";
 import { showContextMenu, useContextMenuStore, type MenuItem } from "@/ui";
 import { executeAction } from "@/platform/actions";
-import { commands, nextRequestId, type OutlineItem, type RequestId, type SymbolKind } from "@/platform/ipc";
+import {
+  commands,
+  nextRequestId,
+  type OutlineItem,
+  type RequestId,
+  type SymbolKind,
+  type UsageCount,
+  type UsagePass,
+} from "@/platform/ipc";
+import type { EditorDocContext } from "@/editor/api";
 import { useProject } from "@/platform/project";
 import { debounce, docOf, isUnavailable, lspRequest } from "./lsp";
 import { posToOffset } from "./positions";
@@ -45,6 +58,11 @@ const AI_KINDS = new Set<SymbolKind>(["function", "method", "constructor"]);
 
 const MAX_PER_PASS = 40;
 const CONCURRENCY = 4;
+/** Delay before counting after an edit; opening and scrolling show known counts sooner. */
+const EDIT_DELAY = 900;
+const VIEW_DELAY = 60;
+/** Java declarations counted per request. */
+const JAVA_BATCH = 12;
 /** Lines above/below the viewport that are counted too, so scrolling feels instant. */
 const MARGIN_LINES = 60;
 const usagesBackoff = featureBackoff();
@@ -173,8 +191,22 @@ function openUsages(view: EditorView, offset: number) {
   void executeAction("find.showUsages");
 }
 
+/** Java declarations counted by the backend: what they need next. */
+export function javaFollowUps(states: readonly UsageCount[]): { cheap: number[]; costly: number[] } {
+  const cheap: number[] = [];
+  const costly: number[] = [];
+  states.forEach((c, i) => {
+    if (c.state === "stale") cheap.push(i);
+    else if (c.state === "costly") costly.push(i);
+  });
+  return { cheap, costly };
+}
+
 class UsagesLensPlugin {
-  private schedule = debounce(() => void this.run(), 900);
+  private schedule = debounce(() => void this.run(), EDIT_DELAY);
+  private scheduleSoon = debounce(() => void this.run(), VIEW_DELAY);
+  /** The Java usage counts extension is missing: count with reference requests. */
+  private javaUnsupported = false;
   /** `${line}:${col}:${name}` → count, valid for `cacheDoc`. */
   private cache = new Map<string, number>();
   private cacheDoc: Text | null = null;
@@ -188,7 +220,7 @@ class UsagesLensPlugin {
   private offBlame: () => void;
 
   constructor(private view: EditorView) {
-    this.refresh();
+    this.refresh(true);
     this.unsubscribe = useProject.subscribe((s, prev) => {
       if (s.settings !== prev.settings) this.refresh();
     });
@@ -204,7 +236,8 @@ class UsagesLensPlugin {
   }
 
   update(u: ViewUpdate) {
-    if (u.docChanged || u.viewportChanged) this.refresh();
+    if (u.docChanged) this.refresh();
+    else if (u.viewportChanged) this.refresh(true);
   }
 
   private cancel() {
@@ -213,9 +246,83 @@ class UsagesLensPlugin {
     this.pending.clear();
   }
 
-  private refresh() {
+  /** `soon`: nothing was edited, known counts can show at once. */
+  private refresh(soon = false) {
     this.cancel();
-    this.schedule();
+    if (soon) {
+      this.schedule.cancel();
+      this.scheduleSoon();
+    } else {
+      this.scheduleSoon.cancel();
+      this.schedule();
+    }
+  }
+
+  /**
+   * Counts `targets` of a Java file with the backend's incremental counts, rendering after
+   * each step. False when the backend cannot (no extension): count the other way.
+   */
+  private async countJava(
+    doc: EditorDocContext,
+    targets: readonly LensTarget[],
+    key: (t: LensTarget) => string,
+    wanted: () => boolean,
+    render: () => void,
+  ): Promise<boolean> {
+    const ask = async (pass: UsagePass, ts: readonly LensTarget[]) => {
+      const request = nextRequestId();
+      try {
+        return await lspRequest(() => {
+          this.pending.add(request);
+          const positions = ts.map((t) => ({ line: t.line, col: t.col }));
+          return commands.javaUsageCounts(request, doc.doc, positions, pass);
+        }, wanted);
+      } finally {
+        this.pending.delete(request);
+      }
+    };
+    const apply = (ts: readonly LensTarget[], counts: readonly UsageCount[]) => {
+      ts.forEach((t, i) => {
+        const c = counts[i];
+        if (c?.count != null) this.cache.set(key(t), c.count);
+        else if (c?.state === "none") this.cache.delete(key(t));
+      });
+      render();
+    };
+    try {
+      const known = await ask("cached", targets);
+      if (!wanted()) return true;
+      apply(targets, known);
+      const { cheap, costly } = javaFollowUps(known);
+      // A few declarations per request, some at once: counts show as each batch is done.
+      const batches: number[][] = [];
+      for (let i = 0; i < cheap.length; i += JAVA_BATCH) batches.push(cheap.slice(i, i + JAVA_BATCH));
+      const next = async (): Promise<void> => {
+        const batch = batches.shift();
+        if (!batch || !wanted()) return;
+        const ts = batch.map((i) => targets[i]!);
+        const counted = await ask("cheap", ts);
+        if (!wanted()) return;
+        apply(ts, counted);
+        // A recount found more files to count than expected.
+        javaFollowUps(counted).costly.forEach((i) => costly.push(batch[i]!));
+        await next();
+      };
+      await Promise.all(Array.from({ length: CONCURRENCY - 1 }, next));
+      if (!wanted()) return true;
+      for (const i of costly.sort((a, b) => a - b)) {
+        if (!wanted()) return true;
+        const t = targets[i]!;
+        apply([t], await ask("full", [t]));
+      }
+      return true;
+    } catch (e) {
+      if (isUnavailable(e)) {
+        this.javaUnsupported = true;
+        return false;
+      }
+      throw e;
+    }
   }
 
   private async run() {
@@ -253,7 +360,18 @@ class UsagesLensPlugin {
         .filter((t) => t.line >= firstLine && t.line <= lastLine)
         .slice(0, MAX_PER_PASS);
       const key = (t: LensTarget) => `${t.line}:${t.col}:${t.name}`;
-      const todo = usages ? visible.filter((t) => !this.cache.has(key(t))) : [];
+      let lines: Awaited<typeof blame> = null;
+      const render = () => {
+        if (wanted()) this.render(doc.path, text, visible, usages, ai, lines, key);
+      };
+      void blame.then((l) => {
+        lines = l;
+        render();
+      });
+      const java = usages && doc.language === "java" && !doc.virtual && !this.javaUnsupported;
+      const counted = java && (await this.countJava(doc, visible, key, wanted, render));
+      if (!wanted()) return;
+      const todo = usages && !counted ? visible.filter((t) => !this.cache.has(key(t))) : [];
       let unavailable = false;
       for (let i = 0; i < todo.length && !unavailable; i += CONCURRENCY) {
         await Promise.all(
@@ -280,44 +398,58 @@ class UsagesLensPlugin {
         if (!wanted()) return;
       }
       if (unavailable) usagesBackoff.mark(doc.doc);
-      const lines = await blame;
-      if (!wanted()) return;
-      const lenses: CodeLens[] = [];
-      for (const t of visible) {
-        const offset = posToOffset(text, { line: t.line, col: t.col });
-        if (ai && AI_KINDS.has(t.kind)) {
-          const widgetLine = text.lineAt(declarationStart(view.state, text.lineAt(offset).number)).number;
-          lenses.push({
-            pos: offset,
-            title: "",
-            icon: "ai",
-            menu: true,
-            tooltip: tx("AI Actions"),
-            order: 0,
-            run: (v, e) => openAiMenu(v, e, doc.path, t, widgetLine),
-          });
-        }
-        const who = lines && authorSummary(lines, t.startLine, t.endLine);
-        if (who)
-          lenses.push({ pos: offset, title: authorLabel(who), tooltip: authorTooltip(who), icon: "user", order: 20 });
-        const n = usages ? this.cache.get(key(t)) : undefined;
-        if (n === undefined) continue;
-        lenses.push({
-          pos: offset,
-          title: usagesLabel(n),
-          tooltip: tx`Show usages of ${t.name}`,
-          order: 10,
-          run: (v) => openUsages(v, Math.min(offset, v.state.doc.length)),
-        });
-      }
-      if (!sameLenses(view.state.field(lensField), lenses)) view.dispatch({ effects: setLenses.of(lenses) });
+      lines = await blame;
+      render();
     } catch (e) {
       if (wanted() && isUnavailable(e)) usagesBackoff.mark(doc.doc);
     }
   }
 
+  /** Lenses of `visible` from the counts and blame known so far. */
+  private render(
+    path: string,
+    text: Text,
+    visible: readonly LensTarget[],
+    usages: boolean,
+    ai: boolean,
+    lines: Awaited<ReturnType<typeof blameFor>>,
+    key: (t: LensTarget) => string,
+  ) {
+    const view = this.view;
+    const lenses: CodeLens[] = [];
+    for (const t of visible) {
+      const offset = posToOffset(text, { line: t.line, col: t.col });
+      if (ai && AI_KINDS.has(t.kind)) {
+        const widgetLine = text.lineAt(declarationStart(view.state, text.lineAt(offset).number)).number;
+        lenses.push({
+          pos: offset,
+          title: "",
+          icon: "ai",
+          menu: true,
+          tooltip: tx("AI Actions"),
+          order: 0,
+          run: (v, e) => openAiMenu(v, e, path, t, widgetLine),
+        });
+      }
+      const who = lines && authorSummary(lines, t.startLine, t.endLine);
+      if (who)
+        lenses.push({ pos: offset, title: authorLabel(who), tooltip: authorTooltip(who), icon: "user", order: 20 });
+      const n = usages ? this.cache.get(key(t)) : undefined;
+      if (n === undefined) continue;
+      lenses.push({
+        pos: offset,
+        title: usagesLabel(n),
+        tooltip: tx`Show usages of ${t.name}`,
+        order: 10,
+        run: (v) => openUsages(v, Math.min(offset, v.state.doc.length)),
+      });
+    }
+    if (!sameLenses(view.state.field(lensField), lenses)) view.dispatch({ effects: setLenses.of(lenses) });
+  }
+
   destroy() {
     this.schedule.cancel();
+    this.scheduleSoon.cancel();
     this.unsubscribe();
     this.offReady();
     this.offSettled();

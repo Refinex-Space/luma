@@ -259,3 +259,18 @@ describe("AI actions above methods", () => {
     off();
   });
 });
+
+describe("javaFollowUps", () => {
+  it("recounts stale counts first and costly ones after", async () => {
+    const { javaFollowUps } = await import("./codeLens");
+    expect(
+      javaFollowUps([
+        { count: 3, state: "fresh" },
+        { count: 2, state: "stale" },
+        { count: null, state: "costly" },
+        { count: null, state: "none" },
+        { count: null, state: "stale" },
+      ]),
+    ).toEqual({ cheap: [1, 4], costly: [2] });
+  });
+});

@@ -16,6 +16,7 @@ use std::time::Duration;
 
 mod data;
 mod filter;
+pub mod java;
 mod matching;
 mod store;
 mod worker;
@@ -177,6 +178,47 @@ impl ProjectIndex {
     /// Symbols named exactly `name` (of `kind`, if given): `.card` selectors for `class="card"`.
     pub fn symbols_named(&self, name: &str, kind: Option<SymbolKind>, limit: usize) -> Vec<SymbolMatch> {
         matching::symbols_named(&self.shared.data.read(), name, kind, limit)
+    }
+
+    /// Runs `f` over the Java structure index, with the declarations of `path` taken from its
+    /// (possibly unsaved) `text`. `None` when `text` cannot be parsed as Java.
+    pub fn with_java<R>(&self, path: &Path, text: &str, f: impl FnOnce(&java::JavaView) -> R) -> Option<R> {
+        let lang = ide_core::LanguageId::new("java");
+        let stub = self.shared.syntax.with_parsed(&lang, text, &|| false, |p| java::extract(p.tree, p.text)).ok()?;
+        let path = self.normalize(path).unwrap_or_else(|| path.to_owned());
+        let d = self.shared.data.read();
+        let view = java::JavaView { data: &d, overlay: Some(java::Overlay { file: d.slot(&path), stub: &stub }) };
+        Some(f(&view))
+    }
+
+    /// Inheritance gutter markers of a Java file from its current text (instant: no server).
+    pub fn java_markers(&self, path: &Path, text: &str) -> java::JavaMarkers {
+        self.with_java(path, text, |v| java::markers(v, path)).unwrap_or_default()
+    }
+
+    /// Where usages of the Java declarations named at `positions` can be (see
+    /// [`java::UsageScope`]); `None` for a position that names no declaration.
+    pub fn java_usage_scopes(
+        &self,
+        path: &Path,
+        text: &str,
+        positions: &[ide_core::Pos],
+    ) -> Vec<Option<java::UsageScope>> {
+        self.with_java(path, text, |v| positions.iter().map(|&p| java::usage_scope(v, p)).collect())
+            .unwrap_or_else(|| vec![None; positions.len()])
+    }
+
+    /// Changes when something resolving references written with `words` depends on changes
+    /// outside the referencing file: the Java type hierarchy, or a declaration with one of those
+    /// names (not on edits inside method bodies, nor on unrelated members).
+    pub fn java_dependency_hash(&self, words: &[String]) -> u128 {
+        self.shared.data.read().java.dependency_hash(words)
+    }
+
+    /// Content hash of an indexed file, as last indexed.
+    pub fn file_hash(&self, path: &Path) -> Option<[u8; 32]> {
+        let path = self.normalize(path)?;
+        self.shared.data.read().get(&path).map(|e| e.hash)
     }
 
     /// Incrementally re-indexes changed paths (called from the vfs watcher).

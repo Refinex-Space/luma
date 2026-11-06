@@ -60,6 +60,8 @@ use types::*;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const COMPLETION_TIMEOUT: Duration = Duration::from_secs(5);
 const LONG_TIMEOUT: Duration = Duration::from_secs(30);
+/// Usage counts of names found in thousands of files: background work, cancelled by its caller.
+const COUNT_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// How long a server may take to answer `initialize`. Some import the whole
 /// build there (kotlin-lsp, jdtls on a large Gradle project) and need minutes
@@ -1413,6 +1415,52 @@ impl LspManager {
         let mut v = out.finish(References::default())?;
         convert::dedup_locations(&mut v.locations);
         Ok(v)
+    }
+
+    /// Usage counts of the Java declarations named at `targets` (each with the files to count in,
+    /// or `None` for every source file), per referencing file, in one JDT search pass (the
+    /// `luma.java.usageCounts` extension). A target JDT cannot resolve answers `None`. Unsupported
+    /// without the extension: callers fall back to [`Self::references`].
+    pub async fn java_usage_counts(
+        &self,
+        doc: DocId,
+        targets: &[(Pos, Option<Vec<PathBuf>>)],
+        cancel: CancellationToken,
+    ) -> IdeResult<Vec<Option<std::collections::HashMap<PathBuf, u32>>>> {
+        const COMMAND: &str = "luma.java.usageCounts";
+        let (snap, servers) =
+            self.doc_targets(doc, "usage counts", |c| c.commands().iter().any(|c| c == COMMAND)).await?;
+        let t = &servers[0];
+        let requests: Vec<Value> = targets
+            .iter()
+            .map(|(pos, files)| {
+                let p = snap.position(t, *pos);
+                let mut r = json!({ "line": p.line, "character": p.character });
+                if let Some(files) = files {
+                    r["files"] = json!(files.iter().map(|f| uri::path_to_uri_string(f)).collect::<Vec<_>>());
+                }
+                r
+            })
+            .collect();
+        #[derive(serde::Deserialize)]
+        struct Counted {
+            resolved: bool,
+            files: std::collections::HashMap<String, u32>,
+        }
+        let params = json!({ "command": COMMAND, "arguments": [snap.ident()["uri"], requests] });
+        let rows: Vec<Counted> = self.call(t, "workspace/executeCommand", params, Some(&cancel), COUNT_TIMEOUT).await?;
+        if cancel.is_cancelled() {
+            return Err(IdeError::cancelled());
+        }
+        if rows.len() != targets.len() {
+            return Err(IdeError::internal(format!("{COMMAND}: {} answers for {} targets", rows.len(), targets.len())));
+        }
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                r.resolved.then(|| r.files.into_iter().filter_map(|(u, n)| Some((uri::uri_to_path(&u)?, n))).collect())
+            })
+            .collect())
     }
 
     pub async fn document_highlights(&self, doc: DocId, pos: Pos) -> IdeResult<Vec<Highlight>> {

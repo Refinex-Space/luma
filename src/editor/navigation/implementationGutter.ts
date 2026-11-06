@@ -9,6 +9,9 @@
  * document symbols (as Super Method, ⌘U). Only declarations in and near the
  * viewport are asked, in one debounced pass after edits / scrolling; results
  * are cached per document text, and markers follow their lines in between.
+ *
+ * Java files take every marker from the backend's structure index at once (IDEA's
+ * stub indexes); only super methods a library type may declare are asked of the server.
  */
 import { RangeSet, StateEffect, StateField, type Extension, type Text } from "@codemirror/state";
 import { EditorView, GutterMarker, ViewPlugin, gutter, type ViewUpdate } from "@codemirror/view";
@@ -23,6 +26,7 @@ import {
   isCancelled,
   nextRequestId,
   type HierarchyItem,
+  type JavaMarkers,
   type Location,
   type OutlineItem,
   type Pos,
@@ -35,7 +39,9 @@ import {
   MARKER_ICONS,
   candidateKey,
   inheritorsMarker,
+  javaLineMarker,
   markerCandidates,
+  markerGroup,
   supersMarker,
   withoutSelf,
   type LineMarker,
@@ -49,6 +55,8 @@ import styles from "./LineMarkers.module.css";
 const MARGIN_LINES = 60;
 const MAX_PER_PASS = 60;
 const DEBOUNCE_MS = 500;
+/** Opening and scrolling: markers that need no server show at once. */
+const SOON_MS = 30;
 const gutterBackoff = featureBackoff();
 
 /** Settings › Editor › General › Gutter Icons groups that are on. */
@@ -227,6 +235,9 @@ function markerSet(placed: readonly PlacedMarker[]): RangeSet<GutterMarker> {
 
 class MarkersPlugin {
   private refresh = debounce(() => void this.run(), DEBOUNCE_MS);
+  private refreshSoon = debounce(() => void this.run(), SOON_MS);
+  /** The backend has no Java structure answers: ask the server like for other languages. */
+  private javaUnsupported = false;
   private cache = emptyCache();
   private cacheDoc: Text | null = null;
   private outline: { doc: Text; items: OutlineItem[]; candidates: MarkerCandidate[] } | null = null;
@@ -236,7 +247,7 @@ class MarkersPlugin {
   private offServers: () => void;
 
   constructor(private view: EditorView) {
-    this.refresh();
+    this.refreshSoon();
     this.offSettings = useProject.subscribe((s, prev) => {
       if (s.settings !== prev.settings) this.refresh();
     });
@@ -248,7 +259,8 @@ class MarkersPlugin {
   }
 
   update(u: ViewUpdate) {
-    if (u.docChanged || u.viewportChanged) this.refresh();
+    if (u.docChanged) this.refresh();
+    else if (u.viewportChanged) this.refreshSoon();
     // Other files may have changed meanwhile (a new implementation).
     else if (u.focusChanged && u.view.hasFocus) {
       this.invalidate();
@@ -291,6 +303,8 @@ class MarkersPlugin {
       this.cacheDoc = text;
     }
     try {
+      if (ctx.language === "java" && !ctx.virtual && !this.javaUnsupported && (await this.runJava(ctx, gen, groups)))
+        return;
       if (this.outline?.doc !== text) {
         const items = await lspRequest(() => commands.docOutline(ctx.doc));
         if (stale()) return;
@@ -316,8 +330,57 @@ class MarkersPlugin {
     }
   }
 
+  /**
+   * Java markers from the structure index, then the super methods only the server knows
+   * (a library supertype). False when the backend cannot answer.
+   */
+  private async runJava(ctx: EditorDocContext, gen: number, groups: ReadonlySet<MarkerGroup>): Promise<boolean> {
+    const view = this.view;
+    const text = view.state.doc;
+    const stale = () => gen !== this.generation || view.state.doc !== text;
+    let java: JavaMarkers;
+    try {
+      java = await lspRequest(() => commands.javaLineMarkers(ctx.doc));
+    } catch (e) {
+      if (!isUnavailable(e)) throw e;
+      this.javaUnsupported = true;
+      return false;
+    }
+    if (stale()) return true;
+    const own = java.markers.map(javaLineMarker).filter((m) => groups.has(markerGroup(m.kind)));
+    this.show(place(text, own));
+    if (!groups.has("supers") || !java.unresolved.length || this.cache.unsupported.has("supers")) return true;
+    if (this.outline?.doc !== text) {
+      const items = await lspRequest(() => commands.docOutline(ctx.doc));
+      if (stale()) return true;
+      this.outline = {
+        doc: text,
+        items,
+        candidates: markerCandidates(items, (l) => (l < text.lines ? text.line(l + 1).text : "")),
+      };
+    }
+    const unresolved = new Set(java.unresolved.map((p) => `${p.line}:${p.col}`));
+    const { from, to } = view.viewport;
+    const first = text.lineAt(from).number - 1 - MARGIN_LINES;
+    const last = text.lineAt(to).number - 1 + MARGIN_LINES;
+    const asked = this.outline.candidates
+      .filter((c) => unresolved.has(`${c.line}:${c.col}`) && c.line >= first && c.line <= last)
+      .slice(0, MAX_PER_PASS);
+    const supers = new Set<MarkerGroup>(["supers"]);
+    const request = (this.request = nextRequestId());
+    await fillMarkers(ctx.path, asked, supers, markerDeps(ctx, this.outline.items, request, this.cache), this.cache);
+    if (this.request === request) this.request = null;
+    if (stale()) return true;
+    const all = [...own, ...cachedMarkers(asked, supers, this.cache)].sort(
+      (a, b) => a.line - b.line || Number(markerGroup(a.kind) === "supers") - Number(markerGroup(b.kind) === "supers"),
+    );
+    this.show(place(text, all));
+    return true;
+  }
+
   destroy() {
     this.refresh.cancel();
+    this.refreshSoon.cancel();
     this.cancelRequest();
     this.offSettings();
     this.offServers();

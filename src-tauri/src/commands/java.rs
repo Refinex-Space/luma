@@ -42,3 +42,30 @@ pub async fn java_build_workspace(
 ) -> IdeResult<ide_lsp::jdtls::JavaBuildStatus> {
     ide_host::ops::java::java_build_workspace(&state.host, window.label(), module).await
 }
+
+/// Inheritance gutter markers of an open Java file (structure index; no language server).
+#[tauri::command]
+#[specta::specta]
+pub async fn java_line_markers(
+    window: Window,
+    state: State<'_, AppState>,
+    doc: ide_core::DocId,
+) -> IdeResult<ide_index::java::JavaMarkers> {
+    ide_host::ops::java::java_line_markers(&state.host, window.label(), doc).await
+}
+
+/// "N usages" of the Java declarations named at `positions`: known counts at once
+/// (`cached`), then recounted where cheap, then everywhere (`full`). Cancellable with
+/// `cancel_request(request)`.
+#[tauri::command]
+#[specta::specta]
+pub async fn java_usage_counts(
+    window: Window,
+    state: State<'_, AppState>,
+    request: RequestId,
+    doc: ide_core::DocId,
+    positions: Vec<ide_core::Pos>,
+    pass: usages::UsagePass,
+) -> IdeResult<Vec<usages::UsageCount>> {
+    usages::java_usage_counts(&state.host, window.label(), request, doc, positions, pass).await
+}

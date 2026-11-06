@@ -4,6 +4,9 @@
     <delegateCommandHandler class="ai.luma.usages.UsagesCommand">
       <command id="luma.java.usages"/>
     </delegateCommandHandler>
+    <delegateCommandHandler class="ai.luma.usages.UsageCountsCommand">
+      <command id="luma.java.usageCounts"/>
+    </delegateCommandHandler>
     <delegateCommandHandler class="ai.luma.configuration.ConfigurationCommand">
       <command id="luma.java.configuration"/>
     </delegateCommandHandler>

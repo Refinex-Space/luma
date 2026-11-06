@@ -705,6 +705,14 @@ export const commands = {
 	javaDebugServer: (module: string) => typedError<number, IdeError>(__TAURI_INVOKE("java_debug_server", { module })),
 	/**  Incremental build of the jdtls workspace serving `module` (e.g. before HotSwap). */
 	javaBuildWorkspace: (module: string) => typedError<JavaBuildStatus, IdeError>(__TAURI_INVOKE("java_build_workspace", { module })),
+	/**  Inheritance gutter markers of an open Java file (structure index; no language server). */
+	javaLineMarkers: (doc: DocId) => typedError<JavaMarkers, IdeError>(__TAURI_INVOKE("java_line_markers", { doc })),
+	/**
+	 *  "N usages" of the Java declarations named at `positions`: known counts at once
+	 *  (`cached`), then recounted where cheap, then everywhere (`full`). Cancellable with
+	 *  `cancel_request(request)`.
+	 */
+	javaUsageCounts: (request: RequestId, doc: DocId, positions: Pos[], pass: UsagePass) => typedError<UsageCount[], IdeError>(__TAURI_INVOKE("java_usage_counts", { request, doc, positions, pass })),
 	/**  Starts a session owned by this window: its events (and those of child sessions) go here only. */
 	debugStart: (config: LaunchConfig) => typedError<DebugSessionId, IdeError>(__TAURI_INVOKE("debug_start", { config })),
 	debugSetBreakpoints: (path: string, breakpoints: Breakpoint[]) => typedError<BreakpointState[], IdeError>(__TAURI_INVOKE("debug_set_breakpoints", { path, breakpoints })),
@@ -4336,6 +4344,42 @@ export type JavaLaunchInfo = {
 	hints: string[],
 };
 
+export type JavaMarker = {
+	/**  The declaration's name, 0-based line / UTF-16 column. */
+	line: number,
+	col: number,
+	name: string,
+	method: boolean,
+	kind: JavaMarkerKind,
+	targets: JavaMarkerTarget[],
+};
+
+export type JavaMarkerKind = 
+/**  ↓ on an interface / abstract method: has implementations. */
+"implemented" | 
+/**  ↓ on a class / method: has subclasses / overriders. */
+"overridden" | 
+/**  ↑ on a method implementing an abstract one. */
+"implementing" | 
+/**  ↑ on a method overriding a concrete one. */
+"overriding";
+
+export type JavaMarkerTarget = {
+	location: Location,
+	/**  The type it is in (`Outer.Inner`), for tooltips and choosers. */
+	owner: string,
+	abstract: boolean,
+};
+
+export type JavaMarkers = {
+	markers: JavaMarker[],
+	/**
+	 *  Methods whose super method may be declared outside the sources (a library type is among
+	 *  the supertypes): only a language server knows.
+	 */
+	unresolved: Pos[],
+};
+
 export type JavaSettings = {
 	/**
 	 *  Project JDK home; empty = per module, the installed JDK matching the
@@ -7151,6 +7195,29 @@ export type UpdateProgress =
 { type: "downloading"; downloaded: number | null; total: number | null } | 
 /**  Download done; the new version is being written over this one. */
 { type: "installing" };
+
+export type UsageCount = {
+	count: number | null,
+	state: UsageCountState,
+};
+
+export type UsageCountState = 
+/**  Up to date. */
+"fresh" | 
+/**  Known from before files changed; a recount is needed (`count` is the last one). */
+"stale" | 
+/**  Costly to count: left for a [`UsagePass::Full`] pass (`count` may be a stale one). */
+"costly" | 
+/**  Not a declaration the server resolves. */
+"none";
+
+export type UsagePass = 
+/**  Only what is known: no search. */
+"cached" | 
+/**  Counts the declarations whose (re)count is cheap. */
+"cheap" | 
+/**  Counts every one. */
+"full";
 
 export type Variable = {
 	name: string,

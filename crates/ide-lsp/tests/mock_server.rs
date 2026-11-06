@@ -3072,3 +3072,55 @@ async fn java_definition_consults_configuration_only_inside_key_arguments() {
     }
     assert_eq!(s.requested("workspace/executeCommand").len(), 2);
 }
+
+/// One `luma.java.usageCounts` command counts several declarations, each in its own files.
+#[tokio::test(flavor = "multi_thread")]
+async fn java_usage_counts_batch_declarations_with_their_files() {
+    let mut caps = incremental_caps();
+    caps["executeCommandProvider"] = json!({"commands": ["luma.java.usageCounts"]});
+    let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
+    let s = h.launcher.state("jdtls");
+    let b = h.root.join("B.java");
+    let b_uri = uri_of(&b);
+    *s.responder.lock() = Some(Arc::new(move |_, method, params| {
+        (method == "workspace/executeCommand").then(|| {
+            assert_eq!(params["command"], "luma.java.usageCounts");
+            let targets = params["arguments"][1].as_array().unwrap().clone();
+            Value::Array(
+                targets
+                    .iter()
+                    .map(|t| match t["line"].as_u64() {
+                        // Counted everywhere: files with usages only.
+                        Some(0) => json!({"resolved": true, "files": {b_uri.clone(): 2}}),
+                        // Counted in the requested files: each listed.
+                        Some(1) => {
+                            let files = t["files"].as_array().unwrap();
+                            json!({"resolved": true, "files": files.iter().map(|f| (f.as_str().unwrap().to_owned(), json!(0))).collect::<serde_json::Map<_, _>>()})
+                        }
+                        _ => json!({"resolved": false, "files": {}}),
+                    })
+                    .collect(),
+            )
+        })
+    }));
+    let (doc, _) = h.open("A.java", "class A {\n  void f() {}\n  int x;\n}");
+    h.wait_status("jdtls", ServerStatus::Ready).await;
+    let targets = [(Pos::new(0, 6), None), (Pos::new(1, 7), Some(vec![b.clone()])), (Pos::new(2, 6), None)];
+    let counts = h.mgr.java_usage_counts(doc, &targets, Default::default()).await.unwrap();
+    assert_eq!(counts[0].as_ref().unwrap().get(&b), Some(&2));
+    assert_eq!(counts[1].as_ref().unwrap().get(&b), Some(&0));
+    assert!(counts[2].is_none(), "unresolved declarations have no count");
+    let sent = s.requested("workspace/executeCommand");
+    assert_eq!(sent.len(), 1, "one command for all declarations");
+    assert_eq!(sent[0]["arguments"][1][1]["files"], json!([uri_of(&b)]));
+    assert!(sent[0]["arguments"][1][0].get("files").is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn java_usage_counts_need_the_extension() {
+    let h = harness_for("java", "java", &[("jdtls", incremental_caps())], &[]);
+    let (doc, _) = h.open("A.java", "class A {}");
+    h.wait_status("jdtls", ServerStatus::Ready).await;
+    let e = h.mgr.java_usage_counts(doc, &[(Pos::new(0, 6), None)], Default::default()).await.unwrap_err();
+    assert_eq!(e.kind, ide_core::error::ErrorKind::Unavailable);
+}

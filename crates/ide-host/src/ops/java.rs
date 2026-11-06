@@ -1,5 +1,6 @@
 //! Java launch support: classpath / JDK resolution and the java-debug server (jdtls).
 pub(crate) mod cache;
+pub mod usages;
 
 use crate::Host;
 use crate::rpc::Dispatcher;
@@ -172,8 +173,38 @@ pub async fn java_build_workspace(
     project.lsp.java_build(&module, &CancellationToken::new()).await
 }
 
+/// Inheritance gutter markers of an open Java file, from the structure index and the file's
+/// current text (instant; no language server).
+pub async fn java_line_markers(
+    host: &Host,
+    window: &str,
+    doc: ide_core::DocId,
+) -> IdeResult<ide_index::java::JavaMarkers> {
+    let project = host.project(window)?;
+    super::doc::blocking(move || {
+        let info = project.documents.snapshot(doc)?;
+        if info.language.as_str() != "java" || info.large {
+            return Ok(ide_index::java::JavaMarkers::default());
+        }
+        Ok(project.index.java_markers(&info.path.0, &info.text))
+    })
+    .await
+}
+
 /// Commands of this module the remote server answers.
 pub(crate) fn register(d: &mut Dispatcher) {
+    d.add("java_line_markers", |c| async move { java_line_markers(&c.host, &c.window, c.arg("doc")?).await });
+    d.add("java_usage_counts", |c| async move {
+        usages::java_usage_counts(
+            &c.host,
+            &c.window,
+            c.arg("request")?,
+            c.arg("doc")?,
+            c.arg("positions")?,
+            c.arg("pass")?,
+        )
+        .await
+    });
     d.add("java_resolve_launch", |c| async move {
         java_resolve_launch(&c.host, &c.window, c.arg("module")?, c.arg("test")?, c.arg("build")?, c.arg("request")?)
             .await

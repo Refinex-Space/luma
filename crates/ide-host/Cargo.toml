@@ -46,6 +46,8 @@ tokio = { workspace = true, features = ["io-std"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 parking_lot.workspace = true
+futures.workspace = true
+blake3.workspace = true
 dunce.workspace = true
 dirs.workspace = true
 uuid.workspace = true

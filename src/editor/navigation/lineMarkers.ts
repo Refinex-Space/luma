@@ -4,7 +4,7 @@
  * icon, from the language server's answers (implementation requests and the
  * type hierarchy). Pure; the gutter itself is `implementationGutter`.
  */
-import type { Location, OutlineItem, SymbolKind } from "@/platform/ipc";
+import type { JavaMarker, Location, OutlineItem, SymbolKind } from "@/platform/ipc";
 import { tx } from "@/platform/i18n";
 import { targetLabel } from "@/editor/lsp/files";
 import { baseName, type SuperMethod } from "./structureNav";
@@ -217,3 +217,38 @@ export function supersMarker(
     chooserTitle: tx`Choose Super Method of ${c.name} (${supers.length} found)`,
   };
 }
+
+/** A marker of the Java structure index (targets named by their types already). */
+export function javaLineMarker(m: JavaMarker): LineMarker {
+  const names = nameList(m.targets.map((t) => t.owner));
+  const n = m.targets.length;
+  const targets = m.targets.map((t) => t.location);
+  const base = { kind: m.kind, line: m.line, name: m.name, targets };
+  switch (m.kind) {
+    case "implemented":
+      return {
+        ...base,
+        tooltip: m.method ? tx`Is implemented in ${names}` : tx`Is implemented by ${names}`,
+        chooserTitle: tx`Choose Implementation of ${m.name} (${n} found)`,
+      };
+    case "overridden":
+      return {
+        ...base,
+        tooltip: m.method ? tx`Is overridden in ${names}` : tx`Is subclassed by ${names}`,
+        chooserTitle: m.method
+          ? tx`Choose Overriding Method of ${m.name} (${n} found)`
+          : tx`Choose Subclass of ${m.name} (${n} found)`,
+      };
+    case "implementing":
+    case "overriding":
+      return {
+        ...base,
+        tooltip: m.kind === "implementing" ? tx`Implements method in ${names}` : tx`Overrides method in ${names}`,
+        chooserTitle: tx`Choose Super Method of ${m.name} (${n} found)`,
+      };
+  }
+}
+
+/** Settings group of a marker kind. */
+export const markerGroup = (kind: MarkerKind): MarkerGroup =>
+  kind === "implemented" || kind === "overridden" ? "inheritors" : "supers";

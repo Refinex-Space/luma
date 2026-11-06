@@ -68,7 +68,7 @@ public final class UsagesCommand implements IDelegateCommandHandler {
     /** Resolve explicit Lombok @Accessors naming, then search exact JDT method identities.
      * Configuration-file-only naming is deliberately not guessed.
      */
-    private static void addConfiguredAccessors(IField field, SearchPlan plan) throws Exception {
+    static void addConfiguredAccessors(IField field, SearchPlan plan) throws Exception {
         Boolean fluent = null;
         boolean configured = false;
         String[] prefixes = null;
@@ -148,7 +148,7 @@ public final class UsagesCommand implements IDelegateCommandHandler {
         }
     }
 
-    private static void addNativeBuilderTargets(ReferencesHandler handler, IField field, SearchPlan plan) throws Exception {
+    static void addNativeBuilderTargets(ReferencesHandler handler, IField field, SearchPlan plan) throws Exception {
         // Reuse the verified server's own builder naming (including custom names).
         var resolver = ReferencesHandler.class.getDeclaredMethod("getBuilderName", IField.class);
         resolver.setAccessible(true);
@@ -162,7 +162,7 @@ public final class UsagesCommand implements IDelegateCommandHandler {
         }
     }
 
-    private static final class SearchTarget {
+    static final class SearchTarget {
         final IJavaElement element;
         final java.util.Set<String> kinds = new java.util.HashSet<>();
         boolean declarations;
@@ -170,7 +170,7 @@ public final class UsagesCommand implements IDelegateCommandHandler {
         String kind() { return kinds.size() == 1 ? kinds.iterator().next() : "unknown"; }
     }
 
-    private static final class SearchPlan {
+    static final class SearchPlan {
         final Map<IJavaElement, SearchTarget> targets = new LinkedHashMap<>();
         void add(IJavaElement element, String kind, boolean declarations) {
             if (element == null) return;
