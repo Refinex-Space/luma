@@ -79,6 +79,11 @@ const BUILT_AT_RUNTIME = new Set<string>([]);
 
 /** Text that stays as written in every locale: names, code, formats, shortcuts. */
 const UNTRANSLATED = new Set<string>([
+  // Lombok's own names.
+  "Lombok",
+  "Delombok",
+  "lombok.config",
+  "lombok.jar",
   "dotnet test",
   "netcoredbg (.NET)",
   // Product names

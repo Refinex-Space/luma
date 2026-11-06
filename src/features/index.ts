@@ -31,6 +31,7 @@ import { activate as plugins, activateSettingsPages as pluginsPages } from "./pl
 import { activate as minimap, activateSettingsPages as minimapPages } from "./minimap";
 import { activate as sonarlint, activateSettingsPages as sonarlintPages } from "./sonarlint";
 import { activate as hotReload, activateSettingsPages as hotReloadPages } from "./hot-reload";
+import { activate as lombok, activateSettingsPages as lombokPages } from "./lombok";
 import { activate as rainbowBrackets, activateSettingsPages as rainbowBracketsPages } from "./rainbow-brackets";
 import { activate as projectStructure } from "./project-structure";
 import { activate as tools, activateSettingsPages as toolsPages } from "./tools";
@@ -81,6 +82,7 @@ const features: Array<[string, Activate]> = [
   ["rainbow-brackets", rainbowBrackets],
   ["sonarlint", sonarlint],
   ["hot-reload", hotReload],
+  ["lombok", lombok],
   ["project-structure", projectStructure],
   ["tools", tools],
   ["scratch", scratch],
@@ -131,6 +133,7 @@ export function activateSettingsWindowFeatures(parent: string): () => void {
     ["rainbow-brackets", rainbowBracketsPages],
     ["sonarlint", sonarlintPages],
     ["hot-reload", hotReloadPages],
+    ["lombok", lombokPages],
     ["tools", toolsPages],
     ["agents", agentsPages],
     ["vim", vimPages],

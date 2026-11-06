@@ -232,8 +232,56 @@ export const SPELLING_OPTIONS = {
   comments: "processComments",
 } as const;
 
+/** Producers of the Lombok plugin's checks (IDEA's Lombok inspections). */
+export const LOMBOK_PRODUCERS = {
+  getter: "lombok-getter",
+  setter: "lombok-setter",
+  logger: "lombok-logger",
+  deprecated: "lombok-deprecated",
+  config: "lombok-config",
+} as const;
+
 /** Checks the IDE runs itself (not a language server). */
 export const BUILTIN_INSPECTIONS: readonly BuiltinInspection[] = [
+  {
+    id: "builtin:lombok-getter",
+    producer: LOMBOK_PRODUCERS.getter,
+    name: "Lombok @Getter may be used",
+    group: "Lombok",
+    description:
+      "Reports getters that only return their field: the field, or the whole class when every field has one, can use Lombok's @Getter instead.",
+  },
+  {
+    id: "builtin:lombok-setter",
+    producer: LOMBOK_PRODUCERS.setter,
+    name: "Lombok @Setter may be used",
+    group: "Lombok",
+    description:
+      "Reports setters that only assign their field: the field, or the whole class when every non-final field has one, can use Lombok's @Setter instead.",
+  },
+  {
+    id: "builtin:lombok-logger",
+    producer: LOMBOK_PRODUCERS.logger,
+    name: "@Slf4j",
+    group: "Lombok",
+    description:
+      "Reports an explicitly defined SLF4J logger (LoggerFactory.getLogger of its own class) that Lombok's @Slf4j can generate.",
+  },
+  {
+    id: "builtin:lombok-deprecated",
+    producer: LOMBOK_PRODUCERS.deprecated,
+    name: "Deprecated Lombok annotations",
+    group: "Lombok",
+    description:
+      "Reports Lombok annotations that moved out of lombok.experimental (@Builder, @Value, @Wither) and offers their current names.",
+  },
+  {
+    id: "builtin:lombok-config",
+    producer: LOMBOK_PRODUCERS.config,
+    name: "lombok.config problems",
+    group: "Lombok",
+    description: "Reports unknown keys and values a key does not accept in lombok.config files.",
+  },
   {
     id: DEPENDENCY_INSPECTION,
     producer: DEPENDENCY_PRODUCER,

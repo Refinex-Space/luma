@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 pub use crate::editor_settings::*;
 pub use crate::hot_reload::HotReloadSettings;
 pub use crate::inspection_settings::*;
+pub use crate::lombok::LombokSettings;
 pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
 pub use crate::sonar::{SonarLintSettings, SonarRuleSetting};
@@ -56,6 +57,8 @@ pub struct Settings {
     pub sonarlint: SonarLintSettings,
     /// Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin).
     pub hot_reload: HotReloadSettings,
+    /// Languages & Frameworks › Lombok (bundled plugin).
+    pub lombok: LombokSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -195,6 +198,7 @@ impl Default for Settings {
             inspections: InspectionSettings::default(),
             sonarlint: SonarLintSettings::default(),
             hot_reload: HotReloadSettings::default(),
+            lombok: LombokSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),

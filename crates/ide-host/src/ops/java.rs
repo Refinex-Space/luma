@@ -112,7 +112,8 @@ async fn resolve_launch(
             let repo = ide_sdk::apply::maven_local_repository(&project.root, &settings);
             let root = project.root.clone();
             // Detection may read the project's sources.
-            let lombok = ide_sdk::lombok::lombok_agent(&root, own, managed, repo);
+            let (enabled, custom) = (settings.lombok.enabled, settings.lombok.agent_path.clone());
+            let lombok = ide_sdk::lombok::configured_agent(&root, enabled, &custom, own, managed, repo);
             info.hints.extend(lombok.problem());
         }
         if cancel.is_cancelled() {

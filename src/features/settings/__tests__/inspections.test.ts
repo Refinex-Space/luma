@@ -48,6 +48,7 @@ describe("inspections tree", () => {
       "Cargo",
       "General",
       "JavaScript",
+      "Lombok",
       "Other",
       "Proofreading",
       "Python",

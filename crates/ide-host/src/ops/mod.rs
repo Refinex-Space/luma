@@ -17,6 +17,7 @@ pub mod history;
 pub mod hot_reload;
 pub mod java;
 pub mod jvm_icons;
+pub mod lombok;
 pub mod lsp;
 pub mod nav;
 pub mod notebook;
@@ -80,6 +81,7 @@ pub fn register_all(d: &mut crate::rpc::Dispatcher) {
     tools::register(d);
     sonar::register(d);
     hot_reload::register(d);
+    lombok::register(d);
     sdk::register(d);
     java::register(d);
     debug::register(d);

@@ -190,8 +190,10 @@ impl Host {
                         .collect();
                     let min_java = ide_sdk::java::jdtls_min_java(cfg);
                     let jdks = ide_sdk::java::jdtls_jdks(min_java, &data_dir);
-                    let lombok = ide_sdk::lombok::lombok_agent(
+                    let lombok = ide_sdk::lombok::configured_agent(
                         server_root,
+                        effective.lombok.enabled,
+                        &effective.lombok.agent_path,
                         ide_sdk::lombok::agent_in_args(cfg.args.iter().map(String::as_str)),
                         ide_tools::managed_bundle(&data_dir, "lombok"),
                         ide_sdk::apply::maven_local_repository(root, &effective),

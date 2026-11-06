@@ -21,6 +21,7 @@ import { DEFAULT_WORKFLOW, validateWorkflow, type WorkflowSettings } from "@/pla
 import { DEFAULT_INSPECTIONS, validateInspections, type InspectionSettingsValid } from "@/platform/inspections";
 import { DEFAULT_PROXY, validateProxy, type ProxySettingsValid } from "@/platform/proxySettings";
 import { DEFAULT_HOT_RELOAD, validateHotReload, type HotReloadPrefs } from "@/platform/hotReloadSettings";
+import { DEFAULT_LOMBOK, validateLombok, type LombokPrefs } from "@/platform/lombokSettings";
 import {
   DEFAULT_APPEARANCE_EXTRAS,
   DEFAULT_GENERAL_EXTRAS,
@@ -85,6 +86,8 @@ export interface ValidSettings extends WorkflowSettings {
   proxy: ProxySettingsValid;
   /** The Hot Reload plugin (`hotReload.*`). */
   hotReload: HotReloadPrefs;
+  /** The Lombok plugin (`lombok.*`). */
+  lombok: LombokPrefs;
   languages: LanguagesValid;
   cmake: ReturnType<typeof validateCMake>;
   projectStructure: ProjectStructureValid;
@@ -155,6 +158,7 @@ export const DEFAULT_SETTINGS: ValidSettings = {
   notifications: DEFAULT_NOTIFICATIONS,
   proxy: DEFAULT_PROXY,
   hotReload: DEFAULT_HOT_RELOAD,
+  lombok: DEFAULT_LOMBOK,
   languages: DEFAULT_LANGUAGES,
   cmake: {},
   projectStructure: DEFAULT_PROJECT_STRUCTURE,
@@ -261,6 +265,7 @@ export function validateSettings(raw: Settings | unknown): ValidSettings {
     notifications: validateNotifications(root.notifications),
     proxy: validateProxy(root.proxy),
     hotReload: validateHotReload(root.hotReload),
+    lombok: validateLombok(root.lombok),
     languages: validateLanguages(root.languages),
     cmake: validateCMake(root.cmake),
     projectStructure: validateProjectStructure(root.projectStructure),

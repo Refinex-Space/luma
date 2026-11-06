@@ -1,0 +1,90 @@
+/* Lombok: Languages & Frameworks › Lombok. */
+.page {
+  display: flex;
+  flex-direction: column;
+}
+.muted {
+  color: var(--fg-subtle);
+}
+.ok {
+  color: var(--success);
+  flex: none;
+}
+.info {
+  display: inline-flex;
+  color: var(--fg-subtle);
+  cursor: help;
+}
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--h-field, 28px);
+  min-width: 0;
+}
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--h-field, 28px);
+}
+.pathField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(100%, 480px);
+}
+.pathField > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-m, 6px);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--fg);
+  line-height: 1.45;
+}
+.problem > :first-child {
+  color: var(--warning);
+  flex: none;
+  margin-top: 2px;
+}
+.files {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: var(--radius-s, 4px);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.file:hover {
+  background: var(--bg-hover);
+}
+.file:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 1px;
+}

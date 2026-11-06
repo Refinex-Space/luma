@@ -16,6 +16,8 @@ pub enum LombokAgent {
     Unused,
     /// The project uses Lombok but no jar was found.
     Missing,
+    /// The project uses Lombok but the Lombok plugin is off.
+    Disabled,
     Found {
         jar: PathBuf,
         /// `None` for the app-provided jar (its version is shown by the tool registry).
@@ -39,8 +41,13 @@ impl LombokAgent {
     /// Why Lombok-generated members may be missing, if they may be.
     pub fn problem(&self) -> Option<String> {
         const INSTALL: &str =
-            "Install Lombok in Settings › Languages & Frameworks › Language Servers (jdtls restarts with it)";
+            "Choose a Lombok jar in Settings › Languages & Frameworks › Lombok (jdtls restarts with it)";
         match self {
+            Self::Disabled => Some(
+                "The project uses Lombok, but the Lombok plugin is off, so Lombok-generated members are missing. \
+                 Turn it on in Settings › Plugins."
+                    .to_owned(),
+            ),
             Self::Missing => Some(format!(
                 "The project uses Lombok, but no lombok.jar was found for the Java language server, so Lombok-generated \
                  members are missing. {INSTALL}."
@@ -101,6 +108,30 @@ pub fn lombok_agent(
     match newest_cached(&dirs) {
         Some((version, jar)) => LombokAgent::Found { jar, version: Some(version) },
         None => LombokAgent::Missing,
+    }
+}
+
+/// The agent under the Lombok plugin's settings: an own `-javaagent` in jdtls' VM options
+/// (`own`) always applies; with the plugin off there is no other; else the jar chosen in its
+/// settings (`custom`), else [`lombok_agent`] (the bundled jar, else the build caches).
+pub fn configured_agent(
+    root: &Path,
+    enabled: bool,
+    custom: &str,
+    own: Option<PathBuf>,
+    managed: Option<PathBuf>,
+    maven_repo: Option<PathBuf>,
+) -> LombokAgent {
+    if own.is_some() {
+        return lombok_agent(root, own, None, None);
+    }
+    if !enabled {
+        let repo = maven_repo.or_else(|| maven_repository(home_dir().as_deref()));
+        return if uses_lombok(root, repo.as_deref()) { LombokAgent::Disabled } else { LombokAgent::Unused };
+    }
+    match custom.trim() {
+        "" => lombok_agent(root, None, managed, maven_repo),
+        jar => lombok_agent(root, Some(PathBuf::from(jar)), None, None),
     }
 }
 
@@ -331,6 +362,35 @@ fn parse_version(v: &str) -> Option<[u32; 3]> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_plugin_settings_choose_the_agent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let bundled = Some(PathBuf::from("/tools/lombok/bin/lombok.jar"));
+        let repo = Some(root.join("no-repo"));
+        // A project without Lombok: the bundled agent is attached anyway (inert without Lombok).
+        assert_eq!(
+            configured_agent(root, true, "", None, bundled.clone(), repo.clone()),
+            LombokAgent::Found { jar: "/tools/lombok/bin/lombok.jar".into(), version: None }
+        );
+        // The user's jar replaces it; a `-javaagent` of jdtls' VM options wins over both.
+        assert_eq!(
+            configured_agent(root, true, "/opt/lombok-1.18.40.jar", None, bundled.clone(), repo.clone()).jar(),
+            Some(Path::new("/opt/lombok-1.18.40.jar"))
+        );
+        let own = Some(PathBuf::from("/x/lombok-1.18.36.jar"));
+        assert_eq!(
+            configured_agent(root, false, "", own, bundled.clone(), repo.clone()).jar(),
+            Some(Path::new("/x/lombok-1.18.36.jar"))
+        );
+        // Plugin off: no agent; a project using Lombok is told why its members are missing.
+        assert_eq!(configured_agent(root, false, "", None, bundled.clone(), repo.clone()), LombokAgent::Unused);
+        std::fs::write(root.join("lombok.config"), "").unwrap();
+        let off = configured_agent(root, false, "", None, bundled, repo);
+        assert_eq!(off, LombokAgent::Disabled);
+        assert!(off.problem().unwrap().contains("Lombok plugin is off"));
+    }
     use super::*;
     use std::fs;
 

@@ -267,6 +267,16 @@ const MEM_LANGUAGES: LanguageInfo[] = [
     indent: { tabSize: 2, insertSpaces: true },
   })),
   {
+    id: "lombok-config",
+    name: "Lombok Config",
+    extensions: [],
+    filenames: ["lombok.config"],
+    uiMode: "Lombok Config",
+    lineComment: "#",
+    blockComment: null,
+    indent: { tabSize: 4, insertSpaces: true },
+  },
+  {
     id: "plaintext",
     name: "Plain Text",
     extensions: ["txt"],
@@ -415,7 +425,7 @@ export function createMemoryBackend(files: Record<string, string> = {}): MemoryB
         refs: 1,
         lineEnding: "lf",
         readOnly: false,
-        language: EXT_LANG[ext] ?? "plaintext",
+        language: /(^|\/)lombok\.config$/.test(path) ? "lombok-config" : (EXT_LANG[ext] ?? "plaintext"),
       };
       const uiMode = uiModeOf(path);
       if (uiMode) d.uiMode = uiMode;

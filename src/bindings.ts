@@ -455,6 +455,13 @@ export const commands = {
 	 *  Cancel with `cancel_request(request)`.
 	 */
 	hotReloadInstall: (majors: number[], request: RequestId, onEvent: Channel<InstallEvent>) => typedError<HotReloadStatus, IdeError>(__TAURI_INVOKE("hot_reload_install", { majors, request, onEvent })),
+	/**  The agent jdtls runs with, whether the project uses Lombok and its `lombok.config` files. */
+	lombokStatus: () => typedError<LombokStatus, IdeError>(__TAURI_INVOKE("lombok_status")),
+	/**
+	 *  Runs Lombok's `delombok` on `files` (editor text) with the module's `classpath`.
+	 *  Cancel with `cancel_request(request)`.
+	 */
+	lombokDelombok: (files: DelombokInput[], classpath: string[], request: RequestId) => typedError<DelombokOutput[], IdeError>(__TAURI_INVOKE("lombok_delombok", { files, classpath, request })),
 	/**
 	 *  The JVM options (and launcher) of a hot-reloading launch of `module`, built with the
 	 *  JDK at `java_home`; `mode` is `run` or `debug`; `class_dirs` are compiler output
@@ -2656,6 +2663,19 @@ export type DeletedBranch = {
 	unmerged: boolean,
 };
 
+/**  A source file for Delombok: its path (for its package directory) and editor text. */
+export type DelombokInput = {
+	path: string,
+	text: string,
+};
+
+/**  Delombok's output of one file, or why there is none. */
+export type DelombokOutput = {
+	path: string,
+	text: string | null,
+	error: string | null,
+};
+
 export type DependencyUpdate = {
 	latest: string,
 	replacement: string,
@@ -4666,6 +4686,38 @@ export type LogQuery = {
 	untilMs?: number | null,
 };
 
+export type LombokAgentInfo = {
+	path: string,
+	/**  `1.18.48`; `None` when the jar's name doesn't say. */
+	version: string | null,
+	/**  `bundled`, `custom` (Lombok settings), `vmArgs` (jdtls' VM options) or `cache` (Maven / Gradle). */
+	source: string,
+};
+
+export type LombokSettings = {
+	/**
+	 *  Off: jdtls runs without Luma's agent (an own `-javaagent` in its VM options still
+	 *  applies) and the editors offer no Lombok support.
+	 */
+	enabled?: boolean,
+	/**  A Lombok jar to use instead of the bundled one (jdtls agent and Delombok); empty: bundled. */
+	agentPath?: string,
+};
+
+export type LombokStatus = {
+	enabled: boolean,
+	/**  The agent jdtls runs with; `None` without one. */
+	agent: LombokAgentInfo | null,
+	/**  The project uses Lombok (its build, an inherited parent, `lombok.config`, imports). */
+	usesLombok: boolean,
+	/**  Why Lombok-generated members may be missing in the editor. */
+	problem: string | null,
+	/**  The Lombok version bundled with Luma (`1.18.48-luma.2`). */
+	bundledVersion: string,
+	/**  `lombok.config` files of the project, relative to its root. */
+	configFiles: string[],
+};
+
 export type LspRefreshKind = "inlayHints" | "semanticTokens" | "codeLens";
 
 /**
@@ -6226,6 +6278,8 @@ export type Settings_Deserialize = {
 	sonarlint?: SonarLintSettings,
 	/**  Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin). */
 	hotReload?: HotReloadSettings,
+	/**  Languages & Frameworks › Lombok (bundled plugin). */
+	lombok?: LombokSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6286,6 +6340,8 @@ export type Settings_Serialize = {
 	sonarlint: SonarLintSettings,
 	/**  Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin). */
 	hotReload: HotReloadSettings,
+	/**  Languages & Frameworks › Lombok (bundled plugin). */
+	lombok: LombokSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */

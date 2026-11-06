@@ -1,0 +1,8 @@
+id = "lombok-config"
+name = "Lombok Config"
+filenames = ["lombok.config"]
+line-comment = "#"
+indent = { tab-size = 4, insert-spaces = true }
+# `key = value` / `key += value` / `clear key` / `import path` lines of Lombok's configuration
+# system. Highlighted, completed and checked by the Lombok plugin (features/lombok/config).
+ui-mode = "Lombok Config"

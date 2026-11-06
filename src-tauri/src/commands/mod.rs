@@ -29,6 +29,7 @@ pub mod history;
 pub mod hot_reload;
 pub mod http;
 pub mod java;
+pub mod lombok;
 pub mod lsp;
 pub mod nav;
 pub mod notebook;
@@ -239,6 +240,8 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         lsp::lsp_restart,
         hot_reload::hot_reload_status,
         hot_reload::hot_reload_install,
+        lombok::lombok_status,
+        lombok::lombok_delombok,
         hot_reload::hot_reload_launch,
         sonar::sonar_status,
         sonar::sonar_install,

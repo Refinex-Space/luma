@@ -152,6 +152,8 @@ const ICONS = {
   "file-terraform": "fileTypes/terraform",
   "file-hcl": "fileTypes/hashiCorp",
   "file-dotenv": "luma/fileTypes/dotenv",
+  "file-lombok-config": "luma/fileTypes/lombokConfig",
+  lombok: "luma/fileTypes/lombok",
   "file-lock": "luma/fileTypes/lock",
   "file-license": "luma/fileTypes/license",
   "file-readme": "luma/fileTypes/readme",
@@ -886,6 +888,7 @@ const FILE_NAMES = table({
     ".bashrc .bash_profile .bash_login .bash_logout .bash_aliases .profile .zshrc .zshenv .zprofile .zlogin " +
     ".zlogout .kshrc pkgbuild apkbuild .envrc",
   "file-dotenv": ".flaskenv",
+  "file-lombok-config": "lombok.config",
   "file-gradle": "gradlew",
   "file-maven": "pom.xml mvnw",
   "file-jenkins": "jenkinsfile",
