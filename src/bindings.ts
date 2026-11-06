@@ -1118,6 +1118,20 @@ export const commands = {
 	dbRemoveHistory: (id: string, texts: string[] | null) => typedError<null, IdeError>(__TAURI_INVOKE("db_remove_history", { id, texts })),
 	/**  Tables, columns and foreign keys for SQL completion. */
 	dbCompletion: (id: string) => typedError<DbCompletion, IdeError>(__TAURI_INVOKE("db_completion", { id })),
+	/**
+	 *  The objects of target `id` for Search Everywhere: introspected now with `refresh`, else the
+	 *  saved ones (`None` before the first introspection; no connection needed).
+	 */
+	dbCatalog: (id: string, refresh: boolean) => typedError<{
+	/**  Introspection time, ms since the epoch. */
+	at: number | null,
+	schemas: string[],
+	objects: DbCatalogObject[],
+	/**  A query hit the row limit: some objects are missing. */
+	truncated: boolean,
+} | null, IdeError>(__TAURI_INVOKE("db_catalog", { id, refresh })),
+	/**  The tree's `Server Objects` of data source `id` (collations, users, roles, tablespaces). */
+	dbServerObjects: (id: string) => typedError<DbServerObjectGroup[], IdeError>(__TAURI_INVOKE("db_server_objects", { id })),
 	/**  Writes exported result data (CSV, JSON, SQL…) to `path`. */
 	dbExportFile: (path: string, text: string) => typedError<null, IdeError>(__TAURI_INVOKE("db_export_file", { path, text })),
 	/**
@@ -2285,6 +2299,30 @@ export type DateFormatSettings = {
 	pretty?: boolean,
 };
 
+/**  Every object of the schemas of a connection target, saved so the search works before connecting. */
+export type DbCatalog = {
+	/**  Introspection time, ms since the epoch. */
+	at: number | null,
+	schemas: string[],
+	objects: DbCatalogObject[],
+	/**  A query hit the row limit: some objects are missing. */
+	truncated: boolean,
+};
+
+/**  What a [`CatalogObject`] is. */
+export type DbCatalogKind = "table" | "view" | "materializedView" | "column" | "primaryKey" | "foreignKey" | "index" | "uniqueIndex" | "function" | "procedure" | "trigger" | "sequence";
+
+/**  An object of a connection target's schemas, as Search Everywhere finds it. */
+export type DbCatalogObject = {
+	kind: DbCatalogKind,
+	schema: string,
+	/**  The table of a column, key, index or trigger; empty for tables, routines and sequences. */
+	table: string,
+	name: string,
+	/**  Column type, routine arguments, the referenced table of a foreign key. */
+	detail: string,
+};
+
 export type DbCellValue = {
 	column: string,
 	/**  `None` is SQL NULL. */
@@ -2344,6 +2382,8 @@ export type DbDriver = "sqlite" | "postgres" |
 
 /**  `schema.table (columns) REFERENCES ref_schema.ref_table (ref_columns)`. */
 export type DbForeignKey = {
+	/**  The constraint's name; empty when the server names none (SQLite). */
+	name?: string,
 	schema: string,
 	table: string,
 	columns: string[],
@@ -2474,6 +2514,20 @@ export type DbSequenceInfo = {
 	name: string,
 	dataType: string,
 };
+
+export type DbServerObject = {
+	name: string,
+	/**  A collation's character set, a user's host, `login` for a PostgreSQL role that can log in. */
+	detail: string,
+};
+
+export type DbServerObjectGroup = {
+	kind: DbServerObjectKind,
+	objects: DbServerObject[],
+};
+
+/**  A group of the tree's `Server Objects` folder. */
+export type DbServerObjectKind = "collations" | "users" | "roles" | "tablespaces";
 
 export type DbSortKey = {
 	column: string,

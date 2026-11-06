@@ -10,6 +10,7 @@ import { registerActions } from "@/platform/actions";
 import { useProject } from "@/platform/project";
 import {
   registerCodeStyleSection,
+  registerDatabaseSearch,
   registerEditorKind,
   registerOverlay,
   registerToolWindow,
@@ -58,6 +59,10 @@ import {
 
 export function activate(): () => void {
   const disposers = [
+    // Tables, columns, keys, routines, Redis keys… in Search Everywhere's All and Symbols tabs.
+    registerDatabaseSearch({
+      search: (query, limit, emit) => import("./search").then((m) => m.searchDatabase(query, limit, emit)),
+    }),
     registerToolWindow({
       id: DB_TOOL_WINDOW,
       title: "Database",

@@ -529,6 +529,8 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         db::db_history,
         db::db_remove_history,
         db::db_completion,
+        db::db_catalog,
+        db::db_server_objects,
         db::db_export_file,
         db::db_set_manual_commit,
         db::db_finish_transaction,

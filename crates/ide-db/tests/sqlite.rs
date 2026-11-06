@@ -318,3 +318,30 @@ async fn applies_driver_properties_and_the_startup_script_on_connect() -> IdeRes
     assert_eq!(db.schemas("s1").await?, vec!["main"]);
     Ok(())
 }
+
+#[tokio::test]
+async fn catalog_lists_tables_views_columns_indexes_and_triggers() -> IdeResult<()> {
+    use ide_db::DbCatalogKind as K;
+    let (tmp, db) = setup().await;
+    let db = db.with_catalog_dir(tmp.path().join("catalog"));
+    db.execute(
+        "s1",
+        "CREATE TRIGGER users_touch AFTER UPDATE ON users BEGIN SELECT 1; END",
+        10,
+        &CancellationToken::new(),
+    )
+    .await?;
+    let c = db.catalog("s1").await?;
+    let has = |kind: K, table: &str, name: &str| {
+        c.objects.iter().any(|o| o.kind == kind && o.table == table && o.name == name)
+    };
+    assert!(has(K::Table, "", "users") && has(K::View, "", "named"));
+    assert!(has(K::Column, "users", "avatar") && has(K::Column, "named", "name"));
+    assert!(has(K::UniqueIndex, "users", "users_name"));
+    assert!(has(K::Trigger, "users", "users_touch"));
+    assert_eq!(c.schemas, ["main"]);
+    assert_eq!(db.saved_catalog("s1").await?.map(|s| s.objects.len()), Some(c.objects.len()));
+    // A file has no server: no Server Objects folder.
+    assert!(db.server_objects("s1").await?.is_empty());
+    Ok(())
+}

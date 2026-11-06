@@ -16,6 +16,7 @@ import {
   type DbObjectKind,
   type DbPlanNode,
   type DbSchemaObjects,
+  type DbServerObjectGroup,
   type DbStatementOutcome,
   type DbTableDetails,
   type DbTableInfo,
@@ -40,7 +41,8 @@ import {
   splitTarget,
   type PendingEdits,
 } from "./model";
-import { tableFolder, type DbNode } from "./nodes";
+import { tableFolder, type DbNode, type Group } from "./nodes";
+import { catalogStale, dropCatalogs } from "./catalog";
 import type { ExportData, ExportFormat } from "./export";
 import type { SortKey } from "./resultView";
 import { canReshape, countQuery, reshapeQuery } from "./sql/reshape";
@@ -171,6 +173,8 @@ interface DatabaseState {
   details: Record<string, Loaded<DbTableDetails>>;
   /** `${id}\u0000${schema}` → routines and sequences (loaded with the tables). */
   objects: Record<string, DbSchemaObjects>;
+  /** Data source id → its `Server Objects` (collations, users, roles…). */
+  serverObjects: Record<string, Loaded<DbServerObjectGroup[]>>;
   /** Console / SQL file path → data source id. */
   consoles: Record<string, string>;
   completion: Record<string, DbCompletion>;
@@ -218,6 +222,7 @@ export const useDatabase = create<DatabaseState>(() => ({
   tables: {},
   details: {},
   objects: {},
+  serverObjects: {},
   consoles: readBindings(),
   completion: {},
   results: [],
@@ -288,6 +293,7 @@ function forget(id: string) {
       tables: dropKeys(s.tables),
       details: dropKeys(s.details),
       objects: dropKeys(s.objects),
+      serverObjects: whole ? dropKeys(s.serverObjects) : s.serverObjects,
     };
   });
 }
@@ -298,6 +304,10 @@ export async function saveSource(
   sshSecret: string | null | undefined = undefined,
 ): Promise<void> {
   const sources = useDatabase.getState().sources;
+  const old = sources.find((s) => s.id === source.id);
+  const at = (s: DataSource) => [s.driver, s.host, s.port, s.database, s.file].join("\u0000");
+  // Another server or database: the saved objects no longer apply (the backend drops its files too).
+  if (old && at(old) !== at(source)) dropCatalogs(old.id ?? "");
   const next = sources.some((s) => s.id === source.id)
     ? sources.map((s) => (s.id === source.id ? source : s))
     : [...sources, source];
@@ -348,6 +358,7 @@ export async function removeSource(source: DataSource): Promise<void> {
 export async function deleteSource(id: string): Promise<void> {
   await call(commands.dbSaveSources(useDatabase.getState().sources.filter((s) => s.id !== id)));
   forget(id);
+  dropCatalogs(id);
   await loadSources();
 }
 
@@ -506,7 +517,10 @@ export async function refresh(id: string): Promise<void> {
   const schemas = loaded(st.schemas);
   const tables = loaded(st.tables).map((k) => k.split("\u0000") as [string, string]);
   const details = loaded(st.details).map((k) => k.split("\u0000") as [string, string, string]);
+  const server = whole && st.serverObjects[id]?.status === "ok";
   forget(id);
+  catalogStale(id);
+  if (server) void loadServerObjects(id);
   if (whole && listsDatabases(sourceById(id))) await loadDatabases(id);
   else if (!schemas.includes(id)) schemas.push(id);
   await Promise.all(schemas.map((t) => loadSchemas(t)));
@@ -554,6 +568,23 @@ export async function loadTables(id: string, schema: string): Promise<void> {
   }
 }
 
+/** Whether the tree shows a `Server Objects` folder under the data source (IDEA's, for MySQL and PostgreSQL). */
+export function hasServerObjects(source: DataSource | undefined): boolean {
+  return source?.driver === "mysql" || source?.driver === "postgres";
+}
+
+export async function loadServerObjects(id: string): Promise<void> {
+  useDatabase.setState((s) => ({ serverObjects: { ...s.serverObjects, [id]: { status: "loading" } } }));
+  try {
+    const value = await withConnection(id, () => call(commands.dbServerObjects(id)));
+    useDatabase.setState((s) => ({ serverObjects: { ...s.serverObjects, [id]: { status: "ok", value } } }));
+  } catch (e) {
+    useDatabase.setState((s) => ({
+      serverObjects: { ...s.serverObjects, [id]: { status: "error", message: message(e) } },
+    }));
+  }
+}
+
 export async function loadDetails(id: string, schema: string, table: string): Promise<void> {
   const key = detailsKey(id, schema, table);
   useDatabase.setState((s) => ({ details: { ...s.details, [key]: { status: "loading" } } }));
@@ -565,6 +596,14 @@ export async function loadDetails(id: string, schema: string, table: string): Pr
   }
 }
 
+/** What `revealInTree` selects under a table: a column, or a row of another group (`null`: the table). */
+export type TableChild = string | { group: Group; leaf: (d: DbTableDetails) => string | null };
+
+/** What `revealInTree` selects under a schema: a table (and maybe a child), a routine or a sequence. */
+export type SchemaChild =
+  | { table: string; kind: DbTableKind; child?: TableChild }
+  | { folder: "routines" | "sequences"; leaf: (o: DbSchemaObjects) => string | null };
+
 /**
  * Selects a table (or one of its columns) in the Database tool window,
  * loading and expanding the nodes that lead to it.
@@ -574,8 +613,13 @@ export async function revealInTree(
   schema: string,
   table: string,
   kind: DbTableKind,
-  column?: string,
+  column?: TableChild,
 ): Promise<void> {
+  return revealSchemaChild(id, schema, { table, kind, child: column });
+}
+
+/** Selects a schema's table, table child, routine or sequence in the Database tool window (loading the path). */
+export async function revealSchemaChild(id: string, schema: string, what: SchemaChild): Promise<void> {
   const loaded = (l: Loaded<unknown> | undefined) => l?.status === "ok";
   const { id: sourceId, database } = splitTarget(id);
   let databaseNode: string[] = [];
@@ -593,20 +637,45 @@ export async function revealInTree(
     await loadSchemas(id);
   }
   if (!loaded(useDatabase.getState().tables[tablesKey(id, schema)])) await loadTables(id, schema);
-  if (column && !loaded(useDatabase.getState().details[detailsKey(id, schema, table)]))
-    await loadDetails(id, schema, table);
-  const folder = `${id}/${schema}/${tableFolder(kind)}`;
-  const tableKey = `${folder}/${table}`;
-  const open = [
-    sourceId,
-    ...databaseNode,
-    `${id}/${schema}`,
-    folder,
-    ...(column ? [tableKey, `${tableKey}/columns`] : []),
-  ];
+  const schemaKey = `${id}/${schema}`;
+  const open = [sourceId, ...databaseNode, schemaKey];
+  let key: string;
+  if ("folder" in what) {
+    const folder = `${schemaKey}/${what.folder}`;
+    const leaf = what.leaf(useDatabase.getState().objects[tablesKey(id, schema)] ?? { routines: [], sequences: [] });
+    open.push(folder);
+    key = leaf === null ? folder : `${folder}/${leaf}`;
+  } else {
+    const folder = `${schemaKey}/${tableFolder(what.kind)}`;
+    const tableKey = `${folder}/${what.table}`;
+    open.push(folder);
+    key = tableKey;
+    if (what.child) {
+      if (!loaded(useDatabase.getState().details[detailsKey(id, schema, what.table)]))
+        await loadDetails(id, schema, what.table);
+      const d = useDatabase.getState().details[detailsKey(id, schema, what.table)];
+      const child =
+        typeof what.child === "string"
+          ? { group: "columns" as const, leaf: what.child }
+          : { group: what.child.group, leaf: d?.status === "ok" ? what.child.leaf(d.value) : null };
+      if (child.leaf !== null) {
+        open.push(tableKey, `${tableKey}/${child.group}`);
+        key = `${tableKey}/${child.group}/${child.leaf}`;
+      }
+    }
+  }
   useDatabase.setState((s) => ({
     treeExpanded: new Set([...s.treeExpanded, ...open]),
-    treeReveal: { key: column ? `${tableKey}/columns/${column}` : tableKey, seq: (s.treeReveal?.seq ?? 0) + 1 },
+    treeReveal: { key, seq: (s.treeReveal?.seq ?? 0) + 1 },
+  }));
+  toolWindowService().show(DB_TOOL_WINDOW, true);
+}
+
+/** Selects node `key` in the Database tool window, expanding `open` (Redis keys, Elasticsearch indices). */
+export function revealKey(open: readonly string[], key: string) {
+  useDatabase.setState((s) => ({
+    treeExpanded: new Set([...s.treeExpanded, ...open]),
+    treeReveal: { key, seq: (s.treeReveal?.seq ?? 0) + 1 },
   }));
   toolWindowService().show(DB_TOOL_WINDOW, true);
 }

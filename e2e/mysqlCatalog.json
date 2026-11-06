@@ -1,0 +1,1428 @@
+{
+  "schemas": ["information_schema", "luma", "performance_schema"],
+  "catalog": {
+    "at": 1793938735987.0,
+    "schemas": ["information_schema", "luma", "performance_schema"],
+    "truncated": false,
+    "objects": [
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "ADMINISTRABLE_ROLE_AUTHORIZATIONS",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "APPLICABLE_ROLES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "CHARACTER_SETS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "CHECK_CONSTRAINTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "COLLATIONS", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "COLLATION_CHARACTER_SET_APPLICABILITY",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "COLUMNS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "COLUMNS_EXTENSIONS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "COLUMN_PRIVILEGES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "COLUMN_STATISTICS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ENABLED_ROLES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ENGINES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "EVENTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "FILES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_BUFFER_PAGE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_BUFFER_PAGE_LRU", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_BUFFER_POOL_STATS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CACHED_INDEXES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CMP", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CMPMEM", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CMPMEM_RESET", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CMP_PER_INDEX", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "INNODB_CMP_PER_INDEX_RESET",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_CMP_RESET", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_COLUMNS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_DATAFILES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FIELDS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FOREIGN", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FOREIGN_COLS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FT_BEING_DELETED", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FT_CONFIG", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "INNODB_FT_DEFAULT_STOPWORD",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FT_DELETED", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FT_INDEX_CACHE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_FT_INDEX_TABLE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_INDEXES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_METRICS", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "INNODB_SESSION_TEMP_TABLESPACES",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TABLES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TABLESPACES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TABLESPACES_BRIEF", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TABLESTATS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TEMP_TABLE_INFO", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_TRX", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "INNODB_VIRTUAL", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "KEYWORDS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "KEY_COLUMN_USAGE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "OPTIMIZER_TRACE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "PARAMETERS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "PARTITIONS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "PLUGINS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "PROCESSLIST", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "PROFILING", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "REFERENTIAL_CONSTRAINTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "RESOURCE_GROUPS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ROLE_COLUMN_GRANTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ROLE_ROUTINE_GRANTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ROLE_TABLE_GRANTS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ROUTINES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "SCHEMATA", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "SCHEMATA_EXTENSIONS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "SCHEMA_PRIVILEGES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "STATISTICS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ST_GEOMETRY_COLUMNS", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "ST_SPATIAL_REFERENCE_SYSTEMS",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "ST_UNITS_OF_MEASURE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TABLES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TABLESPACES_EXTENSIONS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TABLES_EXTENSIONS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TABLE_CONSTRAINTS", "detail": "" },
+      {
+        "kind": "view",
+        "schema": "information_schema",
+        "table": "",
+        "name": "TABLE_CONSTRAINTS_EXTENSIONS",
+        "detail": ""
+      },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TABLE_PRIVILEGES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "TRIGGERS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "USER_ATTRIBUTES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "USER_PRIVILEGES", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "VIEWS", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "VIEW_ROUTINE_USAGE", "detail": "" },
+      { "kind": "view", "schema": "information_schema", "table": "", "name": "VIEW_TABLE_USAGE", "detail": "" },
+      { "kind": "table", "schema": "luma", "table": "", "name": "customer", "detail": "" },
+      { "kind": "table", "schema": "luma", "table": "", "name": "order_item", "detail": "" },
+      { "kind": "view", "schema": "luma", "table": "", "name": "order_summary", "detail": "" },
+      { "kind": "table", "schema": "luma", "table": "", "name": "orders", "detail": "" },
+      { "kind": "table", "schema": "luma", "table": "", "name": "product", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "global_status", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "global_variables", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "persisted_variables", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "processlist", "detail": "" },
+      {
+        "kind": "table",
+        "schema": "performance_schema",
+        "table": "",
+        "name": "session_account_connect_attrs",
+        "detail": ""
+      },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "session_status", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "session_variables", "detail": "" },
+      { "kind": "table", "schema": "performance_schema", "table": "", "name": "variables_info", "detail": "" },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "TABLE_CATALOG",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "TABLE_SCHEMA",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "TABLE_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLUMN_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "ORDINAL_POSITION",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLUMN_DEFAULT",
+        "detail": "text"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "IS_NULLABLE",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "DATA_TYPE",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "CHARACTER_MAXIMUM_LENGTH",
+        "detail": "bigint"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "CHARACTER_OCTET_LENGTH",
+        "detail": "bigint"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "NUMERIC_PRECISION",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "NUMERIC_SCALE",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "DATETIME_PRECISION",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "CHARACTER_SET_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLLATION_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLUMN_TYPE",
+        "detail": "mediumtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLUMN_KEY",
+        "detail": "enum('','PRI','UNI','MUL')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "EXTRA",
+        "detail": "varchar(256)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "PRIVILEGES",
+        "detail": "varchar(154)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "COLUMN_COMMENT",
+        "detail": "text"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "GENERATION_EXPRESSION",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "COLUMNS",
+        "name": "SRS_ID",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "SPECIFIC_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_CATALOG",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_SCHEMA",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_TYPE",
+        "detail": "enum('FUNCTION','PROCEDURE')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "DATA_TYPE",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "CHARACTER_MAXIMUM_LENGTH",
+        "detail": "bigint"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "CHARACTER_OCTET_LENGTH",
+        "detail": "bigint"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "NUMERIC_PRECISION",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "NUMERIC_SCALE",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "DATETIME_PRECISION",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "CHARACTER_SET_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "COLLATION_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "DTD_IDENTIFIER",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_BODY",
+        "detail": "varchar(8)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_DEFINITION",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "EXTERNAL_NAME",
+        "detail": "varbinary(0)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "EXTERNAL_LANGUAGE",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "PARAMETER_STYLE",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "IS_DETERMINISTIC",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "SQL_DATA_ACCESS",
+        "detail": "enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "SQL_PATH",
+        "detail": "varbinary(0)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "SECURITY_TYPE",
+        "detail": "enum('DEFAULT','INVOKER','DEFINER')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "CREATED",
+        "detail": "timestamp"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "LAST_ALTERED",
+        "detail": "timestamp"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "SQL_MODE",
+        "detail": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "ROUTINE_COMMENT",
+        "detail": "text"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "DEFINER",
+        "detail": "varchar(288)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "CHARACTER_SET_CLIENT",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "COLLATION_CONNECTION",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "ROUTINES",
+        "name": "DATABASE_COLLATION",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_CATALOG",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_SCHEMA",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_TYPE",
+        "detail": "enum('BASE TABLE','VIEW','SYSTEM VIEW')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "ENGINE",
+        "detail": "varchar(64)"
+      },
+      { "kind": "column", "schema": "information_schema", "table": "TABLES", "name": "VERSION", "detail": "int" },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "ROW_FORMAT",
+        "detail": "enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_ROWS",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "AVG_ROW_LENGTH",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "DATA_LENGTH",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "MAX_DATA_LENGTH",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "INDEX_LENGTH",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "DATA_FREE",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "AUTO_INCREMENT",
+        "detail": "bigint unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "CREATE_TIME",
+        "detail": "timestamp"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "UPDATE_TIME",
+        "detail": "datetime"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "CHECK_TIME",
+        "detail": "datetime"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_COLLATION",
+        "detail": "varchar(64)"
+      },
+      { "kind": "column", "schema": "information_schema", "table": "TABLES", "name": "CHECKSUM", "detail": "bigint" },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "CREATE_OPTIONS",
+        "detail": "varchar(256)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TABLES",
+        "name": "TABLE_COMMENT",
+        "detail": "text"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "TRIGGER_CATALOG",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "TRIGGER_SCHEMA",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "TRIGGER_NAME",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "EVENT_MANIPULATION",
+        "detail": "enum('INSERT','UPDATE','DELETE')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "EVENT_OBJECT_CATALOG",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "EVENT_OBJECT_SCHEMA",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "EVENT_OBJECT_TABLE",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_ORDER",
+        "detail": "int unsigned"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_CONDITION",
+        "detail": "varbinary(0)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_STATEMENT",
+        "detail": "longtext"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_ORIENTATION",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_TIMING",
+        "detail": "enum('BEFORE','AFTER')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_REFERENCE_OLD_TABLE",
+        "detail": "varbinary(0)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_REFERENCE_NEW_TABLE",
+        "detail": "varbinary(0)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_REFERENCE_OLD_ROW",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "ACTION_REFERENCE_NEW_ROW",
+        "detail": "varchar(3)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "CREATED",
+        "detail": "timestamp(2)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "SQL_MODE",
+        "detail": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "DEFINER",
+        "detail": "varchar(288)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "CHARACTER_SET_CLIENT",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "COLLATION_CONNECTION",
+        "detail": "varchar(64)"
+      },
+      {
+        "kind": "column",
+        "schema": "information_schema",
+        "table": "TRIGGERS",
+        "name": "DATABASE_COLLATION",
+        "detail": "varchar(64)"
+      },
+      { "kind": "column", "schema": "luma", "table": "customer", "name": "id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "customer", "name": "name", "detail": "varchar(64)" },
+      { "kind": "column", "schema": "luma", "table": "customer", "name": "email", "detail": "varchar(128)" },
+      { "kind": "column", "schema": "luma", "table": "customer", "name": "city", "detail": "varchar(64)" },
+      { "kind": "column", "schema": "luma", "table": "customer", "name": "created_at", "detail": "datetime" },
+      { "kind": "column", "schema": "luma", "table": "order_item", "name": "order_id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "order_item", "name": "product_id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "order_item", "name": "quantity", "detail": "int" },
+      { "kind": "column", "schema": "luma", "table": "order_item", "name": "unit_price", "detail": "decimal(10,2)" },
+      { "kind": "column", "schema": "luma", "table": "order_summary", "name": "id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "order_summary", "name": "customer", "detail": "varchar(64)" },
+      {
+        "kind": "column",
+        "schema": "luma",
+        "table": "order_summary",
+        "name": "status",
+        "detail": "enum('NEW','PAID','SHIPPED','CANCELLED')"
+      },
+      { "kind": "column", "schema": "luma", "table": "order_summary", "name": "total", "detail": "decimal(10,2)" },
+      { "kind": "column", "schema": "luma", "table": "order_summary", "name": "items", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "order_summary", "name": "created_at", "detail": "datetime" },
+      { "kind": "column", "schema": "luma", "table": "orders", "name": "id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "orders", "name": "customer_id", "detail": "bigint" },
+      {
+        "kind": "column",
+        "schema": "luma",
+        "table": "orders",
+        "name": "status",
+        "detail": "enum('NEW','PAID','SHIPPED','CANCELLED')"
+      },
+      { "kind": "column", "schema": "luma", "table": "orders", "name": "total", "detail": "decimal(10,2)" },
+      { "kind": "column", "schema": "luma", "table": "orders", "name": "created_at", "detail": "datetime" },
+      { "kind": "column", "schema": "luma", "table": "product", "name": "id", "detail": "bigint" },
+      { "kind": "column", "schema": "luma", "table": "product", "name": "sku", "detail": "varchar(32)" },
+      { "kind": "column", "schema": "luma", "table": "product", "name": "title", "detail": "varchar(128)" },
+      { "kind": "column", "schema": "luma", "table": "product", "name": "price", "detail": "decimal(10,2)" },
+      { "kind": "column", "schema": "luma", "table": "product", "name": "stock", "detail": "int" },
+      { "kind": "uniqueIndex", "schema": "luma", "table": "customer", "name": "email", "detail": "" },
+      { "kind": "uniqueIndex", "schema": "luma", "table": "product", "name": "sku", "detail": "" },
+      { "kind": "index", "schema": "luma", "table": "orders", "name": "fk_orders_customer", "detail": "" },
+      { "kind": "index", "schema": "luma", "table": "orders", "name": "idx_orders_status", "detail": "" },
+      { "kind": "index", "schema": "luma", "table": "order_item", "name": "fk_item_product", "detail": "" },
+      { "kind": "primaryKey", "schema": "luma", "table": "customer", "name": "PRIMARY", "detail": "" },
+      { "kind": "primaryKey", "schema": "luma", "table": "order_item", "name": "PRIMARY", "detail": "" },
+      { "kind": "foreignKey", "schema": "luma", "table": "order_item", "name": "fk_item_order", "detail": "orders" },
+      { "kind": "foreignKey", "schema": "luma", "table": "order_item", "name": "fk_item_product", "detail": "product" },
+      { "kind": "primaryKey", "schema": "luma", "table": "orders", "name": "PRIMARY", "detail": "" },
+      { "kind": "foreignKey", "schema": "luma", "table": "orders", "name": "fk_orders_customer", "detail": "customer" },
+      { "kind": "primaryKey", "schema": "luma", "table": "product", "name": "PRIMARY", "detail": "" },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "global_status",
+        "name": "PRIMARY",
+        "detail": ""
+      },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "global_variables",
+        "name": "PRIMARY",
+        "detail": ""
+      },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "persisted_variables",
+        "name": "PRIMARY",
+        "detail": ""
+      },
+      { "kind": "primaryKey", "schema": "performance_schema", "table": "processlist", "name": "PRIMARY", "detail": "" },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "session_account_connect_attrs",
+        "name": "PRIMARY",
+        "detail": ""
+      },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "session_status",
+        "name": "PRIMARY",
+        "detail": ""
+      },
+      {
+        "kind": "primaryKey",
+        "schema": "performance_schema",
+        "table": "session_variables",
+        "name": "PRIMARY",
+        "detail": ""
+      }
+    ]
+  },
+  "server": [
+    {
+      "kind": "collations",
+      "objects": [
+        { "name": "armscii8_bin", "detail": "armscii8" },
+        { "name": "armscii8_general_ci", "detail": "armscii8" },
+        { "name": "ascii_bin", "detail": "ascii" },
+        { "name": "ascii_general_ci", "detail": "ascii" },
+        { "name": "big5_bin", "detail": "big5" },
+        { "name": "big5_chinese_ci", "detail": "big5" },
+        { "name": "binary", "detail": "binary" },
+        { "name": "cp1250_bin", "detail": "cp1250" },
+        { "name": "cp1250_croatian_ci", "detail": "cp1250" },
+        { "name": "cp1250_czech_cs", "detail": "cp1250" },
+        { "name": "cp1250_general_ci", "detail": "cp1250" },
+        { "name": "cp1250_polish_ci", "detail": "cp1250" },
+        { "name": "cp1251_bin", "detail": "cp1251" },
+        { "name": "cp1251_bulgarian_ci", "detail": "cp1251" },
+        { "name": "cp1251_general_ci", "detail": "cp1251" },
+        { "name": "cp1251_general_cs", "detail": "cp1251" },
+        { "name": "cp1251_ukrainian_ci", "detail": "cp1251" },
+        { "name": "cp1256_bin", "detail": "cp1256" },
+        { "name": "cp1256_general_ci", "detail": "cp1256" },
+        { "name": "cp1257_bin", "detail": "cp1257" },
+        { "name": "cp1257_general_ci", "detail": "cp1257" },
+        { "name": "cp1257_lithuanian_ci", "detail": "cp1257" },
+        { "name": "cp850_bin", "detail": "cp850" },
+        { "name": "cp850_general_ci", "detail": "cp850" },
+        { "name": "cp852_bin", "detail": "cp852" },
+        { "name": "cp852_general_ci", "detail": "cp852" },
+        { "name": "cp866_bin", "detail": "cp866" },
+        { "name": "cp866_general_ci", "detail": "cp866" },
+        { "name": "cp932_bin", "detail": "cp932" },
+        { "name": "cp932_japanese_ci", "detail": "cp932" },
+        { "name": "dec8_bin", "detail": "dec8" },
+        { "name": "dec8_swedish_ci", "detail": "dec8" },
+        { "name": "eucjpms_bin", "detail": "eucjpms" },
+        { "name": "eucjpms_japanese_ci", "detail": "eucjpms" },
+        { "name": "euckr_bin", "detail": "euckr" },
+        { "name": "euckr_korean_ci", "detail": "euckr" },
+        { "name": "gb18030_bin", "detail": "gb18030" },
+        { "name": "gb18030_chinese_ci", "detail": "gb18030" },
+        { "name": "gb18030_unicode_520_ci", "detail": "gb18030" },
+        { "name": "gb2312_bin", "detail": "gb2312" },
+        { "name": "gb2312_chinese_ci", "detail": "gb2312" },
+        { "name": "gbk_bin", "detail": "gbk" },
+        { "name": "gbk_chinese_ci", "detail": "gbk" },
+        { "name": "geostd8_bin", "detail": "geostd8" },
+        { "name": "geostd8_general_ci", "detail": "geostd8" },
+        { "name": "greek_bin", "detail": "greek" },
+        { "name": "greek_general_ci", "detail": "greek" },
+        { "name": "hebrew_bin", "detail": "hebrew" },
+        { "name": "hebrew_general_ci", "detail": "hebrew" },
+        { "name": "hp8_bin", "detail": "hp8" },
+        { "name": "hp8_english_ci", "detail": "hp8" },
+        { "name": "keybcs2_bin", "detail": "keybcs2" },
+        { "name": "keybcs2_general_ci", "detail": "keybcs2" },
+        { "name": "koi8r_bin", "detail": "koi8r" },
+        { "name": "koi8r_general_ci", "detail": "koi8r" },
+        { "name": "koi8u_bin", "detail": "koi8u" },
+        { "name": "koi8u_general_ci", "detail": "koi8u" },
+        { "name": "latin1_bin", "detail": "latin1" },
+        { "name": "latin1_danish_ci", "detail": "latin1" },
+        { "name": "latin1_general_ci", "detail": "latin1" },
+        { "name": "latin1_general_cs", "detail": "latin1" },
+        { "name": "latin1_german1_ci", "detail": "latin1" },
+        { "name": "latin1_german2_ci", "detail": "latin1" },
+        { "name": "latin1_spanish_ci", "detail": "latin1" },
+        { "name": "latin1_swedish_ci", "detail": "latin1" },
+        { "name": "latin2_bin", "detail": "latin2" },
+        { "name": "latin2_croatian_ci", "detail": "latin2" },
+        { "name": "latin2_czech_cs", "detail": "latin2" },
+        { "name": "latin2_general_ci", "detail": "latin2" },
+        { "name": "latin2_hungarian_ci", "detail": "latin2" },
+        { "name": "latin5_bin", "detail": "latin5" },
+        { "name": "latin5_turkish_ci", "detail": "latin5" },
+        { "name": "latin7_bin", "detail": "latin7" },
+        { "name": "latin7_estonian_cs", "detail": "latin7" },
+        { "name": "latin7_general_ci", "detail": "latin7" },
+        { "name": "latin7_general_cs", "detail": "latin7" },
+        { "name": "macce_bin", "detail": "macce" },
+        { "name": "macce_general_ci", "detail": "macce" },
+        { "name": "macroman_bin", "detail": "macroman" },
+        { "name": "macroman_general_ci", "detail": "macroman" },
+        { "name": "sjis_bin", "detail": "sjis" },
+        { "name": "sjis_japanese_ci", "detail": "sjis" },
+        { "name": "swe7_bin", "detail": "swe7" },
+        { "name": "swe7_swedish_ci", "detail": "swe7" },
+        { "name": "tis620_bin", "detail": "tis620" },
+        { "name": "tis620_thai_ci", "detail": "tis620" },
+        { "name": "ucs2_bin", "detail": "ucs2" },
+        { "name": "ucs2_croatian_ci", "detail": "ucs2" },
+        { "name": "ucs2_czech_ci", "detail": "ucs2" },
+        { "name": "ucs2_danish_ci", "detail": "ucs2" },
+        { "name": "ucs2_esperanto_ci", "detail": "ucs2" },
+        { "name": "ucs2_estonian_ci", "detail": "ucs2" },
+        { "name": "ucs2_general_ci", "detail": "ucs2" },
+        { "name": "ucs2_general_mysql500_ci", "detail": "ucs2" },
+        { "name": "ucs2_german2_ci", "detail": "ucs2" },
+        { "name": "ucs2_hungarian_ci", "detail": "ucs2" },
+        { "name": "ucs2_icelandic_ci", "detail": "ucs2" },
+        { "name": "ucs2_latvian_ci", "detail": "ucs2" },
+        { "name": "ucs2_lithuanian_ci", "detail": "ucs2" },
+        { "name": "ucs2_persian_ci", "detail": "ucs2" },
+        { "name": "ucs2_polish_ci", "detail": "ucs2" },
+        { "name": "ucs2_romanian_ci", "detail": "ucs2" },
+        { "name": "ucs2_roman_ci", "detail": "ucs2" },
+        { "name": "ucs2_sinhala_ci", "detail": "ucs2" },
+        { "name": "ucs2_slovak_ci", "detail": "ucs2" },
+        { "name": "ucs2_slovenian_ci", "detail": "ucs2" },
+        { "name": "ucs2_spanish2_ci", "detail": "ucs2" },
+        { "name": "ucs2_spanish_ci", "detail": "ucs2" },
+        { "name": "ucs2_swedish_ci", "detail": "ucs2" },
+        { "name": "ucs2_turkish_ci", "detail": "ucs2" },
+        { "name": "ucs2_unicode_520_ci", "detail": "ucs2" },
+        { "name": "ucs2_unicode_ci", "detail": "ucs2" },
+        { "name": "ucs2_vietnamese_ci", "detail": "ucs2" },
+        { "name": "ujis_bin", "detail": "ujis" },
+        { "name": "ujis_japanese_ci", "detail": "ujis" },
+        { "name": "utf16le_bin", "detail": "utf16le" },
+        { "name": "utf16le_general_ci", "detail": "utf16le" },
+        { "name": "utf16_bin", "detail": "utf16" },
+        { "name": "utf16_croatian_ci", "detail": "utf16" },
+        { "name": "utf16_czech_ci", "detail": "utf16" },
+        { "name": "utf16_danish_ci", "detail": "utf16" },
+        { "name": "utf16_esperanto_ci", "detail": "utf16" },
+        { "name": "utf16_estonian_ci", "detail": "utf16" },
+        { "name": "utf16_general_ci", "detail": "utf16" },
+        { "name": "utf16_german2_ci", "detail": "utf16" },
+        { "name": "utf16_hungarian_ci", "detail": "utf16" },
+        { "name": "utf16_icelandic_ci", "detail": "utf16" },
+        { "name": "utf16_latvian_ci", "detail": "utf16" },
+        { "name": "utf16_lithuanian_ci", "detail": "utf16" },
+        { "name": "utf16_persian_ci", "detail": "utf16" },
+        { "name": "utf16_polish_ci", "detail": "utf16" },
+        { "name": "utf16_romanian_ci", "detail": "utf16" },
+        { "name": "utf16_roman_ci", "detail": "utf16" },
+        { "name": "utf16_sinhala_ci", "detail": "utf16" },
+        { "name": "utf16_slovak_ci", "detail": "utf16" },
+        { "name": "utf16_slovenian_ci", "detail": "utf16" },
+        { "name": "utf16_spanish2_ci", "detail": "utf16" },
+        { "name": "utf16_spanish_ci", "detail": "utf16" },
+        { "name": "utf16_swedish_ci", "detail": "utf16" },
+        { "name": "utf16_turkish_ci", "detail": "utf16" },
+        { "name": "utf16_unicode_520_ci", "detail": "utf16" },
+        { "name": "utf16_unicode_ci", "detail": "utf16" },
+        { "name": "utf16_vietnamese_ci", "detail": "utf16" },
+        { "name": "utf32_bin", "detail": "utf32" },
+        { "name": "utf32_croatian_ci", "detail": "utf32" },
+        { "name": "utf32_czech_ci", "detail": "utf32" },
+        { "name": "utf32_danish_ci", "detail": "utf32" },
+        { "name": "utf32_esperanto_ci", "detail": "utf32" },
+        { "name": "utf32_estonian_ci", "detail": "utf32" },
+        { "name": "utf32_general_ci", "detail": "utf32" },
+        { "name": "utf32_german2_ci", "detail": "utf32" },
+        { "name": "utf32_hungarian_ci", "detail": "utf32" },
+        { "name": "utf32_icelandic_ci", "detail": "utf32" },
+        { "name": "utf32_latvian_ci", "detail": "utf32" },
+        { "name": "utf32_lithuanian_ci", "detail": "utf32" },
+        { "name": "utf32_persian_ci", "detail": "utf32" },
+        { "name": "utf32_polish_ci", "detail": "utf32" },
+        { "name": "utf32_romanian_ci", "detail": "utf32" },
+        { "name": "utf32_roman_ci", "detail": "utf32" },
+        { "name": "utf32_sinhala_ci", "detail": "utf32" },
+        { "name": "utf32_slovak_ci", "detail": "utf32" },
+        { "name": "utf32_slovenian_ci", "detail": "utf32" },
+        { "name": "utf32_spanish2_ci", "detail": "utf32" },
+        { "name": "utf32_spanish_ci", "detail": "utf32" },
+        { "name": "utf32_swedish_ci", "detail": "utf32" },
+        { "name": "utf32_turkish_ci", "detail": "utf32" },
+        { "name": "utf32_unicode_520_ci", "detail": "utf32" },
+        { "name": "utf32_unicode_ci", "detail": "utf32" },
+        { "name": "utf32_vietnamese_ci", "detail": "utf32" },
+        { "name": "utf8mb3_bin", "detail": "utf8mb3" },
+        { "name": "utf8mb3_croatian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_czech_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_danish_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_esperanto_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_estonian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_general_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_general_mysql500_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_german2_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_hungarian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_icelandic_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_latvian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_lithuanian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_persian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_polish_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_romanian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_roman_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_sinhala_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_slovak_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_slovenian_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_spanish2_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_spanish_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_swedish_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_tolower_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_turkish_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_unicode_520_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_unicode_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb3_vietnamese_ci", "detail": "utf8mb3" },
+        { "name": "utf8mb4_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_0900_as_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_0900_bin", "detail": "utf8mb4" },
+        { "name": "utf8mb4_bg_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_bg_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_bin", "detail": "utf8mb4" },
+        { "name": "utf8mb4_bs_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_bs_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_croatian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_cs_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_cs_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_czech_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_danish_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_da_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_da_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_de_pb_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_de_pb_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_eo_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_eo_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_esperanto_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_estonian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_es_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_es_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_es_trad_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_es_trad_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_et_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_et_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_general_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_german2_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_gl_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_gl_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_hr_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_hr_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_hungarian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_hu_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_hu_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_icelandic_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_is_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_is_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ja_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ja_0900_as_cs_ks", "detail": "utf8mb4" },
+        { "name": "utf8mb4_latvian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_la_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_la_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_lithuanian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_lt_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_lt_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_lv_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_lv_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_mn_cyrl_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_mn_cyrl_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_nb_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_nb_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_nn_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_nn_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_persian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_pl_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_pl_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_polish_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_romanian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_roman_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ro_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ro_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ru_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_ru_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sinhala_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sk_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sk_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_slovak_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_slovenian_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sl_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sl_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_spanish2_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_spanish_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sr_latn_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sr_latn_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sv_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_sv_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_swedish_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_tr_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_tr_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_turkish_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_unicode_520_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_unicode_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_vietnamese_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_vi_0900_ai_ci", "detail": "utf8mb4" },
+        { "name": "utf8mb4_vi_0900_as_cs", "detail": "utf8mb4" },
+        { "name": "utf8mb4_zh_0900_as_cs", "detail": "utf8mb4" }
+      ]
+    },
+    { "kind": "users", "objects": [{ "name": "luma", "detail": "%" }] }
+  ],
+  "tables": {
+    "information_schema": [
+      { "kind": "view", "name": "ADMINISTRABLE_ROLE_AUTHORIZATIONS" },
+      { "kind": "view", "name": "APPLICABLE_ROLES" },
+      { "kind": "view", "name": "CHARACTER_SETS" },
+      { "kind": "view", "name": "CHECK_CONSTRAINTS" },
+      { "kind": "view", "name": "COLLATIONS" },
+      { "kind": "view", "name": "COLLATION_CHARACTER_SET_APPLICABILITY" },
+      { "kind": "view", "name": "COLUMNS" },
+      { "kind": "view", "name": "COLUMNS_EXTENSIONS" },
+      { "kind": "view", "name": "COLUMN_PRIVILEGES" },
+      { "kind": "view", "name": "COLUMN_STATISTICS" },
+      { "kind": "view", "name": "ENABLED_ROLES" },
+      { "kind": "view", "name": "ENGINES" },
+      { "kind": "view", "name": "EVENTS" },
+      { "kind": "view", "name": "FILES" },
+      { "kind": "view", "name": "INNODB_BUFFER_PAGE" },
+      { "kind": "view", "name": "INNODB_BUFFER_PAGE_LRU" },
+      { "kind": "view", "name": "INNODB_BUFFER_POOL_STATS" },
+      { "kind": "view", "name": "INNODB_CACHED_INDEXES" },
+      { "kind": "view", "name": "INNODB_CMP" },
+      { "kind": "view", "name": "INNODB_CMPMEM" },
+      { "kind": "view", "name": "INNODB_CMPMEM_RESET" },
+      { "kind": "view", "name": "INNODB_CMP_PER_INDEX" },
+      { "kind": "view", "name": "INNODB_CMP_PER_INDEX_RESET" },
+      { "kind": "view", "name": "INNODB_CMP_RESET" },
+      { "kind": "view", "name": "INNODB_COLUMNS" },
+      { "kind": "view", "name": "INNODB_DATAFILES" },
+      { "kind": "view", "name": "INNODB_FIELDS" },
+      { "kind": "view", "name": "INNODB_FOREIGN" },
+      { "kind": "view", "name": "INNODB_FOREIGN_COLS" },
+      { "kind": "view", "name": "INNODB_FT_BEING_DELETED" },
+      { "kind": "view", "name": "INNODB_FT_CONFIG" },
+      { "kind": "view", "name": "INNODB_FT_DEFAULT_STOPWORD" },
+      { "kind": "view", "name": "INNODB_FT_DELETED" },
+      { "kind": "view", "name": "INNODB_FT_INDEX_CACHE" },
+      { "kind": "view", "name": "INNODB_FT_INDEX_TABLE" },
+      { "kind": "view", "name": "INNODB_INDEXES" },
+      { "kind": "view", "name": "INNODB_METRICS" },
+      { "kind": "view", "name": "INNODB_SESSION_TEMP_TABLESPACES" },
+      { "kind": "view", "name": "INNODB_TABLES" },
+      { "kind": "view", "name": "INNODB_TABLESPACES" },
+      { "kind": "view", "name": "INNODB_TABLESPACES_BRIEF" },
+      { "kind": "view", "name": "INNODB_TABLESTATS" },
+      { "kind": "view", "name": "INNODB_TEMP_TABLE_INFO" },
+      { "kind": "view", "name": "INNODB_TRX" },
+      { "kind": "view", "name": "INNODB_VIRTUAL" },
+      { "kind": "view", "name": "KEYWORDS" },
+      { "kind": "view", "name": "KEY_COLUMN_USAGE" },
+      { "kind": "view", "name": "OPTIMIZER_TRACE" },
+      { "kind": "view", "name": "PARAMETERS" },
+      { "kind": "view", "name": "PARTITIONS" },
+      { "kind": "view", "name": "PLUGINS" },
+      { "kind": "view", "name": "PROCESSLIST" },
+      { "kind": "view", "name": "PROFILING" },
+      { "kind": "view", "name": "REFERENTIAL_CONSTRAINTS" },
+      { "kind": "view", "name": "RESOURCE_GROUPS" },
+      { "kind": "view", "name": "ROLE_COLUMN_GRANTS" },
+      { "kind": "view", "name": "ROLE_ROUTINE_GRANTS" },
+      { "kind": "view", "name": "ROLE_TABLE_GRANTS" },
+      { "kind": "view", "name": "ROUTINES" },
+      { "kind": "view", "name": "SCHEMATA" },
+      { "kind": "view", "name": "SCHEMATA_EXTENSIONS" },
+      { "kind": "view", "name": "SCHEMA_PRIVILEGES" },
+      { "kind": "view", "name": "STATISTICS" },
+      { "kind": "view", "name": "ST_GEOMETRY_COLUMNS" },
+      { "kind": "view", "name": "ST_SPATIAL_REFERENCE_SYSTEMS" },
+      { "kind": "view", "name": "ST_UNITS_OF_MEASURE" },
+      { "kind": "view", "name": "TABLES" },
+      { "kind": "view", "name": "TABLESPACES_EXTENSIONS" },
+      { "kind": "view", "name": "TABLES_EXTENSIONS" },
+      { "kind": "view", "name": "TABLE_CONSTRAINTS" },
+      { "kind": "view", "name": "TABLE_CONSTRAINTS_EXTENSIONS" },
+      { "kind": "view", "name": "TABLE_PRIVILEGES" },
+      { "kind": "view", "name": "TRIGGERS" },
+      { "kind": "view", "name": "USER_ATTRIBUTES" },
+      { "kind": "view", "name": "USER_PRIVILEGES" },
+      { "kind": "view", "name": "VIEWS" },
+      { "kind": "view", "name": "VIEW_ROUTINE_USAGE" },
+      { "kind": "view", "name": "VIEW_TABLE_USAGE" }
+    ],
+    "luma": [
+      { "kind": "table", "name": "customer" },
+      { "kind": "table", "name": "order_item" },
+      { "kind": "view", "name": "order_summary" },
+      { "kind": "table", "name": "orders" },
+      { "kind": "table", "name": "product" }
+    ],
+    "performance_schema": [
+      { "kind": "table", "name": "global_status" },
+      { "kind": "table", "name": "global_variables" },
+      { "kind": "table", "name": "persisted_variables" },
+      { "kind": "table", "name": "processlist" },
+      { "kind": "table", "name": "session_account_connect_attrs" },
+      { "kind": "table", "name": "session_status" },
+      { "kind": "table", "name": "session_variables" },
+      { "kind": "table", "name": "variables_info" }
+    ]
+  },
+  "details": {
+    "customer": {
+      "columns": [
+        { "dataType": "bigint", "default": null, "name": "id", "nullable": false, "primaryKey": true },
+        { "dataType": "varchar(64)", "default": null, "name": "name", "nullable": false, "primaryKey": false },
+        { "dataType": "varchar(128)", "default": null, "name": "email", "nullable": false, "primaryKey": false },
+        { "dataType": "varchar(64)", "default": null, "name": "city", "nullable": true, "primaryKey": false },
+        {
+          "dataType": "datetime",
+          "default": "CURRENT_TIMESTAMP",
+          "name": "created_at",
+          "nullable": false,
+          "primaryKey": false
+        }
+      ],
+      "foreignKeys": [],
+      "indexes": [
+        { "columns": ["email"], "name": "email", "unique": true },
+        { "columns": ["id"], "name": "PRIMARY", "unique": true }
+      ],
+      "triggers": []
+    },
+    "order_item": {
+      "columns": [
+        { "dataType": "bigint", "default": null, "name": "order_id", "nullable": false, "primaryKey": true },
+        { "dataType": "bigint", "default": null, "name": "product_id", "nullable": false, "primaryKey": true },
+        { "dataType": "int", "default": null, "name": "quantity", "nullable": false, "primaryKey": false },
+        { "dataType": "decimal(10,2)", "default": null, "name": "unit_price", "nullable": false, "primaryKey": false }
+      ],
+      "foreignKeys": [
+        {
+          "columns": ["order_id"],
+          "name": "fk_item_order",
+          "refColumns": ["id"],
+          "refSchema": "luma",
+          "refTable": "orders",
+          "schema": "luma",
+          "table": "order_item"
+        },
+        {
+          "columns": ["product_id"],
+          "name": "fk_item_product",
+          "refColumns": ["id"],
+          "refSchema": "luma",
+          "refTable": "product",
+          "schema": "luma",
+          "table": "order_item"
+        }
+      ],
+      "indexes": [
+        { "columns": ["product_id"], "name": "fk_item_product", "unique": false },
+        { "columns": ["order_id", "product_id"], "name": "PRIMARY", "unique": true }
+      ],
+      "triggers": []
+    },
+    "order_summary": {
+      "columns": [
+        { "dataType": "bigint", "default": "0", "name": "id", "nullable": false, "primaryKey": false },
+        { "dataType": "varchar(64)", "default": null, "name": "customer", "nullable": false, "primaryKey": false },
+        {
+          "dataType": "enum('NEW','PAID','SHIPPED','CANCELLED')",
+          "default": "NEW",
+          "name": "status",
+          "nullable": false,
+          "primaryKey": false
+        },
+        { "dataType": "decimal(10,2)", "default": null, "name": "total", "nullable": false, "primaryKey": false },
+        { "dataType": "bigint", "default": "0", "name": "items", "nullable": false, "primaryKey": false },
+        {
+          "dataType": "datetime",
+          "default": "CURRENT_TIMESTAMP",
+          "name": "created_at",
+          "nullable": false,
+          "primaryKey": false
+        }
+      ],
+      "foreignKeys": [],
+      "indexes": [],
+      "triggers": []
+    },
+    "orders": {
+      "columns": [
+        { "dataType": "bigint", "default": null, "name": "id", "nullable": false, "primaryKey": true },
+        { "dataType": "bigint", "default": null, "name": "customer_id", "nullable": false, "primaryKey": false },
+        {
+          "dataType": "enum('NEW','PAID','SHIPPED','CANCELLED')",
+          "default": "NEW",
+          "name": "status",
+          "nullable": false,
+          "primaryKey": false
+        },
+        { "dataType": "decimal(10,2)", "default": null, "name": "total", "nullable": false, "primaryKey": false },
+        {
+          "dataType": "datetime",
+          "default": "CURRENT_TIMESTAMP",
+          "name": "created_at",
+          "nullable": false,
+          "primaryKey": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "columns": ["customer_id"],
+          "name": "fk_orders_customer",
+          "refColumns": ["id"],
+          "refSchema": "luma",
+          "refTable": "customer",
+          "schema": "luma",
+          "table": "orders"
+        }
+      ],
+      "indexes": [
+        { "columns": ["customer_id"], "name": "fk_orders_customer", "unique": false },
+        { "columns": ["status"], "name": "idx_orders_status", "unique": false },
+        { "columns": ["id"], "name": "PRIMARY", "unique": true }
+      ],
+      "triggers": []
+    },
+    "product": {
+      "columns": [
+        { "dataType": "bigint", "default": null, "name": "id", "nullable": false, "primaryKey": true },
+        { "dataType": "varchar(32)", "default": null, "name": "sku", "nullable": false, "primaryKey": false },
+        { "dataType": "varchar(128)", "default": null, "name": "title", "nullable": false, "primaryKey": false },
+        { "dataType": "decimal(10,2)", "default": null, "name": "price", "nullable": false, "primaryKey": false },
+        { "dataType": "int", "default": "0", "name": "stock", "nullable": false, "primaryKey": false }
+      ],
+      "foreignKeys": [],
+      "indexes": [
+        { "columns": ["id"], "name": "PRIMARY", "unique": true },
+        { "columns": ["sku"], "name": "sku", "unique": true }
+      ],
+      "triggers": []
+    }
+  }
+}

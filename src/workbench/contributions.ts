@@ -1540,6 +1540,52 @@ export async function searchEndpoints(root: string | null): Promise<EndpointEntr
 }
 
 // ---------------------------------------------------------------------------
+// Database objects (tables, columns, keys, routines, Redis keys…) for Search Everywhere.
+
+export interface DatabaseSearchItem {
+  key: string;
+  name: string;
+  /** Where it is: `luma.order_item`. */
+  container: string;
+  /** Its data source: `@localhost`. */
+  source: string;
+  icon: string;
+  /** A tag before the name: a Redis key's type (`LIST`) in its colour. */
+  chip?: { label: string; title: string; color: string };
+  indices: number[];
+  score: number;
+  /** `luma.order_item.order_id` (Copy Qualified Name). */
+  qualifiedName: string;
+  /** Enter: selects the object in the Database tool window. */
+  open(): void;
+  /** More of ⌥↵: Edit Data, Go to DDL… */
+  actions: ReadonlyArray<{ label: string; run: () => void }>;
+}
+
+export interface DatabaseSearchResult {
+  items: DatabaseSearchItem[];
+  hasMore: boolean;
+}
+
+export interface DatabaseSearchProvider {
+  /** Emits results as data sources' objects load; resolves when every one answered. */
+  search(query: string, limit: number, emit: (r: DatabaseSearchResult) => void): Promise<void>;
+}
+
+let databaseSearchProvider: DatabaseSearchProvider | null = null;
+
+export function registerDatabaseSearch(p: DatabaseSearchProvider): () => void {
+  databaseSearchProvider = p;
+  return () => {
+    if (databaseSearchProvider === p) databaseSearchProvider = null;
+  };
+}
+
+export function databaseSearch(): DatabaseSearchProvider | null {
+  return databaseSearchProvider;
+}
+
+// ---------------------------------------------------------------------------
 // Status bar info text (IDEA's status bar message, e.g. "3 of 12" after Next
 // Occurrence). Cleared by the next message or after a while.
 

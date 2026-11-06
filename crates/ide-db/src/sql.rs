@@ -45,31 +45,137 @@ pub fn databases(templates: bool) -> &'static str {
 /// Databases of managed services that their users cannot use (hidden unless connected to).
 pub const INTERNAL_DATABASES: &[&str] = &["rdsadmin", "azure_maintenance", "azure_sys", "cloudsqladmin"];
 
+/// The schemas of the tree. The standard catalogs (`information_schema`, MySQL's
+/// `performance_schema`, PostgreSQL's `pg_catalog`, SQL Server's `sys`) are listed like
+/// IDEA's; the server's internal ones (`mysql`, `sys`, SQL Server's role schemas) only with `system`.
 pub fn schemas(driver: DbDriver, system: bool) -> &'static str {
     match driver {
         DbDriver::Redis | DbDriver::Elasticsearch => {
             unreachable!("Redis and Elasticsearch data sources have no SQL connection")
         }
         DbDriver::Sqlite => "SELECT name FROM pragma_database_list WHERE name <> 'temp' ORDER BY seq",
-        DbDriver::Postgres if system => {
+        DbDriver::Postgres => {
             "SELECT schema_name FROM information_schema.schemata \
              WHERE schema_name NOT LIKE 'pg\\_toast%' AND schema_name NOT LIKE 'pg\\_temp%' ORDER BY 1"
         }
-        DbDriver::Mysql if system => "SELECT schema_name FROM information_schema.schemata ORDER BY 1",
-        DbDriver::SqlServer if system => "SELECT schema_name FROM information_schema.schemata ORDER BY 1",
-        DbDriver::Postgres => {
-            "SELECT schema_name FROM information_schema.schemata \
-             WHERE schema_name NOT IN ('pg_catalog', 'information_schema') \
-             AND schema_name NOT LIKE 'pg\\_toast%' AND schema_name NOT LIKE 'pg\\_temp%' ORDER BY 1"
+        DbDriver::Mysql | DbDriver::SqlServer if system => {
+            "SELECT schema_name FROM information_schema.schemata ORDER BY 1"
         }
         DbDriver::Mysql => {
-            "SELECT schema_name FROM information_schema.schemata \
-             WHERE schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') ORDER BY 1"
+            "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql', 'sys') ORDER BY 1"
         }
         DbDriver::SqlServer => {
             "SELECT schema_name FROM information_schema.schemata \
-             WHERE schema_name NOT IN ('sys', 'information_schema', 'guest') ORDER BY 1"
+             WHERE schema_name <> 'guest' AND schema_name NOT LIKE 'db[_]%' ORDER BY 1"
         }
+    }
+}
+
+/// Object catalog queries (Search Everywhere): rows of `tag, schema, table, name, detail`, the
+/// tag one of `table`, `view`, `materialized view`, `column`, `pk`, `fk`, `index`, `unique index`,
+/// `function`, `procedure`, `trigger`, `sequence`. `table` is empty for schema-level objects.
+/// Every schema is covered: the caller keeps those [`schemas`] lists.
+pub fn catalog(driver: DbDriver) -> Vec<&'static str> {
+    match driver {
+        DbDriver::Redis | DbDriver::Elasticsearch => {
+            unreachable!("Redis and Elasticsearch data sources have no SQL connection")
+        }
+        DbDriver::Sqlite => vec![
+            "SELECT type, 'main', '', name, '' FROM sqlite_master \
+             WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'",
+            "SELECT 'column', 'main', m.name, p.name, p.type FROM sqlite_master m JOIN pragma_table_info(m.name) p \
+             WHERE m.type IN ('table', 'view') AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY m.name, p.cid",
+            "SELECT CASE WHEN il.\"unique\" THEN 'unique index' ELSE 'index' END, 'main', m.name, il.name, '' \
+             FROM sqlite_master m JOIN pragma_index_list(m.name) il \
+             WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'",
+            "SELECT 'trigger', 'main', tbl_name, name, '' FROM sqlite_master WHERE type = 'trigger'",
+        ],
+        DbDriver::Postgres => vec![
+            "SELECT CASE c.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view' ELSE 'table' END, \
+             n.nspname, '', c.relname, '' FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
+             WHERE c.relkind IN ('r', 'v', 'm', 'p', 'f') AND n.nspname NOT LIKE 'pg\\_toast%' \
+             AND n.nspname NOT LIKE 'pg\\_temp%'",
+            "SELECT 'column', n.nspname, c.relname, a.attname, format_type(a.atttypid, a.atttypmod) \
+             FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace \
+             WHERE c.relkind IN ('r', 'v', 'm', 'p', 'f') AND a.attnum > 0 AND NOT a.attisdropped \
+             AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' \
+             ORDER BY n.nspname, c.relname, a.attnum",
+            "SELECT CASE WHEN x.indisunique THEN 'unique index' ELSE 'index' END, n.nspname, t.relname, i.relname, '' \
+             FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid JOIN pg_class i ON i.oid = x.indexrelid \
+             JOIN pg_namespace n ON n.oid = t.relnamespace \
+             WHERE n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%'",
+            "SELECT CASE con.contype WHEN 'p' THEN 'pk' ELSE 'fk' END, n.nspname, c.relname, con.conname, \
+             coalesce(r.relname, '') FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid \
+             JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_class r ON r.oid = con.confrelid \
+             WHERE con.contype IN ('p', 'f')",
+            // Functions of extensions are left out, as in the tree.
+            "SELECT CASE WHEN p.prokind = 'p' THEN 'procedure' ELSE 'function' END, n.nspname, '', p.proname, \
+             pg_get_function_identity_arguments(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \
+             WHERE p.prokind IN ('f', 'p') \
+             AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')",
+            "SELECT 'trigger', n.nspname, c.relname, t.tgname, '' FROM pg_trigger t \
+             JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace \
+             WHERE NOT t.tgisinternal",
+            "SELECT 'sequence', n.nspname, '', c.relname, '' FROM pg_class c \
+             JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'S'",
+        ],
+        DbDriver::Mysql => vec![
+            "SELECT CASE WHEN table_type LIKE '%VIEW%' THEN 'view' ELSE 'table' END, table_schema, '', table_name, '' \
+             FROM information_schema.tables",
+            "SELECT 'column', table_schema, table_name, column_name, column_type FROM information_schema.columns \
+             ORDER BY table_schema, table_name, ordinal_position",
+            "SELECT CASE WHEN MIN(non_unique) = 0 THEN 'unique index' ELSE 'index' END, table_schema, table_name, \
+             index_name, '' FROM information_schema.statistics WHERE index_name <> 'PRIMARY' \
+             GROUP BY table_schema, table_name, index_name",
+            "SELECT CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN 'pk' ELSE 'fk' END, tc.table_schema, \
+             tc.table_name, tc.constraint_name, coalesce(rc.referenced_table_name, '') \
+             FROM information_schema.table_constraints tc LEFT JOIN information_schema.referential_constraints rc \
+             ON rc.constraint_schema = tc.constraint_schema AND rc.constraint_name = tc.constraint_name \
+             AND rc.table_name = tc.table_name WHERE tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')",
+            "SELECT lower(routine_type), routine_schema, '', routine_name, '' FROM information_schema.routines",
+            "SELECT 'trigger', event_object_schema, event_object_table, trigger_name, '' \
+             FROM information_schema.triggers",
+        ],
+        DbDriver::SqlServer => vec![
+            "SELECT CASE WHEN table_type LIKE '%VIEW%' THEN 'view' ELSE 'table' END, table_schema, '', table_name, '' \
+             FROM information_schema.tables",
+            "SELECT 'column', table_schema, table_name, column_name, data_type FROM information_schema.columns \
+             ORDER BY table_schema, table_name, ordinal_position",
+            "SELECT CASE WHEN i.is_unique = 1 THEN 'unique index' ELSE 'index' END, OBJECT_SCHEMA_NAME(i.object_id), \
+             OBJECT_NAME(i.object_id), i.name, '' FROM sys.indexes i JOIN sys.objects o ON o.object_id = i.object_id \
+             WHERE i.name IS NOT NULL AND o.type IN ('U', 'V')",
+            "SELECT CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN 'pk' ELSE 'fk' END, tc.table_schema, \
+             tc.table_name, tc.constraint_name, '' FROM information_schema.table_constraints tc \
+             WHERE tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')",
+            "SELECT lower(routine_type), routine_schema, '', routine_name, '' FROM information_schema.routines",
+            "SELECT 'trigger', OBJECT_SCHEMA_NAME(t.parent_id), OBJECT_NAME(t.parent_id), t.name, '' \
+             FROM sys.triggers t WHERE t.parent_id <> 0",
+        ],
+    }
+}
+
+/// Server objects (the tree's `Server Objects` folder): `(group, query)`, rows of `name, detail`.
+/// MySQL users are `'user'@'host'` grantees.
+pub fn server_objects(driver: DbDriver) -> &'static [(&'static str, &'static str)] {
+    match driver {
+        DbDriver::Mysql => &[
+            ("collations", "SELECT collation_name, character_set_name FROM information_schema.collations ORDER BY 1"),
+            ("users", "SELECT DISTINCT grantee, '' FROM information_schema.user_privileges ORDER BY 1"),
+        ],
+        DbDriver::Postgres => &[
+            ("roles", "SELECT rolname, CASE WHEN rolcanlogin THEN 'login' ELSE '' END FROM pg_roles ORDER BY 1"),
+            ("tablespaces", "SELECT spcname, '' FROM pg_tablespace ORDER BY 1"),
+        ],
+        _ => &[],
+    }
+}
+
+/// `luma`, `%` of MySQL's grantee `'luma'@'%'`.
+pub fn split_grantee(grantee: &str) -> (String, String) {
+    let unquote = |s: &str| s.trim().trim_matches('\'').replace("''", "'");
+    match grantee.rsplit_once('@') {
+        Some((user, host)) => (unquote(user), unquote(host)),
+        None => (unquote(grantee), String::new()),
     }
 }
 
@@ -705,7 +811,31 @@ mod tests {
             schemas(DbDriver::SqlServer, true),
             "SELECT schema_name FROM information_schema.schemata ORDER BY 1"
         );
-        assert!(schemas(DbDriver::SqlServer, false).contains("NOT IN ('sys', 'information_schema', 'guest')"));
+        assert!(schemas(DbDriver::SqlServer, false).contains("schema_name <> 'guest'"));
+    }
+
+    #[test]
+    fn standard_system_schemas_are_listed() {
+        // IDEA lists information_schema / performance_schema; mysql and sys are the server's own.
+        let mysql = schemas(DbDriver::Mysql, false);
+        assert!(mysql.contains("NOT IN ('mysql', 'sys')") && !mysql.contains("performance_schema"));
+        assert!(!schemas(DbDriver::Mysql, true).contains("NOT IN"));
+        assert!(!schemas(DbDriver::Postgres, false).contains("pg_catalog"));
+        assert!(!schemas(DbDriver::SqlServer, false).contains("'sys'"));
+    }
+
+    #[test]
+    fn catalog_and_server_objects() {
+        for d in [DbDriver::Sqlite, DbDriver::Postgres, DbDriver::Mysql, DbDriver::SqlServer] {
+            let qs = catalog(d);
+            assert!(qs[0].contains("'view'"), "{d:?} lists tables first");
+            assert!(qs.iter().any(|q| q.contains("'column'")));
+        }
+        assert_eq!(server_objects(DbDriver::Mysql).iter().map(|g| g.0).collect::<Vec<_>>(), ["collations", "users"]);
+        assert!(server_objects(DbDriver::Sqlite).is_empty());
+        assert_eq!(split_grantee("'luma'@'%'"), ("luma".into(), "%".into()));
+        assert_eq!(split_grantee("'o''neil'@'10.0.0.%'"), ("o'neil".into(), "10.0.0.%".into()));
+        assert_eq!(split_grantee("root"), ("root".into(), String::new()));
     }
 
     #[test]

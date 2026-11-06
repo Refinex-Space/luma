@@ -2,8 +2,8 @@ use crate::state::AppState;
 use ide_core::{IdeError, IdeResult, IpcPath, RequestId};
 use ide_db::split::SqlStatement;
 use ide_db::{
-    CompletionModel, DataSource, DbObjectKind, DbRowEdit, HistoryEntry, PlanNode, QueryResult, SchemaObjects, SortKey,
-    TableDetails, TableInfo, TablePage,
+    Catalog, CompletionModel, DataSource, DbObjectKind, DbRowEdit, HistoryEntry, PlanNode, QueryResult, SchemaObjects,
+    ServerObjectGroup, SortKey, TableDetails, TableInfo, TablePage,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -266,6 +266,32 @@ pub async fn db_export_file(path: std::path::PathBuf, text: String) -> IdeResult
 pub async fn db_completion(window: Window, state: State<'_, AppState>, id: String) -> IdeResult<CompletionModel> {
     let db = state.project(window.label())?.db.clone();
     db.completion(&id).await
+}
+
+/// The objects of target `id` for Search Everywhere: introspected now with `refresh`, else the
+/// saved ones (`None` before the first introspection; no connection needed).
+#[tauri::command]
+#[specta::specta]
+pub async fn db_catalog(
+    window: Window,
+    state: State<'_, AppState>,
+    id: String,
+    refresh: bool,
+) -> IdeResult<Option<Catalog>> {
+    let db = state.project(window.label())?.db.clone();
+    if refresh { db.catalog(&id).await.map(Some) } else { db.saved_catalog(&id).await }
+}
+
+/// The tree's `Server Objects` of data source `id` (collations, users, roles, tablespaces).
+#[tauri::command]
+#[specta::specta]
+pub async fn db_server_objects(
+    window: Window,
+    state: State<'_, AppState>,
+    id: String,
+) -> IdeResult<Vec<ServerObjectGroup>> {
+    let db = state.project(window.label())?.db.clone();
+    db.server_objects(&id).await
 }
 
 #[derive(Clone, Serialize, Deserialize, Type)]

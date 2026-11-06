@@ -250,7 +250,17 @@ describe("items and rows", () => {
   it("sectionsFor picks sources per tab and empty query", () => {
     expect(sectionsFor("all", true)).toEqual(["recent", "recentActions"]);
     expect(sectionsFor("classes", true)).toEqual([]);
-    expect(sectionsFor("all", false)).toEqual(["classes", "files", "symbols", "endpoints", "actions", "text"]);
+    expect(sectionsFor("all", false)).toEqual([
+      "classes",
+      "files",
+      "symbols",
+      "endpoints",
+      "database",
+      "actions",
+      "text",
+    ]);
+    // Database objects are symbols too (IDEA's Go to Symbol finds tables).
+    expect(sectionsFor("symbols", false)).toEqual(["symbols", "database"]);
     expect(sectionsFor("text", false)).toEqual(["text"]);
   });
 });

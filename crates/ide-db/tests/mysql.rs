@@ -92,3 +92,63 @@ async fn metadata_names_are_text_whatever_the_column_collation() -> IdeResult<()
     let raw = manager(&tmp, "SET character_set_results = binary").await.unwrap();
     assert_metadata_is_text(&raw).await
 }
+
+// Search Everywhere's catalog and the tree's Server Objects.
+#[tokio::test]
+async fn catalog_lists_every_object_and_the_server_objects() -> IdeResult<()> {
+    use ide_db::{DbCatalogKind as K, DbServerObjectKind};
+    let tmp = tempfile::tempdir().unwrap();
+    let Some(db) = manager(&tmp, "").await else { return Ok(()) };
+    let db = db.with_catalog_dir(tmp.path().join("catalog"));
+    let c = CancellationToken::new();
+    for stmt in [
+        "DROP DATABASE IF EXISTS oi_catalog",
+        "CREATE DATABASE oi_catalog",
+        "CREATE TABLE oi_catalog.customer (id INT PRIMARY KEY, email VARCHAR(40) UNIQUE)",
+        "CREATE TABLE oi_catalog.orders (id INT PRIMARY KEY, customer_id INT, status VARCHAR(10), \
+         CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES oi_catalog.customer (id), \
+         INDEX idx_orders_status (status))",
+        "CREATE VIEW oi_catalog.order_summary AS SELECT id, status FROM oi_catalog.orders",
+        "CREATE PROCEDURE oi_catalog.close_order(IN order_id INT) UPDATE oi_catalog.orders SET status = 'x' \
+         WHERE id = order_id",
+        "CREATE TRIGGER oi_catalog.orders_audit BEFORE INSERT ON oi_catalog.orders FOR EACH ROW SET NEW.status = 'NEW'",
+    ] {
+        db.execute("m", stmt, 10, &c).await.unwrap();
+    }
+    let schemas = db.schemas("m").await?;
+    assert!(schemas.contains(&"information_schema".to_owned()), "{schemas:?}");
+    assert!(schemas.contains(&"performance_schema".to_owned()), "{schemas:?}");
+    assert!(!schemas.contains(&"mysql".to_owned()), "internal unless Show internal system schemas: {schemas:?}");
+
+    assert!(db.saved_catalog("m").await?.is_none());
+    let catalog = db.catalog("m").await?;
+    let has = |kind: K, table: &str, name: &str| {
+        catalog.objects.iter().any(|o| o.kind == kind && o.schema == "oi_catalog" && o.table == table && o.name == name)
+    };
+    assert!(has(K::Table, "", "orders") && has(K::View, "", "order_summary"));
+    assert!(has(K::Column, "orders", "customer_id") && has(K::Column, "order_summary", "status"));
+    assert!(has(K::PrimaryKey, "orders", "PRIMARY"));
+    assert!(!has(K::UniqueIndex, "orders", "PRIMARY"), "the key, not its index too");
+    assert!(has(K::ForeignKey, "orders", "fk_orders_customer"));
+    assert!(has(K::Index, "orders", "idx_orders_status") && has(K::UniqueIndex, "customer", "email"));
+    assert!(has(K::Procedure, "", "close_order") && has(K::Trigger, "orders", "orders_audit"));
+    let fk = catalog.objects.iter().find(|o| o.kind == K::ForeignKey && o.name == "fk_orders_customer").unwrap();
+    assert_eq!(fk.detail, "customer");
+    // System schemas are searchable too (IDEA finds `ACTION_ORDER` of information_schema.TRIGGERS).
+    assert!(catalog.objects.iter().any(|o| o.schema == "information_schema" && o.kind == K::View));
+    assert!(catalog.objects.iter().all(|o| o.schema != "mysql"));
+    assert_eq!(db.saved_catalog("m").await?, Some(catalog), "saved for the next session");
+
+    let details = db.table_details("m", "oi_catalog", "orders").await?;
+    assert_eq!(details.foreign_keys[0].name, "fk_orders_customer");
+
+    let groups = db.server_objects("m").await?;
+    let collations = groups.iter().find(|g| g.kind == DbServerObjectKind::Collations).unwrap();
+    assert!(collations.objects.iter().any(|o| o.name == "utf8mb4_bin" && o.detail == "utf8mb4"));
+    let users = groups.iter().find(|g| g.kind == DbServerObjectKind::Users).unwrap();
+    let (_, _, user, _) = server().unwrap();
+    assert!(users.objects.iter().any(|o| o.name == user && !o.detail.is_empty()), "{users:?}");
+
+    db.execute("m", "DROP DATABASE oi_catalog", 10, &c).await.unwrap();
+    Ok(())
+}

@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import clsx from "clsx";
-import type { DbDatabases, DbTableDetails } from "@/platform/ipc";
+import type { DbDatabases, DbServerObjectKind, DbTableDetails } from "@/platform/ipc";
 import { setContext } from "@/platform/context";
 import { executeAction } from "@/platform/actions";
 import { shortcutLabel } from "@/platform/keymap";
@@ -29,10 +29,12 @@ import { nodeTarget, schemaObjectOf, tableFolder, type DbNode as Node, type Fold
 import {
   connect,
   detailsKey,
+  hasServerObjects,
   listsDatabases,
   loadDatabases,
   loadDetails,
   loadSchemas,
+  loadServerObjects,
   loadSources,
   loadTables,
   openConsole,
@@ -65,20 +67,35 @@ import { fieldsOf, loadIndices, openDiscover, openEsConsole, showsHidden, useEla
 import esStyles from "./elastic/Elastic.module.css";
 import { sizeLabel } from "./redis/model";
 
-const GROUP_LABELS: Record<Group, string> = {
-  columns: "columns",
-  keys: "keys",
-  foreignKeys: "foreign keys",
-  indexes: "indexes",
-  triggers: "triggers",
+// IDEA's lower-case folder names.
+const GROUP_LABELS: Record<Group, () => string> = {
+  columns: () => tx("columns"),
+  keys: () => tx("keys"),
+  foreignKeys: () => tx("foreign keys"),
+  indexes: () => tx("indexes"),
+  triggers: () => tx("triggers"),
 };
 
-const FOLDER_LABELS: Record<Folder, string> = {
-  tables: "tables",
-  views: "views",
-  materializedViews: "materialized views",
-  routines: "routines",
-  sequences: "sequences",
+const FOLDER_LABELS: Record<Folder, () => string> = {
+  tables: () => tx("tables"),
+  views: () => tx("views"),
+  materializedViews: () => tx("materialized views"),
+  routines: () => tx("routines"),
+  sequences: () => tx("sequences"),
+};
+
+const SERVER_GROUP_LABELS: Record<DbServerObjectKind, () => string> = {
+  collations: () => tx("collations"),
+  users: () => tx("users"),
+  roles: () => tx("roles"),
+  tablespaces: () => tx("tablespaces"),
+};
+
+const SERVER_OBJECT_ICONS: Record<DbServerObjectKind, string> = {
+  collations: "db-collation",
+  users: "db-user",
+  roles: "db-user",
+  tablespaces: "db-tablespace",
 };
 
 const FOLDERS: readonly Folder[] = ["tables", "views", "materializedViews", "routines", "sequences"];
@@ -192,6 +209,35 @@ export function DatabaseView() {
     return shownNames(v.names, i?.allDatabases, i?.databases, v.current);
   };
 
+  /** The `Server Objects` folder after the databases / schemas of a MySQL or PostgreSQL data source. */
+  const withServerObjects = (n: Extract<Node, { kind: "source" }>, nodes: Node[] | undefined) => {
+    if (!nodes || !hasServerObjects(n.source)) return nodes;
+    const id = n.source.id ?? "";
+    const server: Node = { kind: "serverObjects", key: `${id}/~server`, id };
+    return [...nodes.filter((x) => x.key !== `${n.key}/empty`), server];
+  };
+  const serverGroups = (n: Extract<Node, { kind: "serverObjects" }>) =>
+    status(n.key, st.serverObjects[n.id], (groups) =>
+      groups.map((g): Node => ({
+        kind: "serverGroup",
+        key: `${n.key}/${g.kind}`,
+        id: n.id,
+        group: g.kind,
+        count: g.objects.length,
+      })),
+    );
+  const serverObjectsOf = (n: Extract<Node, { kind: "serverGroup" }>): Node[] | undefined => {
+    const l = st.serverObjects[n.id];
+    if (l?.status !== "ok") return undefined;
+    return (l.value.find((g) => g.kind === n.group)?.objects ?? []).map((object) => ({
+      kind: "serverObject",
+      key: `${n.key}/${object.name}@${object.detail}`,
+      id: n.id,
+      group: n.group,
+      object,
+    }));
+  };
+
   const schemasOf = (key: string, id: string) =>
     status(key, st.schemas[id], (v) =>
       shownSchemas(id, v).map((schema) => ({ kind: "schema", key: `${id}/${schema}`, id, schema }) as Node),
@@ -293,17 +339,24 @@ export function DatabaseView() {
             })),
           );
         if (listsDatabases(n.source))
-          return status(n.key, st.databases[id], (v) =>
-            shownDatabases(id, v).map((name) => ({
-              kind: "database",
-              key: databaseKey(id, name),
-              id: targetOf(id, name, v.current),
-              name,
-              current: name === v.current,
-            })),
+          return withServerObjects(
+            n,
+            status(n.key, st.databases[id], (v) =>
+              shownDatabases(id, v).map((name) => ({
+                kind: "database",
+                key: databaseKey(id, name),
+                id: targetOf(id, name, v.current),
+                name,
+                current: name === v.current,
+              })),
+            ),
           );
-        return schemasOf(n.key, id);
+        return withServerObjects(n, schemasOf(n.key, id));
       }
+      case "serverObjects":
+        return serverGroups(n);
+      case "serverGroup":
+        return serverObjectsOf(n);
       case "database":
         return schemasOf(n.key, n.id);
       case "redisDb":
@@ -402,6 +455,10 @@ export function DatabaseView() {
       if (!redis.keys[n.id]) await loadKeys(n.id);
       return;
     }
+    if (n.kind === "serverObjects") {
+      if (await connect(n.id)) await loadServerObjects(n.id);
+      return;
+    }
     if (n.kind === "source") {
       const id = n.source.id ?? "";
       if (!(await connect(id))) return;
@@ -430,7 +487,7 @@ export function DatabaseView() {
       case "schema":
         return n.schema;
       case "folder":
-        return FOLDER_LABELS[n.folder];
+        return FOLDER_LABELS[n.folder]();
       case "routine":
         return n.routine.name;
       case "sequence":
@@ -440,14 +497,20 @@ export function DatabaseView() {
       case "table":
         return n.table.name;
       case "group":
-        return GROUP_LABELS[n.group];
+        return GROUP_LABELS[n.group]();
+      case "serverObjects":
+        return tx("Server Objects");
+      case "serverGroup":
+        return SERVER_GROUP_LABELS[n.group]();
+      case "serverObject":
+        return n.object.name;
       case "column":
         return n.column.name;
       // Unnamed (SQLite) keys are numbered like IDEA's `key #1` / `foreign-key #1`.
       case "key":
         return "key #1";
       case "foreignKey":
-        return `foreign-key #${Number(n.key.slice(n.key.lastIndexOf("/") + 1)) + 1}`;
+        return n.fk.name || `foreign-key #${Number(n.key.slice(n.key.lastIndexOf("/") + 1)) + 1}`;
       case "index":
         return n.index.name;
       case "redisDb":
@@ -513,7 +576,12 @@ export function DatabaseView() {
         return k && (k.pattern !== "*" || !k.done) ? `${k.keys.length} / ${count(n.keys)}` : count(n.keys);
       }
       case "redisFolder":
+      case "serverGroup":
         return count(n.count);
+      case "serverObject":
+        // MySQL users: `luma@%`; PostgreSQL roles that can log in.
+        if (n.group === "users") return n.object.detail ? `@${n.object.detail}` : undefined;
+        return n.object.detail || undefined;
       default:
         return undefined;
     }
@@ -564,6 +632,12 @@ export function DatabaseView() {
         return undefined;
       case "redisMore":
         return redis.keys[n.id]?.loading ? undefined : "more-horizontal";
+      case "serverObjects":
+        return "db-server-objects";
+      case "serverGroup":
+        return "db-folder";
+      case "serverObject":
+        return SERVER_OBJECT_ICONS[n.group];
       case "message":
         return n.error ? "error" : undefined;
     }
@@ -610,7 +684,9 @@ export function DatabaseView() {
             n.kind === "esGroup" ||
             n.kind === "esIndex" ||
             n.kind === "esDataStream" ||
-            n.kind === "esAlias"
+            n.kind === "esAlias" ||
+            n.kind === "serverObjects" ||
+            n.kind === "serverGroup"
           }
           loadChildren={load}
           getIcon={(n) => icon(n)}
@@ -628,7 +704,10 @@ export function DatabaseView() {
               n.kind === "redisFolder" ||
               n.kind === "esIndex" ||
               n.kind === "esGroup" ||
-              n.kind === "esAlias";
+              n.kind === "esAlias" ||
+              n.kind === "serverGroup";
+            // IDEA: `luma@%`, the host greyed right after the user.
+            const host = n.kind === "serverObject" && n.group === "users";
             const labelClass =
               n.kind === "message" && n.error
                 ? styles.treeError
@@ -672,8 +751,9 @@ export function DatabaseView() {
                   }
                 >
                   {label(n)}
+                  {host && d && <span className={styles.userHost}>{d}</span>}
                 </span>
-                {d && (
+                {d && !host && (
                   <span
                     className={
                       n.kind === "source"

@@ -4,13 +4,22 @@
  */
 import type { Action } from "@/platform/actions";
 import type { FileMatch, LineMatch, SymbolMatch, WorkspaceSymbol } from "@/platform/ipc";
-import type { SettingsSearchEntry } from "@/workbench/contributions";
+import type { DatabaseSearchItem, SettingsSearchEntry } from "@/workbench/contributions";
 import { tx } from "@/platform/i18n";
 import { basename, isTypeKind, relDir, symbolDisplayName } from "../common/open";
 import { byScore, matchText } from "../common/rank";
 
 export type SeTab = "all" | "classes" | "files" | "symbols" | "actions" | "text";
-export type SectionId = "recent" | "recentActions" | "classes" | "files" | "symbols" | "endpoints" | "actions" | "text";
+export type SectionId =
+  | "recent"
+  | "recentActions"
+  | "classes"
+  | "files"
+  | "symbols"
+  | "endpoints"
+  | "database"
+  | "actions"
+  | "text";
 
 export const TABS: ReadonlyArray<{ id: SeTab; label: string }> = [
   { id: "all", label: "All" },
@@ -28,6 +37,7 @@ export const SECTION_ORDER: readonly SectionId[] = [
   "files",
   "symbols",
   "endpoints",
+  "database",
   "actions",
   "text",
 ];
@@ -39,6 +49,7 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   files: "Files",
   symbols: "Symbols",
   endpoints: "Endpoints",
+  database: "Database",
   actions: "Actions",
   text: "Text",
 };
@@ -57,7 +68,9 @@ export function sectionsFor(tab: SeTab, emptyQuery: boolean): SectionId[] {
         return [];
     }
   }
-  return tab === "all" ? ["classes", "files", "symbols", "endpoints", "actions", "text"] : [tab];
+  // Database objects are symbols (IDEA's database contributor answers Go to Symbol too).
+  if (tab === "symbols") return ["symbols", "database"];
+  return tab === "all" ? ["classes", "files", "symbols", "endpoints", "database", "actions", "text"] : [tab];
 }
 
 export const ALL_TAB_LIMIT = 6;
@@ -132,7 +145,12 @@ export interface SettingItem {
   score: number;
 }
 
-export type SeItem = FileItem | SymbolItem | ActionItem | TextItem | SettingItem;
+/** A table, column, key, routine, Redis key… of a data source (`orders  luma [@localhost]`). */
+export interface DbItem extends DatabaseSearchItem {
+  kind: "db";
+}
+
+export type SeItem = FileItem | SymbolItem | ActionItem | TextItem | SettingItem | DbItem;
 
 export type SeRow =
   | { kind: "section"; key: string; section: SectionId; title: string }
@@ -380,7 +398,7 @@ export function textItems(path: string, rel: string, matches: readonly LineMatch
 // Rows
 
 /** Sections the All tab mixes into one relevance-ordered list. */
-const MIXED: readonly SectionId[] = ["classes", "files", "symbols", "endpoints", "actions", "text"];
+const MIXED: readonly SectionId[] = ["classes", "files", "symbols", "endpoints", "database", "actions", "text"];
 
 /**
  * Weight of a text hit: a literal substring in a line ranks below name
@@ -399,6 +417,7 @@ export function itemWeight(item: SeItem, query: string): number {
       return name(item.name) ?? (item.container ? name(`${item.container}.${item.name}`) : undefined) ?? 0;
     case "action":
     case "setting":
+    case "db":
       return item.score;
     case "text":
       return TEXT_WEIGHT;

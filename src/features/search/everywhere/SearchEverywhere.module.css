@@ -341,3 +341,20 @@
 .filterMask:hover {
   background: var(--bg-hover);
 }
+
+/* A Redis key's type before its name (`LIST queue:orders`), as the Database tree tags it. */
+.chip {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--chip) 16%, transparent);
+  color: var(--chip);
+  font: 600 9px/1 var(--font-ui);
+  letter-spacing: 0.02em;
+}

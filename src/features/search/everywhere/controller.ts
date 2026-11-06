@@ -16,7 +16,7 @@ import type {
   SymbolMatch,
   WorkspaceSymbol,
 } from "@/platform/ipc";
-import type { EndpointEntry, SettingsSearchEntry } from "@/workbench/contributions";
+import type { DatabaseSearchResult, EndpointEntry, SettingsSearchEntry } from "@/workbench/contributions";
 import { parseLocationQuery } from "../common/query";
 import { matchRoutes } from "./routes";
 import { passesFilter, type ResolvedFilter } from "./filters";
@@ -59,6 +59,8 @@ export interface SeDeps {
   inFileSet?(set: ProjectFileSet, path: string): boolean;
   /** Endpoints of the project, for request-path matches. */
   routes?(): Promise<EndpointEntry[]>;
+  /** Objects of the data sources (tables, columns, Redis keys…), emitted as their catalogs load. */
+  databaseObjects?(query: string, limit: number, emit: (r: DatabaseSearchResult) => void): Promise<void>;
 }
 
 export interface SeRequest {
@@ -263,6 +265,16 @@ export class SeController {
         case "endpoints":
           await this.startEndpoints(id, gen, text, limit, req);
           break;
+        case "database": {
+          let last: DatabaseSearchResult = { items: [], hasMore: false };
+          const toItems = (r: DatabaseSearchResult) => r.items.map((i) => ({ ...i, kind: "db" as const }));
+          await this.deps.databaseObjects?.(text, limit, (r) => {
+            last = r;
+            this.set(id, gen, toItems(r), r.hasMore, true);
+          });
+          this.set(id, gen, toItems(last), last.hasMore, false);
+          break;
+        }
         case "actions": {
           const hits = matchActions(this.deps.actions(), text, {
             isEnabled: (a) => this.deps.isEnabled(a),

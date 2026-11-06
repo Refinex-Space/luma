@@ -170,6 +170,9 @@ pub struct CompletionTable {
 #[serde(rename_all = "camelCase")]
 #[serde(rename = "DbForeignKey")]
 pub struct ForeignKey {
+    /// The constraint's name; empty when the server names none (SQLite).
+    #[serde(default)]
+    pub name: String,
     pub schema: String,
     pub table: String,
     pub columns: Vec<String>,
@@ -187,6 +190,98 @@ pub struct CompletionModel {
     pub default_schema: String,
     pub tables: Vec<CompletionTable>,
     pub foreign_keys: Vec<ForeignKey>,
+}
+
+/// What a [`CatalogObject`] is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum DbCatalogKind {
+    Table,
+    View,
+    MaterializedView,
+    Column,
+    PrimaryKey,
+    ForeignKey,
+    Index,
+    UniqueIndex,
+    Function,
+    Procedure,
+    Trigger,
+    Sequence,
+}
+
+impl DbCatalogKind {
+    fn from_tag(tag: &str) -> Option<Self> {
+        Some(match tag {
+            "table" => Self::Table,
+            "view" => Self::View,
+            "materialized view" => Self::MaterializedView,
+            "column" => Self::Column,
+            "pk" => Self::PrimaryKey,
+            "fk" => Self::ForeignKey,
+            "index" => Self::Index,
+            "unique index" => Self::UniqueIndex,
+            "function" => Self::Function,
+            "procedure" => Self::Procedure,
+            "trigger" => Self::Trigger,
+            "sequence" => Self::Sequence,
+            _ => return None,
+        })
+    }
+}
+
+/// An object of a connection target's schemas, as Search Everywhere finds it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename = "DbCatalogObject")]
+pub struct CatalogObject {
+    pub kind: DbCatalogKind,
+    pub schema: String,
+    /// The table of a column, key, index or trigger; empty for tables, routines and sequences.
+    pub table: String,
+    pub name: String,
+    /// Column type, routine arguments, the referenced table of a foreign key.
+    pub detail: String,
+}
+
+/// Every object of the schemas of a connection target, saved so the search works before connecting.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename = "DbCatalog")]
+pub struct Catalog {
+    /// Introspection time, ms since the epoch.
+    pub at: f64,
+    pub schemas: Vec<String>,
+    pub objects: Vec<CatalogObject>,
+    /// A query hit the row limit: some objects are missing.
+    pub truncated: bool,
+}
+
+/// A group of the tree's `Server Objects` folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum DbServerObjectKind {
+    Collations,
+    Users,
+    Roles,
+    Tablespaces,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename = "DbServerObject")]
+pub struct ServerObject {
+    pub name: String,
+    /// A collation's character set, a user's host, `login` for a PostgreSQL role that can log in.
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename = "DbServerObjectGroup")]
+pub struct ServerObjectGroup {
+    pub kind: DbServerObjectKind,
+    pub objects: Vec<ServerObject>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -233,6 +328,8 @@ pub struct DbManager {
     redis_consoles: Mutex<HashMap<String, ::redis::aio::MultiplexedConnection>>,
     /// Elasticsearch HTTP clients by data source id (connected: answered `GET /`).
     es_clients: Mutex<HashMap<String, elastic::EsClient>>,
+    /// Where object catalogs are saved (outside the project, like IDEA's introspection cache).
+    catalog_dir: Option<PathBuf>,
 }
 
 type Session = Arc<tokio::sync::Mutex<Option<Held>>>;
@@ -260,7 +357,15 @@ fn group_foreign_keys(rows: Vec<Vec<Option<String>>>, tables: &[CompletionTable]
         if !out.last().is_some_and(same) {
             out.push((
                 constraint.clone(),
-                ForeignKey { schema, table, columns: Vec::new(), ref_schema, ref_table, ref_columns: Vec::new() },
+                ForeignKey {
+                    name: constraint.clone(),
+                    schema,
+                    table,
+                    columns: Vec::new(),
+                    ref_schema,
+                    ref_table,
+                    ref_columns: Vec::new(),
+                },
             ));
         }
         let key = &mut out.last_mut().expect("pushed above").1;
@@ -290,6 +395,14 @@ pub fn split_target(target: &str) -> (&str, Option<&str>) {
         Some((id, _)) => (id, None),
         None => (target, None),
     }
+}
+
+/// File name of the saved catalog of a target: bytes other than letters, digits and `-` as `_xx`.
+fn catalog_file(target: &str) -> String {
+    target
+        .bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b == b'-' { (b as char).to_string() } else { format!("_{b:02x}") })
+        .collect()
 }
 
 /// Says which leg failed when the database is unreachable from the SSH host.
@@ -363,7 +476,14 @@ impl DbManager {
             redis_conns: Mutex::default(),
             redis_consoles: Mutex::default(),
             es_clients: Mutex::default(),
+            catalog_dir: None,
         }
+    }
+
+    /// Saves object catalogs under `dir` ([`Self::catalog`]).
+    pub fn with_catalog_dir(mut self, dir: PathBuf) -> Self {
+        self.catalog_dir = Some(dir);
+        self
     }
 
     pub fn sources(&self) -> IdeResult<Vec<DataSource>> {
@@ -394,6 +514,14 @@ impl DbManager {
             match sources.iter().find(|s| s.id == o.id) {
                 Some(n) if *n == o => {}
                 gone_or_changed => {
+                    // Another server or database: its saved objects no longer apply.
+                    let moved = gone_or_changed.is_none_or(|n| {
+                        (&n.driver, &n.host, n.port, &n.database, &n.file)
+                            != (&o.driver, &o.host, o.port, &o.database, &o.file)
+                    });
+                    if moved {
+                        self.forget_catalogs(&o.id);
+                    }
                     if gone_or_changed.is_none() {
                         for k in [o.id.clone(), secrets::ssh_key(&o.id)] {
                             self.session_passwords.lock().remove(&k);
@@ -755,6 +883,10 @@ impl DbManager {
                 .collect();
         }
         foreign_keys.retain(|k| k.columns.len() == k.ref_columns.len());
+        if driver == DbDriver::Sqlite {
+            // SQLite numbers its keys: the tree names them `foreign-key #n`.
+            foreign_keys.iter_mut().for_each(|k| k.name.clear());
+        }
         let triggers = pool
             .rows(&sql::triggers(driver, schema, table), MAX_META_ROWS)
             .await
@@ -914,6 +1046,123 @@ impl DbManager {
                 Ok(sql::postgres_table_ddl(schema, name, &columns, &constraints, &indexes))
             }
         }
+    }
+
+    /// Every table, view, column, key, index, routine, trigger and sequence of the schemas
+    /// [`Self::schemas`] lists (Search Everywhere), saved for [`Self::saved_catalog`].
+    /// Only the tables query must answer: a server refusing another catalog view still lists the rest.
+    pub async fn catalog(&self, id: &str) -> IdeResult<Catalog> {
+        let schemas = self.schemas(id).await?;
+        let pool = self.pool(id).await?;
+        let shown: std::collections::HashSet<&str> = schemas.iter().map(String::as_str).collect();
+        let mut objects = Vec::new();
+        let mut truncated = false;
+        for (i, q) in sql::catalog(pool.driver()).into_iter().enumerate() {
+            let rows = match pool.rows(q, MAX_META_ROWS).await {
+                Ok(rows) => rows,
+                Err(e) if i > 0 => {
+                    tracing::warn!("catalog: {}", e.message);
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
+            truncated |= rows.len() >= MAX_META_ROWS;
+            objects.extend(rows.into_iter().filter_map(|r| {
+                let mut it = r.into_iter().map(Option::unwrap_or_default);
+                let kind = DbCatalogKind::from_tag(&it.next()?)?;
+                let (schema, table, name, detail) = (it.next()?, it.next()?, it.next()?, it.next().unwrap_or_default());
+                (!name.is_empty() && shown.contains(schema.as_str())).then_some(CatalogObject {
+                    kind,
+                    schema,
+                    table,
+                    name,
+                    detail,
+                })
+            }));
+        }
+        let at =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+        let catalog = Catalog { at, schemas, objects, truncated };
+        if let Some(path) = self.catalog_path(id) {
+            let text = serde_json::to_vec(&catalog).map_err(|e| IdeError::invalid(e.to_string()))?;
+            let written = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+                std::fs::create_dir_all(path.parent().unwrap_or(&path))?;
+                let tmp = path.with_extension("tmp");
+                std::fs::write(&tmp, text)?;
+                std::fs::rename(tmp, &path)
+            })
+            .await;
+            if let Ok(Err(e)) = written {
+                tracing::warn!("saving the catalog of {id}: {e}");
+            }
+        }
+        Ok(catalog)
+    }
+
+    /// The catalog [`Self::catalog`] saved for target `id`, without connecting; `None` before the first one.
+    pub async fn saved_catalog(&self, id: &str) -> IdeResult<Option<Catalog>> {
+        let Some(path) = self.catalog_path(id) else { return Ok(None) };
+        let bytes = match tokio::fs::read(&path).await {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        // An unreadable (older) file is introspected again.
+        Ok(serde_json::from_slice(&bytes).ok())
+    }
+
+    /// Forgets the saved catalogs of data source `id` (removed).
+    pub fn forget_catalogs(&self, id: &str) {
+        let Some(dir) = &self.catalog_dir else { return };
+        let prefix = catalog_file(id);
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name == format!("{prefix}.json") || name.starts_with(&format!("{prefix}_3a")) {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+
+    fn catalog_path(&self, id: &str) -> Option<PathBuf> {
+        Some(self.catalog_dir.as_ref()?.join(format!("{}.json", catalog_file(id))))
+    }
+
+    /// The tree's `Server Objects`: MySQL's collations and users, PostgreSQL's roles and tablespaces
+    /// (empty groups left out; none for other servers). A group the account may not read is left out too.
+    pub async fn server_objects(&self, id: &str) -> IdeResult<Vec<ServerObjectGroup>> {
+        let pool = self.pool(split_target(id).0).await?;
+        let driver = pool.driver();
+        let mut groups = Vec::new();
+        for (group, q) in sql::server_objects(driver) {
+            let kind = match *group {
+                "collations" => DbServerObjectKind::Collations,
+                "users" => DbServerObjectKind::Users,
+                "roles" => DbServerObjectKind::Roles,
+                _ => DbServerObjectKind::Tablespaces,
+            };
+            let rows = match pool.rows(q, MAX_META_ROWS).await {
+                Ok(rows) => rows,
+                Err(e) => {
+                    tracing::warn!("server objects ({group}): {}", e.message);
+                    continue;
+                }
+            };
+            let objects: Vec<ServerObject> = rows
+                .into_iter()
+                .filter_map(|r| {
+                    let mut it = r.into_iter().map(Option::unwrap_or_default);
+                    let (name, detail) = (it.next()?, it.next().unwrap_or_default());
+                    let (name, detail) =
+                        if kind == DbServerObjectKind::Users { sql::split_grantee(&name) } else { (name, detail) };
+                    (!name.is_empty()).then_some(ServerObject { name, detail })
+                })
+                .collect();
+            if !objects.is_empty() {
+                groups.push(ServerObjectGroup { kind, objects });
+            }
+        }
+        Ok(groups)
     }
 
     pub async fn completion(&self, id: &str) -> IdeResult<CompletionModel> {

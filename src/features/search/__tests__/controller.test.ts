@@ -38,7 +38,49 @@ function setup(overrides: Partial<SeDeps> = {}) {
 
 const fm = (rel: string) => ({ path: `/p/${rel}`, relPath: rel, score: 1, indices: [] });
 
+const dbItem = (name: string, score: number) => ({
+  key: `db:${name}`,
+  name,
+  container: "luma",
+  source: "@localhost",
+  icon: "db-table",
+  indices: [0, 1, 2],
+  score,
+  qualifiedName: `luma.${name}`,
+  open: () => {},
+  actions: [],
+});
+
 describe("SeController", () => {
+  it("streams database objects as catalogs load, mixed into the All tab by relevance", async () => {
+    const done = deferred<void>();
+    let emit!: (r: { items: ReturnType<typeof dbItem>[]; hasMore: boolean }) => void;
+    const { c, last } = setup({
+      findFiles: async () => [fm("Ordinal.kt")],
+      databaseObjects: (_q, _limit, e) => {
+        emit = e;
+        return done.promise;
+      },
+    });
+    c.run({ query: "orders", tab: "all", includeNonProject: false, extra: {} });
+    await flush();
+    expect(last().sections.get("database")).toMatchObject({ items: [], loading: true });
+    emit({ items: [dbItem("orders", 900)], hasMore: false });
+    await flush();
+    expect(last().sections.get("database")).toMatchObject({ loading: true });
+    expect(last().sections.get("database")!.items[0]).toMatchObject({ kind: "db", name: "orders" });
+    done.resolve();
+    await flush();
+    expect(last().sections.get("database")!.loading).toBe(false);
+    // An exact table name outranks a fuzzy file name.
+    const rows = buildRows(last().sections, { headers: false, mix: "orders" });
+    expect(rows[0]).toMatchObject({ kind: "db", name: "orders", section: "database" });
+    // The Symbols tab lists them after code symbols.
+    c.run({ query: "orders", tab: "symbols", includeNonProject: false, extra: {} });
+    await flush();
+    expect([...last().sections.keys()]).toEqual(["symbols", "database"]);
+  });
+
   it("streams each section independently", async () => {
     const files = deferred<ReturnType<typeof fm>[]>();
     const { c, last } = setup({

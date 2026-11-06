@@ -1,5 +1,5 @@
 import { useFilePresentation } from "@/platform/filePresentation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import clsx from "clsx";
 import { actionToggled, executeAction, getAction } from "@/platform/actions";
 import type { ProjectFileSet } from "@/platform/ipc";
@@ -287,6 +287,8 @@ function SearchEverywhereDialog() {
         return closeThen(() => void executeAction(row.id));
       case "setting":
         return closeThen(() => void executeAction("file.settings", row.pageId));
+      case "db":
+        return closeThen(() => row.open());
     }
   };
 
@@ -323,6 +325,20 @@ function SearchEverywhereDialog() {
     const anchor = listRef.current?.querySelector('[data-lead="true"]') ?? inputRef.current;
     if (!anchor) return;
     const copy = (text: string) => void navigator.clipboard?.writeText(text).catch(() => {});
+    if (row.kind === "db") {
+      setMenu({
+        anchor,
+        placement: "right-start",
+        items: [
+          { label: "Select in Database View", run: () => activate(row) },
+          ...row.actions.map((a) => ({ label: a.label, run: () => closeThen(a.run) })),
+          { kind: "separator" },
+          { label: "Copy Name", run: () => copy(row.name) },
+          { label: "Copy Qualified Name", run: () => copy(row.qualifiedName) },
+        ],
+      });
+      return;
+    }
     const items: MenuItem[] =
       row.kind === "setting"
         ? [{ label: "Open Settings Page", run: () => activate(row) }]
@@ -643,6 +659,8 @@ function describe(row: SeRow | undefined): string {
     case "symbol":
     case "text":
       return `${row.rel}:${row.line + 1}`;
+    case "db":
+      return `${row.qualifiedName}  [${row.source}]  ·  ${translate("⌥↵ for Edit Data, DDL and more")}`;
   }
 }
 
@@ -783,6 +801,27 @@ function ResultRow({
           <span className={styles.right}>
             {tx("Settings")}
             {row.path.length ? `: ${row.path.map((p) => tx(p)).join(" | ")}` : ""}
+          </span>
+        </>
+      );
+    case "db":
+      return (
+        <>
+          <Icon name={row.icon} size={16} className={styles.icon} />
+          <span className={styles.main}>
+            {row.chip && (
+              <span
+                className={styles.chip}
+                style={{ "--chip": row.chip.color } as CSSProperties}
+                title={row.chip.title}
+              >
+                {row.chip.label}
+              </span>
+            )}
+            <HighlightedText className={styles.name} text={row.name} indices={row.indices} tone={tone} />
+            <span className={styles.location}>
+              {row.container ? `${row.container} ` : ""}[{row.source}]
+            </span>
           </span>
         </>
       );

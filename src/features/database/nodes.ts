@@ -7,6 +7,8 @@ import type {
   DbObjectKind as DbSchemaObjectKind,
   DbRoutineInfo,
   DbSequenceInfo,
+  DbServerObject,
+  DbServerObjectKind,
   DbTableInfo,
   DbTableKind,
   DbTriggerInfo,
@@ -65,6 +67,10 @@ export type DbNode =
   | { kind: "esGroup"; key: string; id: string; group: "dataStreams" | "aliases"; count: number }
   /** A field of an index pattern (`_field_caps`). */
   | { kind: "esField"; key: string; id: string; pattern: string; field: EsField }
+  /** `Server Objects` of a MySQL / PostgreSQL data source `id`, its groups and their objects. */
+  | { kind: "serverObjects"; key: string; id: string }
+  | { kind: "serverGroup"; key: string; id: string; group: DbServerObjectKind; count: number }
+  | { kind: "serverObject"; key: string; id: string; group: DbServerObjectKind; object: DbServerObject }
   | { kind: "message"; key: string; text: string; error?: boolean };
 
 /** The connection target a node belongs to. */
