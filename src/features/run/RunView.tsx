@@ -1,7 +1,20 @@
 import { useMemo, useState } from "react";
 import type { RunTargetValid } from "@/platform/remoteSettings";
 import { useWorkflowSettings } from "@/platform/workflowSettings";
-import { EmptyState, IconButton, SplitGroup, SplitHandle, SplitPanel, Tabs, type TabItem, T } from "@/ui";
+import {
+  EmptyState,
+  Icon,
+  IconButton,
+  SplitGroup,
+  SplitHandle,
+  SplitPanel,
+  Tabs,
+  type TabItem,
+  T,
+  tooltipAttrs,
+} from "@/ui";
+import { useSessionMarks, type SessionMark } from "@/workbench/contributions";
+import { SessionViewTabs, useSessionViews } from "./SessionViews";
 import { executeAction } from "@/platform/actions";
 import { formatBinding, hostBinding, shortcutLabel } from "@/platform/keymap";
 import { ConsoleModel } from "./console";
@@ -75,8 +88,11 @@ export function SessionPanel({
     return m;
   }, [selectedTest, rt, version]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const sessionKey = `run:${session.id}`;
+  const { mark, views, active: activeView } = useSessionViews(sessionKey);
   if (!rt) return null;
   const toggleWrap = () => setWrapOverride(!softWrap);
+  const ActiveView = activeView?.component;
 
   const consoleColumn = (
     <div className={styles.consoleColumn}>
@@ -109,6 +125,7 @@ export function SessionPanel({
           onFindOpenChange={setFindOpen}
           cwd={cwd}
           onClear={() => clearConsole(session.id)}
+          quiet={mark?.quiet}
           input={
             !testModel && acceptsInput(session)
               ? {
@@ -172,6 +189,7 @@ export function SessionPanel({
               iconSize={14}
               title="Find…"
               shortcut={formatBinding(hostBinding("Meta+F"))}
+              disabled={!!ActiveView}
               pressed={findOpen}
               onClick={() => setFindOpen((v) => !v)}
             />
@@ -179,10 +197,18 @@ export function SessionPanel({
               icon="arrow-down"
               iconSize={14}
               title="Scroll to End"
+              disabled={!!ActiveView}
               pressed={follow}
               onClick={() => setFollow((v) => !v)}
             />
-            <IconButton icon="soft-wrap" iconSize={14} title="Soft-Wrap" pressed={softWrap} onClick={toggleWrap} />
+            <IconButton
+              icon="soft-wrap"
+              iconSize={14}
+              title="Soft-Wrap"
+              disabled={!!ActiveView}
+              pressed={softWrap}
+              onClick={toggleWrap}
+            />
           </>
         )}
         <IconButton icon="trash" iconSize={14} title="Clear All" onClick={() => clearConsole(session.id)} />
@@ -195,7 +221,12 @@ export function SessionPanel({
         />
       </div>
       <div className={styles.sessionBody}>
-        {rt.tests ? (
+        {views.length > 0 && <SessionViewTabs sessionKey={sessionKey} views={views} active={activeView?.id ?? null} />}
+        {ActiveView ? (
+          <div className={styles.sessionView} role="tabpanel" aria-label={tx(activeView.title)}>
+            <ActiveView sessionKey={sessionKey} />
+          </div>
+        ) : rt.tests ? (
           <SplitGroup orientation="horizontal" id={`run-tests-${session.id}`} className={styles.testSplit}>
             <SplitPanel id="tests" defaultSize="32%" minSize="140px">
               <TestTreeView
@@ -221,7 +252,20 @@ export function SessionPanel({
   );
 }
 
-function sessionItems(sessions: readonly RunSession[], targets: readonly RunTargetValid[]): TabItem[] {
+/** The ⚡ after a hot-reloading session's name (a feature's session mark). */
+export function SessionMarkIcon({ mark }: { mark: SessionMark }) {
+  return (
+    <span className={styles.sessionMark} {...tooltipAttrs(tx(mark.tooltip))} aria-label={tx(mark.tooltip)} role="img">
+      <Icon name={mark.icon} size={12} />
+    </span>
+  );
+}
+
+function sessionItems(
+  sessions: readonly RunSession[],
+  targets: readonly RunTargetValid[],
+  marks: Readonly<Record<string, SessionMark>>,
+): TabItem[] {
   return sessions.map((s) => ({
     id: s.id,
     label: remoteLabel(s.config, targets),
@@ -229,6 +273,7 @@ function sessionItems(sessions: readonly RunSession[], targets: readonly RunTarg
     icon: sessionIcon(s),
     color: failed(s) ? "var(--danger)" : undefined,
     closable: true,
+    trailing: marks[`run:${s.id}`] && <SessionMarkIcon mark={marks[`run:${s.id}`]!} />,
     tooltip:
       s.status === "finished"
         ? tx`Finished in ${formatDuration((s.endedAt ?? s.startedAt) - s.startedAt)}, exit code ${s.exitCode ?? "?"}`
@@ -256,10 +301,11 @@ export function RunTabs() {
   const traces = useStackTraces((s) => s.tabs);
   const runTargets = useWorkflowSettings((s) => s.runTargets);
   const active = useRun((s) => s.activeSession);
+  const marks = useSessionMarks((s) => s.marks);
   const current = currentTab(sessions, traces, active);
   if (!current) return null;
   const items: TabItem[] = [
-    ...sessionItems(sessions, runTargets),
+    ...sessionItems(sessions, runTargets, marks),
     ...traces.map((t) => ({ id: t.id, label: t.title, text: t.title, closable: true })),
   ];
   return (

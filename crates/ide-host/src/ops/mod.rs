@@ -14,6 +14,7 @@ pub mod doc;
 pub mod env;
 pub mod fs;
 pub mod history;
+pub mod hot_reload;
 pub mod java;
 pub mod jvm_icons;
 pub mod lsp;
@@ -78,6 +79,7 @@ pub fn register_all(d: &mut crate::rpc::Dispatcher) {
     build::register(d);
     tools::register(d);
     sonar::register(d);
+    hot_reload::register(d);
     sdk::register(d);
     java::register(d);
     debug::register(d);

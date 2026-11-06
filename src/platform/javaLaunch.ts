@@ -166,7 +166,52 @@ export interface JavaPreparation {
   request: RequestId;
   signal: AbortSignal;
   report?: (text: string, kind?: "system" | "stderr") => void;
+  /** Debug launches (java-debug starts the JVM) and Run. Default `run`. */
+  mode?: "run" | "debug";
+  /** The Run tool window session the JVM writes to (null: the debugger's console). */
+  session?: JvmLaunchSession | null;
 }
+
+/** The Run tool window session a JVM launch writes to. */
+export interface JvmLaunchSession {
+  /** `run:<session id>`. */
+  key: string;
+  /** Every output line of this launch. */
+  onLine(listener: (line: string) => void): void;
+}
+
+export interface JvmLaunchContext {
+  /** The configuration being launched (its flags in `params`). */
+  config: RunConfig;
+  mode: "run" | "debug";
+  session: JvmLaunchSession | null;
+  report?: (text: string, kind?: "system" | "stderr") => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Lets a feature change how JVMs start (Hot Reload: another runtime and agents). `application`
+ * runs for Application / Spring Boot configurations, in Run and in Debug, once the classpath
+ * is resolved; `process` for any configuration right before its process starts (Maven,
+ * Gradle, Tomcat), after Application configurations were resolved.
+ */
+export interface JvmLaunchHook {
+  application?(
+    ctx: JvmLaunchContext & { module: string; info: JavaLaunchInfo },
+  ): Promise<{ javaExec: string | null; vmArgs: string[] } | null>;
+  process?(launch: RunConfig, ctx: JvmLaunchContext): Promise<RunConfig>;
+}
+
+let launchHook: JvmLaunchHook | null = null;
+
+export function setJvmLaunchHook(hook: JvmLaunchHook): () => void {
+  launchHook = hook;
+  return () => {
+    if (launchHook === hook) launchHook = null;
+  };
+}
+
+export const jvmLaunchHook = (): JvmLaunchHook | null => launchHook;
 
 export async function prepareJavaLaunch(config: RunConfig, preparation: JavaPreparation) {
   const { signal, report } = preparation;
@@ -202,5 +247,23 @@ export async function prepareJavaLaunch(config: RunConfig, preparation: JavaPrep
   if (errors) report?.(errors, "stderr");
   if (parsed.classpath && !info.classPaths.length)
     throw new Error(tx("The classpath is empty: is the module imported by the Java language server?"));
-  return { module, info, resolved: resolveJavaCommand(config, info) };
+  const extra = await launchHook?.application?.({
+    config,
+    mode: preparation.mode ?? "run",
+    session: preparation.session ?? null,
+    report,
+    signal,
+    module,
+    info,
+  });
+  signal.throwIfAborted();
+  if (!extra) return { module, info, resolved: resolveJavaCommand(config, info), vmArgs: [] as string[] };
+  const resolved = resolveJavaCommand({ ...config, args: [...extra.vmArgs, ...config.args] }, info);
+  return {
+    module,
+    info,
+    resolved: extra.javaExec ? { ...resolved, command: extra.javaExec } : resolved,
+    /** VM options the hook added (before the configuration's own). */
+    vmArgs: extra.vmArgs,
+  };
 }

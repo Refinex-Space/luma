@@ -137,6 +137,8 @@ export function foldRows(
   return rows;
 }
 
+const NO_QUIET: readonly string[] = [];
+
 /** Typed console input (IDEA: type into the console, Enter sends the line). */
 export interface ConsoleInput {
   /** Typed, not yet sent. */
@@ -159,6 +161,8 @@ export interface ConsoleViewProps {
   onClear?: () => void;
   /** Set while the process accepts input. */
   input?: ConsoleInput;
+  /** Lines containing one of these are dimmed and folded like Settings › Console's fold patterns. */
+  quiet?: readonly string[];
   /** Controlled find bar (the Run toolbar button); without it ⌘F opens it locally. */
   findOpen?: boolean;
   onFindOpenChange?: (open: boolean) => void;
@@ -174,6 +178,7 @@ export function ConsoleView({
   cwd,
   onClear,
   input,
+  quiet = NO_QUIET,
   findOpen: controlledFindOpen,
   onFindOpenChange,
   ...aria
@@ -181,7 +186,8 @@ export function ConsoleView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const lines = model.lines;
-  const patterns = useWorkflowSettings((s) => s.console.foldPatterns);
+  const foldPatterns = useWorkflowSettings((s) => s.console.foldPatterns);
+  const patterns = useMemo(() => (quiet.length ? [...foldPatterns, ...quiet] : foldPatterns), [foldPatterns, quiet]);
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set());
   const [internalFindOpen, setInternalFindOpen] = useState(false);
   const findOpen = controlledFindOpen ?? internalFindOpen;
@@ -569,7 +575,11 @@ export function ConsoleView({
                 key={item.key}
                 data-index={item.index}
                 ref={softWrap ? virtualizer.measureElement : undefined}
-                className={clsx(styles.line, styles[line.kind])}
+                className={clsx(
+                  styles.line,
+                  styles[line.kind],
+                  quiet.length > 0 && quiet.some((q) => line.text.includes(q)) && styles.quiet,
+                )}
                 style={{ transform: `translateY(${item.start}px)`, height: softWrap ? undefined : ROW }}
               >
                 <Line line={line} marks={marksByLine.get(row.index)} length={line.text.length} cwd={cwd} />

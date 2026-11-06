@@ -20,6 +20,7 @@ import { EDITOR_EXTRA_DEFAULTS, validateEditorExtras, type EditorExtras } from "
 import { DEFAULT_WORKFLOW, validateWorkflow, type WorkflowSettings } from "@/platform/workflowSettings";
 import { DEFAULT_INSPECTIONS, validateInspections, type InspectionSettingsValid } from "@/platform/inspections";
 import { DEFAULT_PROXY, validateProxy, type ProxySettingsValid } from "@/platform/proxySettings";
+import { DEFAULT_HOT_RELOAD, validateHotReload, type HotReloadPrefs } from "@/platform/hotReloadSettings";
 import {
   DEFAULT_APPEARANCE_EXTRAS,
   DEFAULT_GENERAL_EXTRAS,
@@ -82,6 +83,8 @@ export interface ValidSettings extends WorkflowSettings {
   notifications: NotificationsValid;
   /** System Settings › HTTP Proxy (global). */
   proxy: ProxySettingsValid;
+  /** The Hot Reload plugin (`hotReload.*`). */
+  hotReload: HotReloadPrefs;
   languages: LanguagesValid;
   cmake: ReturnType<typeof validateCMake>;
   projectStructure: ProjectStructureValid;
@@ -151,6 +154,7 @@ export const DEFAULT_SETTINGS: ValidSettings = {
   customKeymaps: {},
   notifications: DEFAULT_NOTIFICATIONS,
   proxy: DEFAULT_PROXY,
+  hotReload: DEFAULT_HOT_RELOAD,
   languages: DEFAULT_LANGUAGES,
   cmake: {},
   projectStructure: DEFAULT_PROJECT_STRUCTURE,
@@ -256,6 +260,7 @@ export function validateSettings(raw: Settings | unknown): ValidSettings {
     customKeymaps,
     notifications: validateNotifications(root.notifications),
     proxy: validateProxy(root.proxy),
+    hotReload: validateHotReload(root.hotReload),
     languages: validateLanguages(root.languages),
     cmake: validateCMake(root.cmake),
     projectStructure: validateProjectStructure(root.projectStructure),

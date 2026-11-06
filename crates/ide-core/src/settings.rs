@@ -6,6 +6,7 @@ use specta::Type;
 use std::collections::BTreeMap;
 
 pub use crate::editor_settings::*;
+pub use crate::hot_reload::HotReloadSettings;
 pub use crate::inspection_settings::*;
 pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
@@ -53,6 +54,8 @@ pub struct Settings {
     pub inspections: InspectionSettings,
     /// Tools › SonarQube for IDE.
     pub sonarlint: SonarLintSettings,
+    /// Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin).
+    pub hot_reload: HotReloadSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -191,6 +194,7 @@ impl Default for Settings {
             language_servers: BTreeMap::new(),
             inspections: InspectionSettings::default(),
             sonarlint: SonarLintSettings::default(),
+            hot_reload: HotReloadSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),

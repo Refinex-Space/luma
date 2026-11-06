@@ -448,6 +448,19 @@ export const commands = {
 	/**  Re-emits the language servers' current diagnostics (the UI loaded after they arrived). */
 	lspResendDiagnostics: () => typedError<null, IdeError>(__TAURI_INVOKE("lsp_resend_diagnostics")),
 	lspRestart: (server: ServerId) => typedError<null, IdeError>(__TAURI_INVOKE("lsp_restart", { server })),
+	/**  HotswapAgent, the JetBrains Runtimes and JRebel's agent as they are now. */
+	hotReloadStatus: () => typedError<HotReloadStatus, IdeError>(__TAURI_INVOKE("hot_reload_status")),
+	/**
+	 *  Downloads HotswapAgent and the JetBrains Runtimes of Java `majors` (17, 21, 25).
+	 *  Cancel with `cancel_request(request)`.
+	 */
+	hotReloadInstall: (majors: number[], request: RequestId, onEvent: Channel<InstallEvent>) => typedError<HotReloadStatus, IdeError>(__TAURI_INVOKE("hot_reload_install", { majors, request, onEvent })),
+	/**
+	 *  The JVM options (and launcher) of a hot-reloading launch of `module`, built with the
+	 *  JDK at `java_home`; `mode` is `run` or `debug`; `class_dirs` are compiler output
+	 *  directories the JVM doesn't load from itself.
+	 */
+	hotReloadLaunch: (javaHome: string | null, mode: string, classDirs: string[], module: string) => typedError<HotReloadLaunch, IdeError>(__TAURI_INVOKE("hot_reload_launch", { javaHome, mode, classDirs, module })),
 	/**  Whether SonarQube for IDE's engine and the runtimes it needs are installed. */
 	sonarStatus: () => typedError<SonarStatus, IdeError>(__TAURI_INVOKE("sonar_status")),
 	/**
@@ -2573,6 +2586,8 @@ export type DebuggerSettings = {
 	valueTooltipDelay?: number,
 	/**  Stepping: do not step into library code (debugpy `justMyCode`, js-debug `skipFiles`). */
 	skipLibraryCode?: boolean,
+	/**  HotSwap: "Reload classes after compilation" — `ask` | `always` | `never`. */
+	reloadClasses?: string,
 	python?: PythonDebuggerSettings,
 };
 
@@ -3714,6 +3729,70 @@ export type HistoryKind =
  */
 "label";
 
+export type HotReloadAgent = {
+	version: string,
+	path: IpcPath,
+	/**  Chosen in settings rather than downloaded. */
+	custom: boolean,
+};
+
+/**  How to start a JVM that hot-reloads. */
+export type HotReloadLaunch = 
+/**
+ *  Launch with `java_exec` (null: the project's JDK, as for JRebel) and `vm_args` first;
+ *  `major` is the JetBrains Runtime's Java version (a Gradle toolchain asks for it).
+ */
+{ status: "ready"; engine: string; javaExec: string | null; vmArgs: string[]; runtime: string; major: number | null } | 
+/**  JetBrains Runtime `major` must be downloaded first. */
+{ status: "needsRuntime"; major: number; name: string } | 
+/**  HotswapAgent must be downloaded first. */
+{ status: "needsAgent" } | 
+/**  Hot reload can't run this application; it launches as usual. */
+{ status: "unsupported"; reason: string };
+
+/**  A JetBrains Runtime line and whether it is installed. */
+export type HotReloadRuntime = {
+	major: number,
+	version: string,
+	build: string,
+	experimental: boolean,
+	/**  The JDK home once downloaded. */
+	home: IpcPath | null,
+};
+
+export type HotReloadSettings = {
+	enabled?: boolean,
+	/**  [`ENGINE_HOTSWAP_AGENT`] | [`ENGINE_JREBEL`]. */
+	engine?: string,
+	/**  An own HotswapAgent jar; empty: the one the IDE downloads. */
+	agentPath?: string,
+	/**  JRebel's agent: `libjrebel64.dylib` / `.so` / `.dll` (`-agentpath:`) or `jrebel.jar` (`-javaagent:`). */
+	jrebelAgentPath?: string,
+	/**  HotswapAgent plugins not to load (`Hibernate`, `Thymeleaf`…). */
+	disabledPlugins?: string[],
+	/**  More class directories to watch and load from (HotswapAgent `extraClasspath`). */
+	extraClasspath?: string[],
+	/**  More resource directories to watch (HotswapAgent `watchResources`). */
+	watchResources?: string[],
+	/**  Spring Boot DevTools' restart class loader fights class redefinition: turned off for the run. */
+	disableDevtoolsRestart?: boolean,
+	/**  The editor's reload chip. */
+	editorFeedback?: boolean,
+	/**  Plain Run / Debug of Spring Boot configurations use hot reload. */
+	springBootDefault?: boolean,
+	/**  HotswapAgent's `LOGGER` level: `error` | `warning` | `reload` | `info` | `debug`. */
+	logLevel?: string,
+};
+
+export type HotReloadStatus = {
+	engine: string,
+	agent: HotReloadAgent | null,
+	runtimes: HotReloadRuntime[],
+	/**  JetBrains publishes runtimes for this OS and architecture. */
+	platformSupported: boolean,
+	jrebel: JrebelAgent | null,
+};
+
 /**  Result of [`DebugManager::redefine_classes`]. */
 export type HotSwapResult = {
 	/**  Fully qualified names of the classes reloaded (empty: nothing had changed). */
@@ -4146,6 +4225,12 @@ export type JdkReleases = {
 export type JdkVendor = {
 	id: string,
 	name: string,
+};
+
+export type JrebelAgent = {
+	path: IpcPath,
+	/**  The file exists and is an agent (`.jar`, or a native library). */
+	valid: boolean,
 };
 
 export type JvmFilePresentation = {
@@ -6085,6 +6170,8 @@ export type Settings_Deserialize = {
 	inspections?: InspectionSettings,
 	/**  Tools › SonarQube for IDE. */
 	sonarlint?: SonarLintSettings,
+	/**  Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin). */
+	hotReload?: HotReloadSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6143,6 +6230,8 @@ export type Settings_Serialize = {
 	inspections: InspectionSettings,
 	/**  Tools › SonarQube for IDE. */
 	sonarlint: SonarLintSettings,
+	/**  Build, Execution, Deployment › Debugger › HotSwap › Hot Reload (bundled plugin). */
+	hotReload: HotReloadSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */

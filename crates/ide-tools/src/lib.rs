@@ -12,6 +12,7 @@
 pub mod archive;
 mod bundled;
 pub mod formatter;
+pub mod hot_reload;
 pub mod jdk;
 pub mod platform;
 mod process;

@@ -20,7 +20,9 @@ import {
   type MenuItem,
   type TabItem,
   T,
+  tooltipAttrs,
 } from "@/ui";
+import { selectSessionView, useSessionMarks } from "@/workbench/contributions";
 import { setMuted, useBreakpoints } from "../breakpoints/store";
 import { frameLabel, groupFrames } from "../frames";
 import { blurDebugView, focusDebugView } from "./focusedView";
@@ -99,7 +101,8 @@ function MoreActions() {
   );
 }
 
-type Tab = "variables" | "console";
+/** Threads & Variables, Console, or a session view a feature added (Hot Reload). */
+type Tab = string;
 
 function statusText(s: DebugSession): string {
   if (s.status === "terminated") return s.exitCode != null ? `Finished · exit code ${s.exitCode}` : "Finished";
@@ -111,16 +114,30 @@ function statusText(s: DebugSession): string {
 export function DebugTabs() {
   const sessions = useDebug((s) => s.sessions);
   const active = useDebug((s) => s.active);
+  const marks = useSessionMarks((s) => s.marks);
   const list = Object.values(sessions);
   if (!list.length) return null;
-  const items: TabItem[] = list.map((s) => ({
-    id: String(s.id),
-    label: s.parent != null ? tx`${s.name} (child)` : s.name,
-    text: s.name,
-    icon: "debug",
-    italic: s.status === "terminated",
-    tooltip: statusText(s),
-  }));
+  const items: TabItem[] = list.map((s) => {
+    const mark = marks[`debug:${s.id}`];
+    return {
+      id: String(s.id),
+      label: s.parent != null ? tx`${s.name} (child)` : s.name,
+      text: s.name,
+      icon: "debug",
+      italic: s.status === "terminated",
+      tooltip: statusText(s),
+      trailing: mark && (
+        <span
+          className={styles.sessionMark}
+          {...tooltipAttrs(tx(mark.tooltip))}
+          aria-label={tx(mark.tooltip)}
+          role="img"
+        >
+          <Icon name={mark.icon} size={12} />
+        </span>
+      ),
+    };
+  });
   return (
     <Tabs
       variant="compact"
@@ -148,7 +165,26 @@ export function DebugToolWindow() {
       status: active.status,
       tab: active.status === "starting" ? "console" : active.status === "paused" ? "variables" : view.tab,
     });
-  const tab = view.tab;
+  const sessionKey = active ? `debug:${active.id}` : "";
+  const mark = useSessionMarks((s) => s.marks[sessionKey]);
+  const registered = useSessionMarks((s) => s.views);
+  const selectedView = useSessionMarks((s) => s.selected[sessionKey]);
+  const extraViews = (mark?.views ?? []).flatMap((id) => {
+    const v = registered.get(id);
+    return v ? [v] : [];
+  });
+  // A view selected from elsewhere (the Hot Reload status bar item) is shown.
+  const [shownSelection, setShownSelection] = useState<string | undefined>(undefined);
+  if (selectedView !== shownSelection) {
+    setShownSelection(selectedView);
+    if (selectedView && extraViews.some((v) => v.id === selectedView))
+      setView({ session: view.session, status: view.status, tab: selectedView });
+  }
+  const tab =
+    view.tab === "variables" || view.tab === "console" || extraViews.some((v) => v.id === view.tab)
+      ? view.tab
+      : "variables";
+  const ExtraView = extraViews.find((v) => v.id === tab)?.component;
 
   if (!active) {
     return (
@@ -165,12 +201,11 @@ export function DebugToolWindow() {
     <div className={styles.root}>
       <div className={styles.toolbar} role="toolbar" aria-label={tx("Debugger actions")}>
         <div role="tablist" aria-label={tx("Debug views")} className={styles.tabs}>
-          {(
-            [
-              ["variables", "Threads & Variables"],
-              ["console", "Console"],
-            ] as const
-          ).map(([id, label]) => (
+          {[
+            { id: "variables", title: tx("Threads & Variables"), icon: undefined as string | undefined },
+            { id: "console", title: tx("Console"), icon: undefined as string | undefined },
+            ...extraViews.map((v) => ({ id: v.id, title: tx(v.title), icon: v.icon })),
+          ].map(({ id, title, icon }) => (
             <button
               key={id}
               type="button"
@@ -179,9 +214,13 @@ export function DebugToolWindow() {
               aria-selected={tab === id}
               aria-controls={`debug-panel-${id}`}
               className={clsx(styles.tab, tab === id && styles.tabActive)}
-              onClick={() => setView({ session: active.startedAt, status: active.status, tab: id })}
+              onClick={() => {
+                setView({ session: active.startedAt, status: active.status, tab: id });
+                selectSessionView(sessionKey, id === "variables" || id === "console" ? null : id);
+              }}
             >
-              {label}
+              {icon && <Icon name={icon} size={14} />}
+              {title}
             </button>
           ))}
         </div>
@@ -215,7 +254,11 @@ export function DebugToolWindow() {
         <MoreActions />
       </div>
       <div role="tabpanel" id={`debug-panel-${tab}`} aria-labelledby={`debug-tab-${tab}`} className={styles.panel}>
-        {tab === "variables" ? (
+        {ExtraView ? (
+          <div className={styles.view}>
+            <ExtraView sessionKey={sessionKey} />
+          </div>
+        ) : tab === "variables" ? (
           <ThreadsAndVariables session={active} />
         ) : (
           <DebugConsole key={active.id} session={active} />

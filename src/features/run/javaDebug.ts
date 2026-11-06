@@ -83,6 +83,7 @@ export async function debugWithAgent(config: RunConfig): Promise<boolean> {
   };
   const session = await startRun(config, undefined, undefined, {
     launch,
+    debug: true,
     onLine: (line) => {
       const port = jdwpListeningPort(line);
       if (port === null) return;

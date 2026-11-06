@@ -12,6 +12,7 @@ something to show.
 | `python-app/`    | Python 3.10+, pytest                                            | `python -m tasks.cli` (from `src/`) | `pytest`             | `LUMA_FAIL=1 pytest`                  | unused imports in `models.py`                            |
 | `go-app/`        | Go 1.22+                                                        | `go run ./cmd/server`               | `go test ./...`      | `LUMA_FAIL=1 go test ./...`           | unused `fmt.Sprintf` result in `internal/store/store.go` |
 | `kotlin-gradle/` | JDK 21, Gradle 8 (no wrapper)                                   | `gradle run`                        | `gradle test`        | `gradle test -PlumaFail`              | unused variable in `App.kt`                              |
+| `spring-boot-hot-reload/` | JDK 21, Maven, Spring Boot 3.5 | **Run with Hot Reload** on `DemoApplication` | — | — | — |
 | `polyglot/`      | Go, TS, Python, C, shell, SQL, TOML/YAML/JSON, proto, Terraform | `make`                              | `make test`          | —                                     | unused variable in `native/hash.c`                       |
 
 The fixtures are standalone: `rust-app` declares its own `[workspace]` and

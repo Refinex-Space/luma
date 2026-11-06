@@ -21,8 +21,10 @@ import {
   consoleVmArgs,
   findJavaModule,
   isJvmApplication,
+  jvmLaunchHook,
   parseJavaArgs,
   prepareJavaLaunch,
+  type JvmLaunchSession,
 } from "@/platform/javaLaunch";
 import { downloadJdkActions } from "@/platform/jdk";
 import { useProject } from "@/platform/project";
@@ -515,6 +517,8 @@ export async function startRun(
     prepared?: boolean;
     /** Configurations whose launch led to this one (before launch tasks, compounds): breaks cycles. */
     chain?: readonly string[];
+    /** A debugger attaches to the JVMs it starts (Maven / Gradle / Tomcat with a JDWP agent). */
+    debug?: boolean;
   } = {},
 ): Promise<RunSession | null> {
   if (config.kind === "compound") {
@@ -650,10 +654,18 @@ export async function startRun(
     if ((chunk.kind === "stdout" && config.showOnStdout) || (chunk.kind === "stderr" && config.showOnStderr))
       revealSession(sessionId);
   };
+  const say = (text: string, kind: "system" | "stderr" = "system") => {
+    enqueue(sessionId, { kind, text });
+    flush(sessionId);
+  };
+  const jvmSession: JvmLaunchSession = {
+    key: `run:${sessionId}`,
+    onLine: (listener) => rt.lineListeners.push(listener),
+  };
   try {
     let launch = options.launch ?? config;
     if (isJvmApplication(launch)) {
-      const resolved = await resolveJvmApplication(sessionId, launch);
+      const resolved = await resolveJvmApplication(sessionId, launch, jvmSession);
       if (runtimes.get(sessionId)?.generation !== generation) return getSession(sessionId) ?? null;
       if (!resolved) {
         patchSession(sessionId, {
@@ -668,6 +680,11 @@ export async function startRun(
     if (prepare) {
       launch = await prepare(launch);
       if (launch.kind === "tomcat") useRun.setState({ activeSession: sessionId });
+      if (runtimes.get(sessionId)?.generation !== generation) return getSession(sessionId) ?? null;
+    }
+    const hook = jvmLaunchHook()?.process;
+    if (hook) {
+      launch = await hook(launch, { config, mode: options.debug ? "debug" : "run", session: jvmSession, report: say });
       if (runtimes.get(sessionId)?.generation !== generation) return getSession(sessionId) ?? null;
     }
     // Debug launches read the agent's output lines: never through a terminal.
@@ -717,7 +734,11 @@ function revealSession(sessionId: string) {
  * Builds the module (jdtls workspace build) and resolves `${classpath}` and the
  * project JDK of a Java application configuration. Null (and a console message) on failure.
  */
-async function resolveJvmApplication(sessionId: string, config: RunConfig): Promise<RunConfig | null> {
+async function resolveJvmApplication(
+  sessionId: string,
+  config: RunConfig,
+  session: JvmLaunchSession,
+): Promise<RunConfig | null> {
   const say = (text: string, kind: OutputChunk["kind"] = "system") => {
     enqueue(sessionId, { kind, text } as OutputChunk);
     flush(sessionId);
@@ -736,6 +757,8 @@ async function resolveJvmApplication(sessionId: string, config: RunConfig): Prom
       request: request.id,
       signal: request.controller.signal,
       report: say,
+      mode: "run",
+      session,
     });
     // No installed JDK is new enough for the module: offer to download one.
     const jdkHint = info.hints.find((h) => downloadJdkActions(h).length);

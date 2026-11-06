@@ -36,6 +36,24 @@ describe("menu state from the frontend", () => {
     _reloadLayouts();
   });
 
+  it("lists a slot's actions only while they are enabled", () => {
+    const off = registerAction({
+      id: "test.menu.hotReload",
+      title: "Run with Hot Reload",
+      when: "testHotReloadOn",
+      menuSlot: "runExecutors",
+      run: () => {},
+    });
+    setContext("testHotReloadOn", false);
+    expect(dynamicMenuItems().runExecutors).toBeUndefined();
+    setContext("testHotReloadOn", true);
+    expect(dynamicMenuItems().runExecutors).toEqual([
+      { action: "test.menu.hotReload", arg: null, label: "Run with Hot Reload" },
+    ]);
+    off();
+    setContext("testHotReloadOn", false);
+  });
+
   it("disables the registered actions that cannot run now", () => {
     const offs = [
       registerAction({ id: "test.menu.always", title: "A", run: () => {} }),

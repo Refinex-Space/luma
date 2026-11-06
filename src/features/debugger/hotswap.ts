@@ -2,10 +2,12 @@
  * HotSwap (IDEA: Run › Debugging Actions › Reload Changed Classes) through
  * java-debug's hot code replace: compile with jdtls, then `redefineClasses`
  * in every Java debug session. When jdtls finishes a build on its own (after
- * a save) java-debug reports `BUILD_COMPLETE` and, like IDEA's default
- * "Reload classes after compilation: Ask", we offer the reload.
+ * a save) java-debug reports `BUILD_COMPLETE` and Settings › Debugger › HotSwap ›
+ * "Reload classes after compilation" decides: Always reloads (with a result
+ * notification), Ask offers the reload, Never leaves it.
  */
 import { call, commands, isTauri, type DebugEvent, type DebugSessionId } from "@/platform/ipc";
+import { workflowSettings, type ReloadClassesPolicy } from "@/platform/workflowSettings";
 import { maybeEditorService, notifications } from "@/workbench/contributions";
 import { isLive, useDebug, type DebugSession } from "./state";
 import { tx } from "@/platform/i18n";
@@ -13,6 +15,37 @@ import { tx } from "@/platform/i18n";
 const KEY = "debug.hotswap";
 /** `BUILD_COMPLETE` events of our own build are not worth a prompt. */
 let quietUntil = 0;
+
+/** A reload's outcome, for features that report it elsewhere (Hot Reload's timeline). */
+export interface HotSwapReport {
+  sessions: readonly DebugSession[];
+  changed: readonly string[];
+  errors: readonly string[];
+  durationMs: number;
+}
+
+/**
+ * Hot Reload's hold on HotSwap: its debug sessions always reload (no prompt) and it
+ * reports the outcome itself; `report` returns true when no notification is needed.
+ */
+export interface HotSwapObserver {
+  policy(session: DebugSession): ReloadClassesPolicy | null;
+  report(result: HotSwapReport): boolean;
+}
+
+let observer: HotSwapObserver | null = null;
+
+export function setHotSwapObserver(o: HotSwapObserver): () => void {
+  observer = o;
+  return () => {
+    if (observer === o) observer = null;
+  };
+}
+
+/** What a finished build does in `session`: the observer's policy, else the setting. */
+export function reloadPolicy(session: DebugSession | undefined): ReloadClassesPolicy {
+  return (session && observer?.policy(session)) ?? workflowSettings().debugger.reloadClasses;
+}
 
 export function hotSwapSessions(): DebugSession[] {
   return Object.values(useDebug.getState().sessions).filter((s) => isLive(s) && !!s.caps?.hotCodeReplace);
@@ -63,6 +96,7 @@ export async function reloadChangedClasses(build = true, configId?: string): Pro
     }
     const changed = new Set<string>();
     const errors: string[] = [];
+    const started = performance.now();
     for (const s of sessions) {
       try {
         const r = await call(commands.debugRedefineClasses(s.id));
@@ -72,6 +106,13 @@ export async function reloadChangedClasses(build = true, configId?: string): Pro
         errors.push(e instanceof Error ? e.message : String(e));
       }
     }
+    const handled = observer?.report({
+      sessions,
+      changed: [...changed],
+      errors,
+      durationMs: performance.now() - started,
+    });
+    if (handled) return;
     const m = hotSwapMessage(changed.size, errors);
     notifications().notify({ group: "run", key: KEY, ...m });
   } finally {
@@ -81,10 +122,17 @@ export async function reloadChangedClasses(build = true, configId?: string): Pro
 
 /** java-debug's `hotcodereplace` events of a session this window owns. */
 export function onHotCodeReplace(session: DebugSessionId, event: Extract<DebugEvent, { kind: "hotCodeReplace" }>) {
-  if (!useDebug.getState().sessions[session]) return;
+  const s = useDebug.getState().sessions[session];
+  if (!s) return;
   switch (event.changeType) {
-    case "BUILD_COMPLETE":
+    case "BUILD_COMPLETE": {
       if (Date.now() < quietUntil) return;
+      const policy = reloadPolicy(s);
+      if (policy === "never") return;
+      if (policy === "always") {
+        void reloadChangedClasses(false);
+        return;
+      }
       notifications().notify({
         group: "run",
         level: "info",
@@ -94,6 +142,7 @@ export function onHotCodeReplace(session: DebugSessionId, event: Extract<DebugEv
         actions: [{ label: "Reload", run: () => void reloadChangedClasses(false) }],
       });
       break;
+    }
     case "ERROR":
     case "WARNING":
       notifications().notify({

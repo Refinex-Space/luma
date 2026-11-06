@@ -1,0 +1,390 @@
+/* Hot Reload: the HotSwap settings page, the session timeline, the editor chip and the status item. */
+.page {
+  display: flex;
+  flex-direction: column;
+}
+.muted {
+  color: var(--fg-subtle);
+}
+.warning {
+  color: var(--warning);
+}
+.error {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.bolt {
+  color: var(--warning);
+  flex: none;
+}
+.info {
+  display: inline-flex;
+  color: var(--fg-subtle);
+  cursor: help;
+}
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--h-field, 28px);
+}
+.pathField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(100%, 560px);
+}
+.pathField > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- disabled plugin */
+.disabled {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.disabledText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+}
+
+/* ---- runtimes */
+.runtimes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(100%, 560px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.runtime {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 6px 0 10px;
+}
+.runtime + .runtime {
+  border-top: 1px solid var(--border);
+}
+.runtimeName {
+  color: var(--fg-strong);
+  white-space: nowrap;
+}
+.runtimeVersion {
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.badge {
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: var(--fs-small);
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  cursor: help;
+}
+.runtimeEnd {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.runtimeJob {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.runtimeJob > :first-child {
+  width: 120px;
+}
+.installed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-right: 4px;
+  color: var(--fg-subtle);
+}
+
+/* ---- framework plugins */
+.plugins {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 180px));
+  gap: 6px 16px;
+  padding: 4px 0;
+}
+
+/* ---- timeline (Run / Debug session view) */
+.timeline {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+.headerText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerCount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.entries {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.entry {
+  position: relative;
+}
+.entryHead {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 12px 16px 60px max-content auto minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 8px;
+  height: 26px;
+  padding: 0 12px 0 8px;
+  text-align: left;
+  color: var(--fg);
+}
+.entryHead:not(:disabled):hover {
+  background: var(--bg-tree-hover);
+}
+.entryHead:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.entryHead:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.chevron {
+  color: var(--fg-subtle);
+}
+.hidden {
+  visibility: hidden;
+}
+.entryIcon {
+  color: var(--fg-subtle);
+}
+.ok .entryIcon {
+  color: var(--warning);
+}
+.warning .entryIcon {
+  color: var(--warning);
+}
+.error .entryIcon {
+  color: var(--danger);
+}
+.time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.entryTitle {
+  color: var(--fg-strong);
+  white-space: nowrap;
+}
+.error .entryTitle {
+  color: var(--danger);
+}
+.tag {
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: var(--fs-tiny);
+  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.entryDetails {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-subtle);
+}
+.warning .entryDetails {
+  color: var(--fg-muted);
+}
+.duration {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+  text-align: right;
+}
+.entryAction {
+  order: 10;
+}
+.entryBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 10px 64px;
+}
+.group {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  column-gap: 12px;
+}
+.groupTitle {
+  color: var(--fg-subtle);
+}
+.groupItems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--fg);
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+.groupItems > li + li {
+  margin-top: 2px;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+}
+.waiting {
+  padding: 10px 12px 10px 64px;
+  color: var(--fg-subtle);
+}
+
+/* ---- editor chip (in the editor's top-right corner) */
+.chipHost {
+  display: flex;
+  align-items: center;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  max-width: min(560px, 60vw);
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--border-popup);
+  border-radius: 12px;
+  background: var(--bg-popup);
+  box-shadow: var(--shadow-popup);
+  color: var(--fg);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--fs-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  animation: chipIn 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.chip:hover {
+  border-color: var(--border-strong);
+}
+.chipLeaving {
+  animation: chipOut 260ms ease-in forwards;
+  pointer-events: none;
+}
+.chipProblem {
+  cursor: default;
+  padding-right: 3px;
+  border-color: var(--border-feedback-warning);
+  background: var(--bg-feedback-warning);
+}
+.chipProblem.error {
+  border-color: var(--border-feedback-error);
+  background: var(--bg-feedback-error);
+}
+.chipProblem.warning > :first-child {
+  color: var(--warning);
+}
+.chipProblem.error > :first-child {
+  color: var(--danger);
+}
+.chip > .chipTitle {
+  flex: none;
+  overflow: visible;
+}
+.chipTitle {
+  color: var(--fg-strong);
+  font-weight: 500;
+}
+.chipProblemText {
+  min-width: 0;
+  max-width: 280px;
+  color: var(--fg-muted);
+}
+.chipAction {
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-small);
+  color: var(--link);
+  font-size: var(--fs-ui);
+}
+.chipAction:hover {
+  background: var(--bg-toolbar-hover);
+}
+.chipAction:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+@keyframes chipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+@keyframes chipOut {
+  to {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip,
+  .chipLeaving {
+    animation-duration: 1ms;
+  }
+}
+
+/* ---- status bar */
+.status {
+  gap: 5px;
+}
+.status > :first-child {
+  color: var(--warning);
+}
+.status.error > :first-child {
+  color: var(--danger);
+}

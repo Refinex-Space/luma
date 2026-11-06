@@ -229,6 +229,8 @@ pub struct DebuggerSettings {
     pub value_tooltip_delay: u32,
     /// Stepping: do not step into library code (debugpy `justMyCode`, js-debug `skipFiles`).
     pub skip_library_code: bool,
+    /// HotSwap: "Reload classes after compilation" — `ask` | `always` | `never`.
+    pub reload_classes: String,
     pub python: PythonDebuggerSettings,
 }
 
@@ -246,6 +248,7 @@ impl Default for DebuggerSettings {
             value_tooltip_on_selection: true,
             value_tooltip_delay: 700,
             skip_library_code: true,
+            reload_classes: "ask".into(),
             python: PythonDebuggerSettings::default(),
         }
     }

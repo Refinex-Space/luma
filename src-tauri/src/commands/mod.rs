@@ -26,6 +26,7 @@ pub mod fonts;
 pub mod fs;
 pub mod github;
 pub mod history;
+pub mod hot_reload;
 pub mod http;
 pub mod java;
 pub mod lsp;
@@ -236,6 +237,9 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         lsp::lsp_servers,
         lsp::lsp_resend_diagnostics,
         lsp::lsp_restart,
+        hot_reload::hot_reload_status,
+        hot_reload::hot_reload_install,
+        hot_reload::hot_reload_launch,
         sonar::sonar_status,
         sonar::sonar_install,
         sonar::sonar_rules,

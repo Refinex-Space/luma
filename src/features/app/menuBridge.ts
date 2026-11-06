@@ -54,6 +54,16 @@ export function buildMenuConfig(os: HostOs): MenuConfig {
   return { locale: useI18n.getState().locale, labels, shortcuts, dynamic: dynamicMenuItems() };
 }
 
+/** Native menu slots listing the enabled actions that name them (`Action.menuSlot`), in registration order. */
+export function slotMenuItems(): Record<string, DynamicItem[]> {
+  const out: Record<string, DynamicItem[]> = {};
+  for (const a of useActions.getState().actions.values()) {
+    if (!a.menuSlot || !isActionEnabled(a)) continue;
+    (out[a.menuSlot] ??= []).push({ action: a.id, arg: null, label: tx(a.title) ?? a.title });
+  }
+  return out;
+}
+
 /** View › Tool Windows (every registered window, by title) and Window › Tool Window Layouts. */
 export function dynamicMenuItems(): Record<string, DynamicItem[]> {
   const toolWindows = [...useContributions.getState().toolWindows.values()]
@@ -62,7 +72,7 @@ export function dynamicMenuItems(): Record<string, DynamicItem[]> {
   const layouts = useToolWindowLayouts
     .getState()
     .layouts.map((l) => ({ action: "layout.restore", arg: l.name, label: l.name }));
-  return { toolWindows, toolWindowLayouts: layouts };
+  return { ...slotMenuItems(), toolWindows, toolWindowLayouts: layouts };
 }
 
 /** Action ids of every IDE item in a menu model. */
@@ -131,6 +141,15 @@ export function installMenuBridge(): () => void {
     })
     .catch(() => {});
 
+  // Slot items follow their actions' enablement: the menu is rebuilt only when that list changes.
+  let lastSlots = JSON.stringify(slotMenuItems());
+  const pushSlots = () => {
+    const key = JSON.stringify(slotMenuItems());
+    if (key === lastSlots) return;
+    lastSlots = key;
+    push();
+  };
+
   push();
   const onFocus = () => {
     push();
@@ -150,8 +169,14 @@ export function installMenuBridge(): () => void {
       if (s.toolWindows !== prev.toolWindows) push();
     }),
     useToolWindowLayouts.subscribe(push),
-    useContextKeys.subscribe(() => pushEnablement()),
-    useActions.subscribe(() => pushEnablement()),
+    useContextKeys.subscribe(() => {
+      pushEnablement();
+      pushSlots();
+    }),
+    useActions.subscribe(() => {
+      pushEnablement();
+      pushSlots();
+    }),
     // Opening / closing a project changes the Open Recent list.
     useProject.subscribe((s, prev) => {
       if (s.project?.root !== prev.project?.root) void commands.menuRefresh();

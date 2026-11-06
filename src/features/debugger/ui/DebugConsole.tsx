@@ -4,6 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { copySelectionOnKeyDown } from "@/ui/selectableText";
 import { EmptyState, IconButton, showContextMenu, T, type MenuItem } from "@/ui";
 import { tx } from "@/platform/i18n";
+import { useSessionMarks } from "@/workbench/contributions";
 import { spanStyle } from "@/ui/ansi";
 import ansi from "@/ui/ansi.module.css";
 import { appendConsole, clearConsole, evaluate, isLive, useDebug, type DebugSession } from "../state";
@@ -21,6 +22,8 @@ export function DebugServiceConsole({ sessionId }: { sessionId: number }) {
 
 export function DebugConsole({ session, interactive = true }: { session: DebugSession; interactive?: boolean }) {
   const lines = useDebug((s) => s.console[session.id]);
+  // Lines a feature marks as quiet (Hot Reload's agent log) are dimmed.
+  const quiet = useSessionMarks((s) => s.marks[`debug:${session.id}`]?.quiet);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const programmatic = useRef(false);
@@ -125,7 +128,11 @@ export function DebugConsole({ session, interactive = true }: { session: DebugSe
                 key={item.key}
                 data-index={item.index}
                 ref={virtualizer.measureElement}
-                className={clsx(styles.out, styles[`cat-${l.category}`])}
+                className={clsx(
+                  styles.out,
+                  styles[`cat-${l.category}`],
+                  quiet?.some((q) => l.text.includes(q)) && styles.quiet,
+                )}
                 style={{ transform: `translateY(${item.start}px)` }}
               >
                 {l.spans.map((sp, i) => (

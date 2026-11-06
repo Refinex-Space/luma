@@ -82,13 +82,13 @@ export async function javaLaunchConfig(
   const parsed = parseJavaArgs(rc.args);
   if (!parsed.mainClass) throw new Error(`No main class in '${rc.name}'`);
   preparation?.signal.throwIfAborted();
-  const { module, info, resolved } = await prepareJavaLaunch(
-    rc,
-    preparation ?? {
-      request: nextRequestId(),
-      signal: new AbortController().signal,
-    },
-  );
+  const { module, info, resolved, vmArgs } = await prepareJavaLaunch(rc, {
+    ...(preparation ?? { request: nextRequestId(), signal: new AbortController().signal }),
+    mode: "debug",
+    session: null,
+  });
+  // VM options a launch hook added (Hot Reload's runtime and agents) come first.
+  const vmArguments = [...vmArgs, ...parsed.vmArgs];
   if (info.errorCount > 0 && !preparation?.report)
     notifications().notify({
       group: "run",
@@ -117,7 +117,7 @@ export async function javaLaunchConfig(
         classPaths,
         modulePaths: info.modulePaths,
         javaExec: resolved.command,
-        vmArguments: parsed.vmArgs,
+        vmArguments,
         programArgs: parsed.programArgs,
       }),
     };
@@ -139,7 +139,7 @@ export async function javaLaunchConfig(
       classPaths,
       modulePaths: info.modulePaths,
       javaExec: resolved.command === "java" ? undefined : resolved.command,
-      vmArgs: joinJavaArgs(parsed.vmArgs),
+      vmArgs: joinJavaArgs(vmArguments),
       args: joinJavaArgs(parsed.programArgs),
       // java-debug spawns the JVM itself: it must shorten a classpath too long for the OS the same way Run does.
       shortenCommandLine: info.shortenCommandLine ?? "none",

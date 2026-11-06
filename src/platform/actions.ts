@@ -46,6 +46,11 @@ export interface Action {
   /** Hidden from Search Everywhere (internal / parameterised actions). */
   hidden?: boolean;
   /**
+   * A native menu slot that lists this action while it is enabled (Run › Run with Hot Reload
+   * appears only while its plugin is on), e.g. `runExecutors`.
+   */
+  menuSlot?: string;
+  /**
    * Marks a toggle action (IDEA's ToggleAction): returns the current state.
    * Search Everywhere shows an ON/OFF switch and keeps the popup open.
    */

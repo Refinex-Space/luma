@@ -1155,6 +1155,95 @@ export function runExecutors(map = useRunExecutors.getState().executors): RunExe
 }
 
 // ---------------------------------------------------------------------------
+// Run / Debug session extensions (IDEA's extra session content tabs, such as Spring
+// Boot's Actuator): a feature marks a session, keyed `run:<session id>` (Run tool
+// window tab) or `debug:<debug session id>`, and the session's tab shows the mark's
+// icon, its views beside Console, and its quiet console lines dimmed and folded.
+
+export interface SessionMark {
+  /** Icon after the session's tab label. */
+  icon: string;
+  tooltip: string;
+  /** Ids of registered session views shown beside Console. */
+  views?: readonly string[];
+  /** Console lines containing one of these are dimmed and folded. */
+  quiet?: readonly string[];
+}
+
+export interface SessionViewContribution {
+  id: string;
+  title: string;
+  icon?: string;
+  component: ComponentType<{ sessionKey: string }>;
+}
+
+export const useSessionMarks = create<{
+  marks: Readonly<Record<string, SessionMark>>;
+  views: ReadonlyMap<string, SessionViewContribution>;
+  /** The view shown per session key (absent: the console). */
+  selected: Readonly<Record<string, string>>;
+}>(() => ({ marks: {}, views: new Map(), selected: {} }));
+
+export function setSessionMark(key: string, mark: SessionMark | null) {
+  useSessionMarks.setState((s) => {
+    if (!mark && !(key in s.marks)) return s;
+    const marks = { ...s.marks };
+    if (mark) marks[key] = mark;
+    else delete marks[key];
+    return { marks };
+  });
+}
+
+export function registerSessionView(view: SessionViewContribution): () => void {
+  useSessionMarks.setState((s) => ({ views: new Map(s.views).set(view.id, view) }));
+  return () =>
+    useSessionMarks.setState((s) => {
+      if (s.views.get(view.id) !== view) return s;
+      const views = new Map(s.views);
+      views.delete(view.id);
+      return { views };
+    });
+}
+
+/** Shows view `view` (null: the console) of session `key`. */
+export function selectSessionView(key: string, view: string | null) {
+  useSessionMarks.setState((s) => {
+    const selected = { ...s.selected };
+    if (view) selected[key] = view;
+    else delete selected[key];
+    return { selected };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Flags a feature adds to Run/Debug Configurations › Modify options (stored as
+// `RunConfig.params[param] = "true"`), e.g. Hot Reload's "Use hot reload".
+
+export interface RunConfigOptionContribution {
+  id: string;
+  label: string;
+  /** Header of its group in the Modify options menu. */
+  group: string;
+  param: string;
+  applies(config: RunConfig): boolean;
+}
+
+export const useRunConfigOptions = create<{ options: ReadonlyMap<string, RunConfigOptionContribution> }>(() => ({
+  options: new Map(),
+}));
+
+export function registerRunConfigOption(option: RunConfigOptionContribution): () => void {
+  useRunConfigOptions.setState((s) => ({ options: new Map(s.options).set(option.id, option) }));
+  return () =>
+    useRunConfigOptions.setState((s) => {
+      if (s.options.get(option.id) !== option) return s;
+      const options = new Map(s.options);
+      options.delete(option.id);
+      return { options };
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Run configuration types (IDEA's "Add New Configuration" list), contributed by
 // features and edited by features/run. A type is declarative: its form fields
 // write `RunConfig.params`, and `commandLine` turns them into what is launched.

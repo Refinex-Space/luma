@@ -279,3 +279,29 @@
   border-bottom: 0;
   border-top: 1px solid var(--border);
 }
+
+/* Lines a feature marks as quiet (Hot Reload's agent log). */
+.quiet {
+  color: var(--fg-subtle);
+  opacity: 0.8;
+}
+
+.sessionMark {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--warning);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.view {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}

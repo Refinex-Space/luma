@@ -4,7 +4,7 @@ import { BarButton, Icon, IconButton, Menu, type MenuItem } from "@/ui";
 import { executeAction } from "@/platform/actions";
 import { useTx } from "@/platform/i18n";
 import { shortcutLabel } from "@/platform/keymap";
-import { runExecutors, useRunExecutors, useDebugRunSessions } from "@/workbench/contributions";
+import { runExecutors, useRunExecutors, useDebugRunSessions, useSessionMarks } from "@/workbench/contributions";
 import { configIcon } from "./configs";
 import { useRemoteLabel } from "./remote";
 import { CURRENT_FILE, useRun } from "./store";
@@ -37,6 +37,14 @@ export function RunWidget() {
   const moreRef = useRef<HTMLButtonElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const executors = useRunExecutors((s) => s.executors);
+  // A feature's mark on the selected configuration's live session (Hot Reload's ⚡).
+  const marks = useSessionMarks((s) => s.marks);
+  const mark = active
+    ? [
+        ...running.filter((s) => s.config.id === selectedId).map((s) => marks[`run:${s.id}`]),
+        ...debug.filter((s) => s.configId === selectedId).map((s) => marks[`debug:${s.id}`]),
+      ].find(Boolean)
+    : undefined;
   // IDEA: the selected configuration's other executors (Run with Coverage, Profile) come first.
   const executorItems: MenuItem[] = selected
     ? runExecutors(executors)
@@ -77,6 +85,11 @@ export function RunWidget() {
         <span className={styles.widgetName}>
           {selected ? label(selected) : tx(currentFile ? "Current File" : "Select Configuration")}
         </span>
+        {mark && (
+          <span className={styles.widgetMark} aria-label={tx(mark.tooltip)} role="img">
+            <Icon name={mark.icon} size={14} />
+          </span>
+        )}
         <Icon name="chevron-down" size={14} className={styles.widgetChevron} />
       </BarButton>
       <span className={styles.widgetButtons}>

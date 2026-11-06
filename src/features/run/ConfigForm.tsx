@@ -27,7 +27,7 @@ import {
   type MenuItem,
   type SelectOption,
 } from "@/ui";
-import { useContributions, type RunConfigTypeContribution } from "@/workbench/contributions";
+import { useContributions, useRunConfigOptions, type RunConfigTypeContribution } from "@/workbench/contributions";
 import { TASK_LABELS, taskLabel, type BeforeLaunchKind } from "./beforeLaunch";
 import {
   commandLine,
@@ -238,6 +238,24 @@ export function ConfigForm({ config, all, type, errors, template, onChange, modi
         run: () => toggleOption(id),
       })),
   ]);
+
+  // Flags features add (Hot Reload's "Use hot reload"): stored in the form's params.
+  const contributed = [...useRunConfigOptions((s) => s.options).values()].filter(
+    (o) => !compound && !!params && o.applies(config),
+  );
+  const flagOn = (param: string) => params?.[param] === "true";
+  for (const group of new Set(contributed.map((o) => o.group)))
+    menuItems.push(
+      { kind: "header", label: group },
+      ...contributed
+        .filter((o) => o.group === group)
+        .map((o): MenuItem => ({
+          label: o.label,
+          checked: flagOn(o.param),
+          run: () => setParam(o.param, flagOn(o.param) ? "" : "true"),
+        })),
+    );
+  const contributedChips = contributed.filter((o) => flagOn(o.param));
 
   const tasks = config.beforeLaunch ?? [];
   const setTasks = (next: BeforeLaunchTask[]) => update({ beforeLaunch: next });
@@ -596,8 +614,20 @@ export function ConfigForm({ config, all, type, errors, template, onChange, modi
         </Field>
       )}
 
-      {chips.length > 0 && (
+      {chips.length + contributedChips.length > 0 && (
         <div className={styles.chips}>
+          {contributedChips.map((o) => (
+            <span key={o.id} className={styles.chip}>
+              <T>{o.label}</T>
+              <IconButton
+                icon="close"
+                size="small"
+                iconSize={10}
+                title={tx`Remove '${o.label}'`}
+                onClick={() => setParam(o.param, "")}
+              />
+            </span>
+          ))}
           {chips.map((id) => (
             <span key={id} className={styles.chip}>
               <T>{OPTION_LABELS[id]}</T>
