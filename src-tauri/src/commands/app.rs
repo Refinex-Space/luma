@@ -165,6 +165,17 @@ pub fn settings_set(
     value: String,
 ) -> IdeResult<Settings> {
     let applied = ide_host::ops::project::set_settings(&state.host, window.label(), scope, &key, &value)?;
+    // A new port or binding takes effect now: turning external connections off closes them.
+    if key == "builtInServer" || key.starts_with("builtInServer.") {
+        let server = state.global_settings.effective().built_in_server;
+        let app = state.app.clone();
+        tauri::async_runtime::spawn(async move {
+            use tauri::Manager;
+            if let Some(state) = app.try_state::<AppState>() {
+                state.web.configure(&server).await;
+            }
+        });
+    }
     // A project value concerns only that project's window (and its settings window).
     let event = ide_core::IdeEvent::SettingsChanged { key };
     if applied.project_scope {

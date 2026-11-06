@@ -39,7 +39,7 @@ import { activate as scratch } from "./scratch";
 import { activate as libraries } from "./libraries";
 import { activate as viewers } from "./viewers";
 import { activate as notebook } from "./notebook";
-import { activate as web } from "./web";
+import { activate as web, activateSettingsPages as webPages } from "./web";
 import { activate as analysis } from "./analysis";
 import { activate as services } from "./services";
 import { activate as github } from "./github";
@@ -135,6 +135,7 @@ export function activateSettingsWindowFeatures(parent: string): () => void {
     ["hot-reload", hotReloadPages],
     ["lombok", lombokPages],
     ["tools", toolsPages],
+    ["web", webPages],
     ["agents", agentsPages],
     ["vim", vimPages],
     ["vcs", vcsPages],

@@ -23,6 +23,14 @@ import { DEFAULT_PROXY, validateProxy, type ProxySettingsValid } from "@/platfor
 import { DEFAULT_HOT_RELOAD, validateHotReload, type HotReloadPrefs } from "@/platform/hotReloadSettings";
 import { DEFAULT_LOMBOK, validateLombok, type LombokPrefs } from "@/platform/lombokSettings";
 import {
+  DEFAULT_BUILT_IN_SERVER,
+  DEFAULT_WEB_BROWSERS,
+  validateBuiltInServer,
+  validateWebBrowsers,
+  type BuiltInServerPrefs,
+  type WebBrowserPrefs,
+} from "@/platform/webBrowserSettings";
+import {
   DEFAULT_APPEARANCE_EXTRAS,
   DEFAULT_GENERAL_EXTRAS,
   DEFAULT_NOTIFICATIONS,
@@ -88,6 +96,9 @@ export interface ValidSettings extends WorkflowSettings {
   hotReload: HotReloadPrefs;
   /** The Lombok plugin (`lombok.*`). */
   lombok: LombokPrefs;
+  /** Tools › Web Browsers and Preview (global). */
+  webBrowsers: WebBrowserPrefs;
+  builtInServer: BuiltInServerPrefs;
   languages: LanguagesValid;
   cmake: ReturnType<typeof validateCMake>;
   projectStructure: ProjectStructureValid;
@@ -159,6 +170,8 @@ export const DEFAULT_SETTINGS: ValidSettings = {
   proxy: DEFAULT_PROXY,
   hotReload: DEFAULT_HOT_RELOAD,
   lombok: DEFAULT_LOMBOK,
+  webBrowsers: DEFAULT_WEB_BROWSERS,
+  builtInServer: DEFAULT_BUILT_IN_SERVER,
   languages: DEFAULT_LANGUAGES,
   cmake: {},
   projectStructure: DEFAULT_PROJECT_STRUCTURE,
@@ -266,6 +279,8 @@ export function validateSettings(raw: Settings | unknown): ValidSettings {
     proxy: validateProxy(root.proxy),
     hotReload: validateHotReload(root.hotReload),
     lombok: validateLombok(root.lombok),
+    webBrowsers: validateWebBrowsers(root.webBrowsers),
+    builtInServer: validateBuiltInServer(root.builtInServer),
     languages: validateLanguages(root.languages),
     cmake: validateCMake(root.cmake),
     projectStructure: validateProjectStructure(root.projectStructure),

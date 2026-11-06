@@ -1,25 +1,28 @@
 /**
- * Web browsers (IDEA's Open In › Browser and the editor's browser bar): HTML
- * and SVG files open in an installed browser through the built-in server, and
- * HTML files get a built-in preview beside the editor. ⌃⇧R in an HTML editor
- * opens the default browser, like IDEA's Run for HTML files.
+ * Web browsers (IDEA's Open In › Browser, the editor's browser popup and Settings › Tools ›
+ * Web Browsers and Preview): HTML, XML and SVG files open in a browser of the list through
+ * the built-in server, HTML files get a built-in preview beside the editor, and pages reload
+ * as the settings say. ⌃⇧R in an HTML editor opens the default browser, like IDEA's Run for
+ * HTML files.
  */
+import { EditorView } from "@codemirror/view";
 import { registerActions } from "@/platform/actions";
 import { getContext } from "@/platform/context";
+import { call, commands, isTauri } from "@/platform/ipc";
 import { basename } from "@/platform/project";
+import { activeBrowsers, webBrowserPrefs } from "@/platform/webBrowserSettings";
+import { registerEditorContribution, whenSynced } from "@/editor/api";
 import { lazyComponent, type MenuItem } from "@/ui";
-import { maybeEditorService, registerMenuGroup, registerTextEditorWrapper } from "@/workbench/contributions";
 import {
-  browserIcon,
-  isHtmlPath,
-  isWebPath,
-  loadBrowsers,
-  openInBrowser,
-  togglePreview,
-  useBrowsers,
-  useWebPreview,
-} from "./browsers";
+  maybeEditorService,
+  registerMenuGroup,
+  registerSettingsPage,
+  registerTextEditorWrapper,
+} from "@/workbench/contributions";
+import { browserIcon, isHtmlPath, isWebPath, isXmlPath, openInBrowser, togglePreview, useWebPreview } from "./browsers";
 import { tx } from "@/platform/i18n";
+
+export const SETTINGS_PAGE = "tools.webBrowsers";
 
 interface OpenArg {
   path?: string;
@@ -37,38 +40,89 @@ async function showPreview(path: string) {
   togglePreview(path, true);
 }
 
+/** Open In › Browser: the default browser, the built-in preview (HTML), then the active browsers. */
 function browserMenu(path: string): MenuItem {
-  const html = isHtmlPath(path);
   return {
     label: "Browser",
     icon: "web",
     submenu: [
-      { kind: "action", action: "web.openInBrowser", arg: { path }, label: "Default Browser" },
+      { kind: "action", action: "web.openInBrowser", arg: { path }, label: "Default" },
       { kind: "separator" },
-      ...(html ? [{ label: "Built-in Preview", icon: "eye", run: () => void showPreview(path) }] : []),
-      ...useBrowsers.getState().list.map((b): MenuItem => ({
+      ...(isHtmlPath(path) ? [{ label: "Built-in Preview", icon: "eye", run: () => void showPreview(path) }] : []),
+      ...activeBrowsers(webBrowserPrefs()).map((b): MenuItem => ({
         label: b.name,
         verbatim: true,
-        icon: browserIcon(b.id),
+        icon: browserIcon(b),
         run: () => void openInBrowser(path, b.id),
       })),
     ],
   };
 }
 
+export function activateSettingsPages(): () => void {
+  return registerSettingsPage({
+    id: SETTINGS_PAGE,
+    title: "Web Browsers and Preview",
+    group: "Tools",
+    order: 603,
+    keywords: [
+      "browser",
+      "chrome",
+      "firefox",
+      "safari",
+      "edge",
+      "opera",
+      "default browser",
+      "browser popup",
+      "reload",
+      "live reload",
+      "preview",
+      "built-in server",
+      "port",
+      "63342",
+      "external connections",
+      "unsigned requests",
+    ],
+    component: lazyComponent(() => import("./WebBrowsersSettingsPage").then((m) => m.WebBrowsersSettingsPage)),
+  });
+}
+
+const SAVE_DELAY = 300;
+
+/**
+ * "Reload page: On change": a document a page reloading on change loaded is saved as it is
+ * edited (IDEA saves it on every change), so the page reloads with the edit.
+ */
+const saveOnChange = (ctx: { doc: number; path: string; virtual?: boolean }) => {
+  if (ctx.virtual || ctx.doc < 0 || !isTauri()) return [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return EditorView.updateListener.of((u) => {
+    if (!u.docChanged) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      void (async () => {
+        if (!(await commands.webTrackedOnChange(ctx.path))) return;
+        await whenSynced(u.view);
+        await call(commands.docSave(ctx.doc));
+      })().catch((e: unknown) => console.warn("web: save on change", e));
+    }, SAVE_DELAY);
+  });
+};
+
 export function activate(): () => void {
-  void loadBrowsers();
   const disposers = [
+    activateSettingsPages(),
     registerTextEditorWrapper({
       id: "web.html",
-      matches: isHtmlPath,
+      matches: (path) => isHtmlPath(path) || isXmlPath(path),
       component: lazyComponent(() => import("./WebEditor").then((m) => m.WebEditor)),
     }),
+    registerEditorContribution({ id: "web.saveOnChange", order: 200, extensions: saveOnChange }),
     registerActions([
       {
         id: "web.openInBrowser",
         title: "Open in Browser",
-        description: "Open the HTML or SVG file in the default browser through the built-in server",
+        description: "Open the HTML, XML or SVG file in the default browser through the built-in server",
         category: "View",
         icon: "web",
         when: "projectOpen",

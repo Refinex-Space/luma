@@ -890,12 +890,29 @@ export const commands = {
 	 *  with paths mapped into this project.
 	 */
 	coverageImport: (path: IpcPath) => typedError<CoverageSuite, IdeError>(__TAURI_INVOKE("coverage_import", { path })),
-	/**  The browsers installed on this machine. */
-	webBrowsers: () => typedError<Browser[], IdeError>(__TAURI_INVOKE("web_browsers")),
-	/**  The built-in server's URL for `path` (started on first use). */
-	webUrl: (path: IpcPath) => typedError<string, IdeError>(__TAURI_INVOKE("web_url", { path })),
-	/**  Opens `url` in `browser` (an id from `web_browsers`), or the default browser. */
+	/**
+	 *  The built-in server's URL for `path` (started on first use, with the current Built-in
+	 *  Server settings). A reload mode asks for the live reload script.
+	 */
+	webUrl: (path: IpcPath, reload: "disabled" | 
+/**  When a file the page loaded is saved. */
+"onSave" | 
+/**  As files the page loaded are edited: they are saved on every change. */
+"onChange" | null) => typedError<string, IdeError>(__TAURI_INVOKE("web_url", { path, reload })),
+	/**
+	 *  Opens `url` in browser `browser` (an id of the list), or in the default browser: the one
+	 *  chosen in the settings, else the system default.
+	 */
 	webOpen: (url: string, browser: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("web_open", { url, browser })),
+	/**  Whether a page reloading on change loaded `path` (its editor saves as it is edited). */
+	webTrackedOnChange: (path: IpcPath) => __TAURI_INVOKE<boolean>("web_tracked_on_change", { path }),
+	/**  The Firefox profiles of `profiles_ini` (or of the default `profiles.ini`). */
+	webFirefoxProfiles: (profilesIni: string | null) => typedError<FirefoxProfiles, IdeError>(__TAURI_INVOKE("web_firefox_profiles", { profilesIni })),
+	/**
+	 *  Chrome's user data directory when "Use custom user data directory" has none (IDEA keeps
+	 *  it in its configuration directory).
+	 */
+	webChromeUserDataDir: () => __TAURI_INVOKE<string>("web_chrome_user_data_dir"),
 	/**  How to run `config` under a sampling profiler, or which profiler is missing. */
 	profilerPrepare: (config: RunConfig_Deserialize) => typedError<ProfilePrepared_Serialize, IdeError>(__TAURI_INVOKE("profiler_prepare", { config })),
 	/**  Reads the profile a profiled run left behind. */
@@ -1710,11 +1727,20 @@ export type BreakpointState = {
 	message: string | null,
 };
 
-/**  An installed browser. */
-export type Browser = {
-	/**  `chrome`, `firefox`, `safari`, `edge`, `brave`, `chromium`. */
-	id: string,
-	name: string,
+/**  What a browser understands (its command-line options and profiles). */
+export type BrowserFamily = "chrome" | "firefox" | "safari";
+
+/**  Family-specific launch options (IDEA's `ChromeSettings` / `FirefoxSettings`). */
+export type BrowserSpecificSettings = {
+	/**  Chrome: extra command-line options, shell-quoted. */
+	commandLineOptions?: string,
+	/**  Chrome: start with `--user-data-dir=<user_data_dir>`. */
+	useCustomProfile?: boolean,
+	userDataDir?: string,
+	/**  Firefox: `profiles.ini`; empty: the platform's default location. */
+	profilesIniPath?: string,
+	/**  Firefox: the profile to start with (`-P`); empty: the default profile. */
+	profile?: string,
 };
 
 export type BuildEvent = 
@@ -1776,6 +1802,15 @@ export type BuildResult = {
 export type BuildSystem = "maven" | "gradle" | "cargo" | "go" | "typescript";
 
 export type BuildTool = "maven" | "gradle";
+
+/**  The built-in server (IDEA's `BuiltInServerOptions`). */
+export type BuiltInServerSettings = {
+	port?: number,
+	/**  Listen on every interface. Only for a port below the default one, as in IDEA. */
+	availableExternally?: boolean,
+	/**  Serve `/<project>/<path>` without the per-run token. */
+	allowUnsignedRequests?: boolean,
+};
 
 /**  A slice of a file: `data` is base64; `total` is the file size. */
 export type ByteRange = {
@@ -2157,6 +2192,33 @@ export type CompletionSettings = {
 export type ComposeOp = "start" | "stop" | "restart" | 
 /**  Stops and removes the project's containers and networks. */
 "down";
+
+/**  A browser of the list. */
+export type ConfiguredBrowser = ConfiguredBrowser_Serialize | ConfiguredBrowser_Deserialize;
+
+/**  A browser of the list. */
+export type ConfiguredBrowser_Deserialize = {
+	id?: string,
+	name?: string,
+	family?: BrowserFamily | null,
+	/**  An executable, or on macOS an application name; empty: the browser cannot start. */
+	path?: string,
+	/**  Listed in Open In › Browser and the editor's browser popup. */
+	active?: boolean,
+	settings?: BrowserSpecificSettings,
+};
+
+/**  A browser of the list. */
+export type ConfiguredBrowser_Serialize = {
+	id: string,
+	name: string,
+	family?: BrowserFamily | null,
+	/**  An executable, or on macOS an application name; empty: the browser cannot start. */
+	path: string,
+	/**  Listed in Open In › Browser and the editor's browser popup. */
+	active: boolean,
+	settings: BrowserSpecificSettings,
+};
 
 /**  Build, Execution, Deployment › Console. */
 export type ConsoleSettings = {
@@ -3505,6 +3567,18 @@ export type FileTypeAssociation = {
 	removedPatterns?: string[],
 	/**  Interpreters run by a `#!` first line, e.g. `node` for `#!/usr/bin/env node`. */
 	hashbangs?: string[],
+};
+
+/**  A Firefox profile of `profiles.ini`. */
+export type FirefoxProfile = {
+	name: string,
+	default: boolean,
+};
+
+/**  The default `profiles.ini` and the profiles of `ini` (or of the default one). */
+export type FirefoxProfiles = {
+	defaultIniPath: string | null,
+	profiles: FirefoxProfile[],
 };
 
 export type FoldKind = "region" | "comment" | "imports";
@@ -5742,6 +5816,13 @@ export type RegistryDistribution =
 /**  A Python package run by uv. */
 "uvx";
 
+/**  When a page served by the built-in server reloads (IDEA's `ReloadMode`). */
+export type ReloadMode = "disabled" | 
+/**  When a file the page loaded is saved. */
+"onSave" | 
+/**  As files the page loaded are edited: they are saved on every change. */
+"onChange";
+
 export type Remote = {
 	name: string,
 	/**  Fetch URL. */
@@ -6289,6 +6370,10 @@ export type Settings_Deserialize = {
 	/**  Build, Execution, Deployment › Run Targets. */
 	runTargets?: RunTarget[],
 	cmake?: CMakeSettings_Deserialize,
+	/**  Tools › Web Browsers and Preview (global only). */
+	webBrowsers?: WebBrowserSettings_Deserialize,
+	/**  Tools › Web Browsers and Preview › Built-in Server (global only). */
+	builtInServer?: BuiltInServerSettings,
 };
 
 export type Settings_Serialize = {
@@ -6351,6 +6436,10 @@ export type Settings_Serialize = {
 	/**  Build, Execution, Deployment › Run Targets. */
 	runTargets: RunTarget[],
 	cmake: CMakeSettings_Serialize,
+	/**  Tools › Web Browsers and Preview (global only). */
+	webBrowsers: WebBrowserSettings_Serialize,
+	/**  Tools › Web Browsers and Preview › Built-in Server (global only). */
+	builtInServer: BuiltInServerSettings,
 };
 
 export type Severity = "error" | "warning" | "info" | "hint";
@@ -7137,6 +7226,36 @@ export type WebArtifact = {
 	name: string,
 	module: string,
 	tool: string,
+};
+
+export type WebBrowserSettings = WebBrowserSettings_Serialize | WebBrowserSettings_Deserialize;
+
+export type WebBrowserSettings_Deserialize = {
+	browsers?: ConfiguredBrowser_Deserialize[],
+	/**  The id of an active browser with a path; empty: the system default browser. */
+	defaultBrowser?: string,
+	/**  The editor's browser popup on HTML files. */
+	showHover?: boolean,
+	/**  The editor's browser popup on XML files. */
+	showHoverXml?: boolean,
+	/**  Pages opened in a browser. */
+	serverReloadMode?: ReloadMode,
+	/**  The built-in preview. */
+	previewReloadMode?: ReloadMode,
+};
+
+export type WebBrowserSettings_Serialize = {
+	browsers: ConfiguredBrowser_Serialize[],
+	/**  The id of an active browser with a path; empty: the system default browser. */
+	defaultBrowser: string,
+	/**  The editor's browser popup on HTML files. */
+	showHover: boolean,
+	/**  The editor's browser popup on XML files. */
+	showHoverXml: boolean,
+	/**  Pages opened in a browser. */
+	serverReloadMode: ReloadMode,
+	/**  The built-in preview. */
+	previewReloadMode: ReloadMode,
 };
 
 /**

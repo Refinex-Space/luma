@@ -12,6 +12,9 @@ pub use crate::lombok::LombokSettings;
 pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
 pub use crate::sonar::{SonarLintSettings, SonarRuleSetting};
+pub use crate::web_browsers::{
+    BrowserFamily, BrowserSpecificSettings, BuiltInServerSettings, ConfiguredBrowser, ReloadMode, WebBrowserSettings,
+};
 pub use crate::workflow_settings::*;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -68,6 +71,10 @@ pub struct Settings {
     /// Build, Execution, Deployment › Run Targets.
     pub run_targets: Vec<RunTarget>,
     pub cmake: CMakeSettings,
+    /// Tools › Web Browsers and Preview (global only).
+    pub web_browsers: WebBrowserSettings,
+    /// Tools › Web Browsers and Preview › Built-in Server (global only).
+    pub built_in_server: BuiltInServerSettings,
 }
 
 /// Absent profiles retain automatic discovery for existing projects.
@@ -204,6 +211,8 @@ impl Default for Settings {
             deployment: DeploymentSettings::default(),
             run_targets: Vec::new(),
             cmake: CMakeSettings::default(),
+            web_browsers: WebBrowserSettings::default(),
+            built_in_server: BuiltInServerSettings::default(),
         }
     }
 }
