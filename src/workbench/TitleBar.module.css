@@ -205,29 +205,6 @@
   color: var(--fg-caption-close-hover);
 }
 
-/* Layout controls: side panels, the agent panel, the layout menu. */
-.layoutGroup {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 2px 0 6px;
-  padding-left: 8px;
-  border-left: 1px solid var(--border);
-}
-/* Open or closed shows in the drawing: no selected background, only the hover one. */
-.panelToggle.panelToggle[aria-pressed] {
-  background: none;
-  color: var(--fg-secondary);
-}
-.panelToggle.panelToggle[aria-pressed]:not(:disabled):hover {
-  background: var(--bg-toolbar-hover);
-  color: var(--fg-strong);
-}
-.panelToggleGroup {
-  width: 26px;
-  height: 22px;
-  border-radius: calc(var(--radius-control) - 2px);
-}
 /* Find in Files, centred on the window rather than on the space between the widgets. */
 .findField {
   position: absolute;

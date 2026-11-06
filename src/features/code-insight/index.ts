@@ -68,6 +68,7 @@ export function activate(): () => void {
       title: "Problems",
       icon: "toolwindow-problems",
       anchor: "bottom",
+      secondary: true,
       order: 30,
       component: ProblemsView,
       headerContent: ProblemsTabs,

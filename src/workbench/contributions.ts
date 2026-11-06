@@ -32,7 +32,7 @@ export interface ToolWindowContribution {
   /** Icon name from `ui/icons`. */
   icon: string;
   anchor: ToolWindowAnchor;
-  /** Order among its area's tabs; lower first. */
+  /** Order among its area's buttons on the tool window bar; lower first. */
   order?: number;
   /**
    * Docks in the side's split area (IDEA `secondary` / `isSplit`): Left Bottom,
@@ -43,8 +43,8 @@ export interface ToolWindowContribution {
   /** Extra header controls, right-aligned (shown on hover like IDEA). */
   headerActions?: ComponentType<{ id: string }>;
   /**
-   * Content tabs rendered inline right after the window's tab (Terminal "Local × + ▾",
-   * Run sessions…).
+   * Content tabs rendered in the header right after the title (Terminal "Local × + ▾",
+   * Run sessions…). The header then gets a bottom divider.
    */
   headerContent?: ComponentType<{ id: string }>;
   /**
@@ -52,11 +52,6 @@ export interface ToolWindowContribution {
    * A hook says so while the tabs are shown (Services: once it hosts a second view).
    */
   tabsReplaceTitle?: boolean | (() => boolean);
-  /**
-   * The title bar's layout group gets a hidden / docked / maximized control for this window
-   * (the agent panel).
-   */
-  panelControl?: boolean;
   /**
    * Window-specific entries of the header's "⋮" options menu, shown above the
    * generic ones (Move to, Maximize, Hide). Either static items or a React
@@ -75,20 +70,20 @@ export interface ToolWindowContribution {
   /** Only shown when a project is open (default true). */
   requiresProject?: boolean;
   /**
-   * Whether the window is one of its area's tabs before the user decides (IDEA's stripe button):
-   * "shown", or "onUse" — listed in the area's Tools menu until first opened (Find, Run…).
+   * Whether the tool window bar has a button for the window before the user decides (IDEA):
+   * "shown", or "onUse" — listed under the bar's "⋯" until first opened (Find, Run…).
    */
   stripe?: "shown" | "onUse";
   /**
-   * A React hook giving the window's state at a glance for its status bar launcher button: a
-   * count (Problems) or a live tone (a process running, a debuggee paused).
+   * A React hook giving the window's state at a glance on its bar button: a count (Problems) or
+   * a tone (a process running, a debuggee paused, something new to read).
    */
   useBadge?: () => ToolWindowBadge | null;
 }
 
 export interface ToolWindowBadge {
   count?: number;
-  tone?: "running" | "paused" | "error";
+  tone?: "running" | "paused" | "error" | "new";
   /** Spoken with the window's title, e.g. "3 errors". */
   label?: string;
 }

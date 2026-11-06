@@ -1,6 +1,7 @@
 /**
- * Title bar layout controls: the side panel toggles, the agent panel's toggle, the layout menu and the find-in-files field centred on the window. They
- * replace the tool window stripes as the way to open and close areas.
+ * Title bar layout controls: the layout menu and the Find in Files field centred on the window.
+ * Tool windows open from the tool window bars on the window's edges; whole sides open and close
+ * from the layout menu and their shortcuts.
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
@@ -10,62 +11,8 @@ import { call, commands, isTauri } from "@/platform/ipc";
 import { shortcutLabel } from "@/platform/keymap";
 import { useProject } from "@/platform/project";
 import { Icon, IconButton, Menu, type MenuItem } from "@/ui";
-import type { ToolWindowAnchor } from "./contributions";
-import { useToolWindows } from "./toolwindows/ToolWindows";
-import { hideToolWindow, showToolWindow, useToolWindowLayout } from "./toolwindows/store";
+import { setShowToolWindowBars } from "./toolwindows/Stripes";
 import styles from "./TitleBar.module.css";
-
-const SIDE_ACTION: Record<ToolWindowAnchor, string> = {
-  left: "toolwindow.toggleLeftSide",
-  bottom: "toolwindow.toggleBottomSide",
-  right: "toolwindow.toggleRightSide",
-};
-
-/**
- * Opens or closes a side's tool windows. The drawing tells the state, so the button keeps no
- * selected background (that shows on hover alone): open, the panel's own edge is drawn solid;
- * closed, the far edge is (the left toggle's matches the agent panel's docked drawing).
- * `tool` sizes it like the title bar's other tool buttons; otherwise it matches the layout group.
- */
-export function PanelToggle({ side, tool = false }: { side: ToolWindowAnchor; tool?: boolean }) {
-  const shown = useToolWindowLayout((s) => !!(s.visible[side] || s.visible[`${side}-split`]));
-  const compact = useProject((s) => s.settings?.appearance?.compactMode === true);
-  return (
-    <IconButton
-      icon={shown ? `panel-${side}` : `panel-${side}-off`}
-      action={SIDE_ACTION[side]}
-      pressed={shown}
-      iconSize={tool && !compact ? 18 : 16}
-      className={clsx(styles.panelToggle, tool ? styles.tool : styles.panelToggleGroup)}
-    />
-  );
-}
-
-/**
- * The agent panel (the window asking for a panel control) on and off: one click opens it beside
- * the editor, the next closes it. Drawn like the side toggles. (Growing it is the window's own
- * Maximize, in its ⋮ menu and on its shortcut.)
- */
-export function AgentPanelToggle() {
-  const tw = useToolWindows().find((w) => w.panelControl);
-  const shown = useToolWindowLayout((s) => {
-    if (!tw) return false;
-    const slot = tw.secondary ? (`${tw.anchor}-split` as const) : tw.anchor;
-    return s.visible[slot] === tw.id;
-  });
-  if (!tw) return null;
-  return (
-    <IconButton
-      icon={shown ? `panel-${tw.anchor}` : `panel-${tw.anchor}-off`}
-      title={tw.title}
-      shortcut={shortcutLabel(`toolwindow.${tw.id}`)}
-      pressed={shown}
-      iconSize={16}
-      className={clsx(styles.panelToggle, styles.panelToggleGroup)}
-      onClick={() => (shown ? hideToolWindow(tw.id) : showToolWindow(tw.id, true))}
-    />
-  );
-}
 
 async function toggleWidescreen() {
   const on = useProject.getState().settings?.appearance?.widescreenToolWindows === true;
@@ -74,17 +21,26 @@ async function toggleWidescreen() {
   useProject.setState({ settings });
 }
 
-/** Panels, saved layouts, widescreen: everything about the window's arrangement in one menu. */
+/** Panels, bars, saved layouts, widescreen: everything about the window's arrangement in one menu. */
 export function LayoutMenuButton() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  const widescreen = useProject((s) => s.settings?.appearance?.widescreenToolWindows === true);
+  const appearance = useProject((s) => s.settings?.appearance);
+  const widescreen = appearance?.widescreenToolWindows === true;
+  const bars = appearance?.showToolWindowBars !== false;
+  const iconSize = appearance?.compactMode === true ? 16 : 18;
   const items: MenuItem[] = [
-    { kind: "action", action: SIDE_ACTION.left },
-    { kind: "action", action: SIDE_ACTION.bottom },
-    { kind: "action", action: SIDE_ACTION.right },
+    { kind: "action", action: "toolwindow.toggleLeftSide" },
+    { kind: "action", action: "toolwindow.toggleBottomSide" },
+    { kind: "action", action: "toolwindow.toggleRightSide" },
     { kind: "separator" },
     { kind: "action", action: "toolwindow.hideAll" },
+    {
+      id: "layout.bars",
+      label: "Show Tool Window Bars",
+      checked: bars,
+      run: () => void setShowToolWindowBars(!bars),
+    },
     {
       id: "layout.widescreen",
       label: "Widescreen tool window layout",
@@ -100,10 +56,10 @@ export function LayoutMenuButton() {
     <>
       <IconButton
         ref={ref}
-        icon="more"
+        icon="layout"
         title="Layout"
-        size="small"
-        iconSize={16}
+        iconSize={iconSize}
+        className={styles.tool}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}

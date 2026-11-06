@@ -29,6 +29,7 @@ export function activate(): () => void {
       title: "TODO",
       icon: hasIcon("toolwindow-todo") ? "toolwindow-todo" : "list",
       anchor: "bottom",
+      secondary: true,
       order: 40,
       component: TodoView,
       headerContent: TodoTabs,

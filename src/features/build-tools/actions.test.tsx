@@ -57,7 +57,7 @@ describe("build tools feature", () => {
     expect(toolWindows()).not.toContain("maven");
     act(() => useBuild.setState({ root: "/p", model: mavenModel }));
     const tw = useContributions.getState().toolWindows.get("maven");
-    expect(tw).toMatchObject({ title: "Maven", icon: "toolwindow-maven", anchor: "left", secondary: true });
+    expect(tw).toMatchObject({ title: "Maven", icon: "toolwindow-maven", anchor: "right" });
     expect(tw?.stripe).toBeUndefined();
     expect(getContext()["build.maven"]).toBe(true);
     expect(toolWindows()).not.toContain("gradle");

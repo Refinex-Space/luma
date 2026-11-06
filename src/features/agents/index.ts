@@ -16,6 +16,7 @@ import {
   registerTitleItem,
   registerToolWindow,
   toolWindowService,
+  type ToolWindowBadge,
 } from "@/workbench/contributions";
 import { AgentsStatus } from "./AgentsStatus";
 import { HOME_KIND, REGISTRY_PAGE, SESSION_KIND, TASK_DRAG, TOOL_WINDOW } from "./model";
@@ -47,6 +48,12 @@ export function activateSettingsPages(): () => void {
   return () => disposers.reverse().forEach((d) => d());
 }
 
+/** The bar button's dot: a task replied, changed state or waits for an answer. */
+function useAgentsBadge(): ToolWindowBadge | null {
+  const attention = useAgents((s) => s.unread.size > 0 || [...s.tasks.values()].some((t) => t.status === "needsInput"));
+  return attention ? { tone: "new" } : null;
+}
+
 export function activate(): () => void {
   const sync = (root: string | null | undefined) => {
     disconnect();
@@ -70,7 +77,7 @@ export function activate(): () => void {
       headerActions: lazyComponent(() => import("./AgentsView").then((m) => m.AgentsHeaderActions)),
       headerMenu: useAgentsHeaderMenu,
       headerMenuInTitle: false,
-      panelControl: true,
+      useBadge: useAgentsBadge,
     }),
     registerEditorKind({
       kind: SESSION_KIND,

@@ -209,12 +209,12 @@ describe("distraction free shell", () => {
     const { unmount } = render(<Workbench />);
     expect(await screen.findByText("df-demo")).toBeInTheDocument();
     expect(screen.getByText("status-x")).toBeInTheDocument();
-    expect(screen.getByRole("tablist", { name: "Left Top" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Left tool windows" })).toBeInTheDocument();
 
     act(() => setDistractionFree(true));
     expect(screen.queryByText("df-demo")).toBeNull();
     expect(screen.queryByText("status-x")).toBeNull();
-    expect(screen.queryByRole("tablist", { name: "Left Top" })).toBeNull();
+    expect(screen.queryByRole("toolbar", { name: "Left tool windows" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Search Everywhere" })).toBeNull();
     const bar = document.querySelector("header[data-titlebar='bare']");
     expect(bar).toHaveAttribute("data-tauri-drag-region");

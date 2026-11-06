@@ -5,7 +5,6 @@ import { useContributions, useStatusInfo, type StatusItemContribution } from "./
 import { ErrorBoundary } from "./ErrorBoundary";
 import { isStatusItemVisible, statusBarMenu, useStatusWidgetOverrides } from "./statusBarWidgets";
 import { cancelTask, canCancel, useTasks, type BackgroundTask } from "./tasks";
-import { LAUNCHER_ID } from "./toolwindows/Launcher";
 import styles from "./StatusBar.module.css";
 import { tx } from "@/platform/i18n";
 
@@ -35,7 +34,7 @@ export function StatusBar({ lightEdit = false }: { lightEdit?: boolean }) {
   const visible = (i: StatusItemContribution) => isStatusItemVisible(i, overrides);
   const render = (item: StatusItemContribution) => {
     const C = item.component;
-    const shrink = (item.align === "left" && item.id !== LAUNCHER_ID) || item.id === "workbench.tasks";
+    const shrink = item.align === "left" || item.id === "workbench.tasks";
     return (
       <div key={item.id} className={clsx(styles.item, shrink && styles.shrink)} data-status-item={item.id}>
         <ErrorBoundary name={`status item ${item.id}`}>

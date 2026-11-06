@@ -184,7 +184,7 @@ export function activate(): () => void {
       title: "Git",
       icon: "toolwindow-git",
       anchor: "bottom",
-      order: 5,
+      order: 1,
       component: lazyComponent(() => import("./GitLog").then((m) => m.GitToolWindow)),
       headerContent: lazyComponent(() => import("./GitLog").then((m) => m.GitTabs)),
     }),

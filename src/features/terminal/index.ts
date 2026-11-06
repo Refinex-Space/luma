@@ -48,7 +48,9 @@ export function activate(): () => void {
       id: WINDOW,
       title: "Terminal",
       icon: "toolwindow-terminal",
+      // Bottom Right: beside Run / Debug output in Bottom Left.
       anchor: "bottom",
+      secondary: true,
       order: 10,
       component: lazyComponent(() => loadTerminalRuntime().then((rt) => rt.TerminalView)),
       headerContent: lazyComponent(() => loadTerminalRuntime().then((rt) => rt.TerminalTabs)),

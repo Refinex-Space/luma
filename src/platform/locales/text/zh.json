@@ -2209,10 +2209,7 @@
   "Tool Settings": "工具设置",
   "Tool Windows": "工具窗口",
   "Layout": "布局",
-  "Bottom tool windows": "底部工具窗口",
   "Find in {name}": "在 {name} 中查找",
-  "Move Here": "移到这里",
-  "Remove from Panel": "从面板移除",
   "Hides the side's tool windows, or opens again the ones it showed last.": "隐藏这一侧的工具窗口，或重新打开它上次显示的工具窗口。",
   "Tool windows": "工具窗口",
   "Toolchain": "工具链",
@@ -6570,5 +6567,13 @@
   "Generated members in completion, navigation and errors": "生成的成员参与补全、导航和错误检查",
   "lombok.config completion, documentation and checks": "lombok.config 补全、文档和检查",
   "Refactor › Lombok and Refactor › Delombok": "重构 › Lombok 与重构 › Delombok",
-  "Bundled with Luma (Lombok 1.18.48 for the Java language server); nothing to download": "随 Luma 内置（供 Java 语言服务器使用的 Lombok 1.18.48）；无需下载"
+  "Bundled with Luma (Lombok 1.18.48 for the Java language server); nothing to download": "随 Luma 内置（供 Java 语言服务器使用的 Lombok 1.18.48）；无需下载",
+  "Show tool window bars": "显示工具窗口栏",
+  "Show tool window names": "显示工具窗口名称",
+  "Show Tool Window Bars": "显示工具窗口栏",
+  "Hide from Bar": "从工具栏移除",
+  "Show Tool Window Names": "显示工具窗口名称",
+  "More Tool Windows": "更多工具窗口",
+  "Left tool windows": "左侧工具窗口",
+  "Right tool windows": "右侧工具窗口"
 }

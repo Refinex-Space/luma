@@ -48,17 +48,43 @@ const DEFAULT_VISIBLE: SlotRecord = { ...NONE, left: "project" };
 const STORAGE_PREFIX = "luma.layout.v1:";
 /**
  * Stored layout format: 1 = one area per side (no `v` field), 2 = primary + split areas,
- * 3 = Services back at the bottom (see `HOMECOMING`).
+ * 3 = Services back at the bottom (see `HOMECOMING`), 4 = the tool window bars' default areas
+ * (see `REDEFAULTED`).
  */
-const LAYOUT_VERSION = 3;
+const LAYOUT_VERSION = 4;
 /**
  * Windows sent back to their contributed area once, when loading a layout older than the
  * version: the place they had moved to served them badly. Services on a side panel squeezes
  * its consoles into a sliver; like IDEA, it belongs at the bottom.
  */
 const HOMECOMING: ReadonlyArray<{ version: number; ids: readonly string[] }> = [{ version: 3, ids: ["services"] }];
+/**
+ * Windows whose default area changed in a version, with the side they docked on before. A
+ * placement of theirs from an older layout that the user never chose (no `split`: written when
+ * a drop elsewhere on that side renumbered them) is dropped, so they take their new area; one
+ * the user moved them to stays. Version 4 arranged the tool window bars: Structure under
+ * Project, Database and the build tools on the right, Notifications under Agents, Terminal,
+ * Problems and TODO beside the Run output.
+ */
+const REDEFAULTED: ReadonlyArray<{ version: number; from: Readonly<Record<string, ToolWindowAnchor>> }> = [
+  {
+    version: 4,
+    from: {
+      structure: "left",
+      database: "left",
+      maven: "left",
+      gradle: "left",
+      coverage: "left",
+      remoteHost: "left",
+      notifications: "right",
+      terminal: "bottom",
+      problems: "bottom",
+      todo: "bottom",
+    },
+  },
+];
 
-/** User placement of a tool window (dragged on the stripes / "Move To"), overriding the contribution. */
+/** User placement of a tool window (dragged on the bars / "Move To"), overriding the contribution. */
 export interface ToolWindowPlacement {
   anchor: ToolWindowAnchor;
   /** Split area; unset: the contribution's `secondary` when on its own side, else primary. */
@@ -279,11 +305,13 @@ export function sanitizePlacements(raw: unknown, version = LAYOUT_VERSION): Reco
   const out: Record<string, ToolWindowPlacement> = {};
   if (!raw || typeof raw !== "object") return out;
   const home = new Set(HOMECOMING.filter((h) => version < h.version).flatMap((h) => h.ids));
+  const redefaulted = new Map(REDEFAULTED.filter((r) => version < r.version).flatMap((r) => Object.entries(r.from)));
   for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
     if (home.has(id)) continue;
     const p = v as { anchor?: unknown; split?: unknown; secondary?: unknown; order?: unknown } | null;
     if (!p || !ANCHORS.includes(p.anchor as ToolWindowAnchor)) continue;
     const anchor = p.anchor as ToolWindowAnchor;
+    if (redefaulted.get(id) === anchor && typeof p.split !== "boolean") continue;
     const split =
       version >= 2
         ? typeof p.split === "boolean"
@@ -627,6 +655,8 @@ export const toolWindowServiceImpl: ToolWindowService = {
 
 /** What Window › Tool Window Layouts saves and restores. */
 export interface ToolWindowLayoutSnapshot {
+  /** Stored layout format (absent in layouts saved before version 4). */
+  v?: number;
   visible: SlotRecord;
   sizes: Record<ToolWindowAnchor, number>;
   splits: Record<ToolWindowAnchor, number>;
@@ -637,6 +667,7 @@ export interface ToolWindowLayoutSnapshot {
 export function toolWindowLayoutSnapshot(): ToolWindowLayoutSnapshot {
   const s = useToolWindowLayout.getState();
   return {
+    v: LAYOUT_VERSION,
     visible: { ...(s.distractionFreeStash ?? s.visible) },
     sizes: { ...s.sizes },
     splits: { ...s.splits },
@@ -648,11 +679,14 @@ export function toolWindowLayoutSnapshot(): ToolWindowLayoutSnapshot {
 /** Validates a stored snapshot (unknown shape: from storage). */
 export function sanitizeLayoutSnapshot(raw: unknown): ToolWindowLayoutSnapshot {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  // Saved layouts carry their format since version 4; older ones are version 3.
+  const version = typeof r.v === "number" ? r.v : 3;
   return {
+    v: LAYOUT_VERSION,
     visible: sanitizeVisible(r.visible),
     sizes: sanitizeSizes(r.sizes),
     splits: sanitizeSplits(r.splits),
-    placements: sanitizePlacements(r.placements),
+    placements: sanitizePlacements(r.placements, version),
     stripeButtons: sanitizeStripeButtons(r.stripeButtons),
   };
 }

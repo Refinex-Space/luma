@@ -94,18 +94,18 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
               id: "maven",
               title: "Maven",
               icon: "toolwindow-maven",
-              anchor: "left",
-              secondary: true,
-              order: 10,
+              // Right Top with the other trees looked up now and then (Database).
+              anchor: "right",
+              order: 30,
               component: MavenView,
             })
           : registerToolWindow({
               id: "gradle",
               title: "Gradle",
               icon: "toolwindow-gradle",
-              anchor: "left",
-              secondary: true,
-              order: 11,
+              // Right Top with the other trees looked up now and then (Database).
+              anchor: "right",
+              order: 31,
               component: GradleView,
             });
     } else if (!has[tool] && registered[tool]) {

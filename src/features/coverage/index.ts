@@ -20,7 +20,7 @@ export function activate(): () => void {
       id: "coverage",
       title: "Coverage",
       icon: "toolwindow-coverage",
-      anchor: "left",
+      anchor: "right",
       secondary: true,
       stripe: "onUse",
       order: 30,

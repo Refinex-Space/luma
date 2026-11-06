@@ -312,7 +312,7 @@ describe("split areas", () => {
     expect(useToolWindowLayout.getState().sizes.left).toBe(300);
     showToolWindow("project");
     expect(JSON.parse(localStorage.getItem("luma.layout.v1:/work/old")!)).toMatchObject({
-      v: 3,
+      v: 4,
       visible: { left: "project", "left-split": "bookmarks", "right-split": "terminal" },
     });
   });
@@ -337,6 +337,37 @@ describe("split areas", () => {
     localStorage.setItem("luma.layout.v1:/work/side", saved(3));
     loadToolWindowLayout("/work/side");
     expect(slotOfId("services")).toBe("left");
+  });
+
+  it("gives windows the bars rearranged their new area, unless the user moved them", () => {
+    disposers.push(
+      registerToolWindow({ id: "database", title: "Database", icon: "x", anchor: "right", component: Empty }),
+      registerToolWindow({ id: "todo", title: "TODO", icon: "x", anchor: "bottom", secondary: true, component: Empty }),
+    );
+    localStorage.setItem(
+      "luma.layout.v1:/work/bars",
+      JSON.stringify({
+        v: 3,
+        visible: { "left-split": "database" },
+        placements: {
+          // Renumbered by a drop on the left: never chosen.
+          database: { anchor: "left", order: 20 },
+          // Moved by the user: kept.
+          todo: { anchor: "left", split: true, order: 10 },
+        },
+      }),
+    );
+    loadToolWindowLayout("/work/bars");
+    expect(slotOfId("database")).toBe("right");
+    expect(useToolWindowLayout.getState().visible).toMatchObject({ "left-split": null, right: "database" });
+    expect(slotOfId("todo")).toBe("left-split");
+    // Saved at version 4, a placement on the old side is the user's.
+    localStorage.setItem(
+      "luma.layout.v1:/work/bars",
+      JSON.stringify({ v: 4, placements: { database: { anchor: "left", order: 20 } } }),
+    );
+    loadToolWindowLayout("/work/bars");
+    expect(slotOfId("database")).toBe("left");
   });
 
   it("moves a late-registered window recorded in the wrong area to its own", () => {

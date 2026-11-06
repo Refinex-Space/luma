@@ -12,6 +12,7 @@ import {
   useNotifications,
   type IdeNotification,
 } from "./notificationStore";
+import type { ToolWindowBadge } from "./contributions";
 import { useToolWindowLayout } from "./toolwindows/store";
 import styles from "./Notifications.module.css";
 
@@ -106,11 +107,20 @@ export function Balloons() {
 
 export const NOTIFICATIONS_TOOL_WINDOW = "notifications";
 
+/** The bar button's dot: notifications logged and not seen yet (red when one is an error). */
+export function useNotificationsBadge(): ToolWindowBadge | null {
+  const tone = useNotifications((s) => {
+    const unread = s.items.filter((n) => n.logged && !n.read && !n.balloon);
+    return unread.length ? (unread.some((n) => n.level === "error") ? "error" : "new") : null;
+  });
+  return tone ? { tone } : null;
+}
+
 function useListVisible() {
   return useToolWindowLayout((s) => Object.values(s.visible).includes(NOTIFICATIONS_TOOL_WINDOW));
 }
 
-/** The Notifications tool window (right stripe, as in IDEA): history, newest first. */
+/** The Notifications tool window (Right Bottom, under Agents): history, newest first. */
 export function NotificationsToolWindow() {
   const txt = useTxTemplate();
   const all = useNotifications((s) => s.items);

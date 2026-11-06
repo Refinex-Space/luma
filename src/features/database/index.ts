@@ -67,8 +67,8 @@ export function activate(): () => void {
       id: DB_TOOL_WINDOW,
       title: "Database",
       icon: "toolwindow-database",
-      anchor: "left",
-      secondary: true,
+      // Right Top, as in IDEA: the left side stays with the code.
+      anchor: "right",
       order: 20,
       component: lazyComponent(() => import("./DatabaseView").then((m) => m.DatabaseView)),
       headerActions: lazyComponent(() => import("./DatabaseView").then((m) => m.DatabaseHeaderActions)),

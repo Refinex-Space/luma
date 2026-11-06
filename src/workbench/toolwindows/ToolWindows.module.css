@@ -5,6 +5,13 @@
   min-width: 0;
   padding: 0 var(--island-gap);
 }
+/* A bar takes the window-edge gap's place: its own padding keeps the islands off the edge. */
+.frameLeftBar {
+  padding-left: 0;
+}
+.frameRightBar {
+  padding-right: 0;
+}
 /*
  * Only the grid reads its track variables. Not inherited, so dragging a tool window
  * edge restyles the grid alone instead of every node in the workbench below it.
@@ -149,7 +156,224 @@
   inset: 2px 12px;
 }
 
-/* Stripes. Width is fixed: icon-only, or the named width from the setting. */
+/*
+ * Tool window bars. Width is fixed: icon-only (36px; 30px in compact mode), or the named width
+ * from "Show tool window names". Transparent: they sit on the window frame, so the project
+ * colour wash flows down from the title bar.
+ */
+.stripe {
+  --stripe-button: var(--stripe-icon-button, 28px);
+  --stripe-pad: var(--stripe-inset, var(--island-gap));
+  width: calc(var(--stripe-button) + 2 * var(--stripe-pad));
+  container-type: inline-size;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--stripe-pad) 6px;
+  background: transparent;
+  /* Short windows: scroll the buttons instead of clipping the last ones. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.stripe::-webkit-scrollbar {
+  display: none;
+}
+.stripeWithNames {
+  --stripe-button: var(--stripe-button-w, 56px);
+  --stripe-pad: 4px;
+}
+.stripeSpacer {
+  flex: 1 0 8px;
+}
+.stripeGroup {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: inherit;
+}
+/* While a button is dragged, an empty group shows where a drop would land. */
+.stripeGroupEmpty {
+  width: var(--stripe-icon-button, 28px);
+  min-height: 20px;
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: var(--stripe-button-radius);
+}
+.stripeWithNames .stripeGroupEmpty {
+  width: var(--stripe-button);
+}
+.stripeSlot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stripeSlot:empty {
+  display: none;
+}
+/* Between a bar's top and split groups: the boundary of the side's two areas. */
+.stripeSeparator {
+  flex: none;
+  width: 18px;
+  height: 1px;
+  margin: 1px 0;
+  background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+}
+.stripeButton {
+  position: relative;
+  flex: none;
+  width: var(--stripe-icon-button, 28px);
+  height: var(--stripe-icon-button, 28px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: var(--stripe-button-radius);
+  color: var(--fg-muted);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.stripeNamed {
+  width: var(--stripe-button);
+  height: auto;
+  min-height: var(--h-stripe-named, 44px);
+  padding: 6px 2px 5px;
+}
+.stripeWithNames .stripeMore {
+  width: var(--stripe-button);
+}
+.stripeButton:hover,
+.stripeButton[aria-expanded="true"] {
+  background: var(--bg-stripe-hover);
+  color: var(--fg-secondary);
+}
+.stripeActive,
+.stripeActive:hover {
+  background: var(--bg-stripe-selected);
+  color: var(--fg-emphasis);
+}
+.stripeFocused,
+.stripeFocused:hover {
+  background: var(--bg-stripe-selected-active);
+  color: var(--fg-stripe-selected-active);
+  --icon-color: currentColor;
+}
+.stripeButton:focus-visible {
+  outline-offset: -2px;
+}
+.stripeDragged {
+  opacity: 0.35;
+}
+.stripeGhost {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  pointer-events: none;
+  background: var(--bg-popup);
+  box-shadow: var(--shadow-popup);
+  opacity: 0.9;
+}
+/* Insertion line above the button a drop lands before (or below the group's last one). */
+.stripeDrop {
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.stripeSlot:last-child > .stripeDrop {
+  top: -2px;
+}
+.stripeIcon {
+  position: relative;
+  display: flex;
+}
+.stripeIcon svg {
+  width: var(--stripe-icon, 20px);
+  height: var(--stripe-icon, 20px);
+}
+/* State at a glance: a count (Problems) or a dot (running, paused, unread). */
+.stripeCount {
+  position: absolute;
+  top: -6px;
+  left: calc(100% - 9px);
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: #fff;
+  background: var(--warning);
+  box-shadow: 0 0 0 1.5px var(--bg-frame, var(--bg));
+}
+.stripeCountError {
+  background: var(--danger);
+}
+.stripeDot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--bg-frame, var(--bg));
+}
+.dotRunning {
+  background: var(--success);
+}
+.dotPaused {
+  background: var(--warning);
+}
+.dotError {
+  background: var(--danger);
+}
+.dotNew {
+  background: var(--accent);
+}
+.stripeLabel {
+  max-width: 100%;
+  font-size: var(--fs-stripe-label);
+  line-height: 1.2;
+  color: var(--fg-stripe-label);
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+/* A single long word can't wrap: end it with an ellipsis instead of clipping mid-letter. */
+.stripeLabelWord {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.stripeActive .stripeLabel {
+  color: inherit;
+}
+/* Narrow bar: one line, truncated. */
+@container (max-width: 62px) {
+  .stripeLabel {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
 /* Anchored panels */
 .window {
   flex: 1;
@@ -222,8 +446,8 @@
 }
 /*
  * The window's actions show while it is hovered or focused, and take their room in the header
- * then: the area's tabs give way (dropping names first) instead of hiding under them, so every
- * tab stays reachable. The rest of the time the tabs have the full width.
+ * then: the content tabs give way instead of hiding under them. The rest of the time the title
+ * and tabs have the full width.
  */
 .headerActions {
   position: absolute;
@@ -254,173 +478,10 @@
   min-width: 0;
 }
 
-/* Area tab strip: the windows docked in this area; the shown one carries its own header controls. */
-.areaTabs {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  overflow: hidden;
-}
-.tabSlot {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex: none;
-}
-.tabSlot:has(.tabActive) {
-  flex: 0 1 auto;
-}
-.areaTabs[data-measure] .tabSlot,
-.areaTabs[data-measure] .tabActive,
-.areaTabs[data-measure] .titleButton,
-.areaTabs[data-measure] .title {
-  flex-shrink: 0;
-}
-.tab {
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: var(--radius-small);
-  background: none;
-  color: var(--fg-muted);
-  font: inherit;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
-}
-.tab:hover {
-  background: var(--bg-toolbar-hover);
-  color: var(--fg-strong);
-}
-.tab:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.tabActive {
-  min-width: 0;
-  overflow: hidden;
-  gap: 2px;
-  padding: 0 0 0 5px;
-  color: var(--fg-strong);
-  cursor: default;
-}
-.tabActive:hover {
-  background: none;
-}
-.tabIcon {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 22px;
-  color: var(--fg-secondary);
-  cursor: grab;
-}
-.tabFocused .tabIcon {
-  color: var(--accent);
-}
-.tabLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.areaTabsCompact .tab:not(.tabActive) {
-  padding: 0 5px;
-}
-.areaTabsCompact .tab:not(.tabActive) .tabLabel {
-  display: none;
-}
-/* Short of room the shown tab's name may be cut to nothing: its pill still says which it is. */
-.areaTabsCompact .tabActive,
-.areaTabsCompact .tabActive:hover {
-  background: var(--bg-toolbar-pressed);
-}
-.tabDrop {
-  position: absolute;
-  z-index: 1;
-  left: -2px;
-  top: 3px;
-  bottom: 3px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-  pointer-events: none;
-}
-.tabSlot:last-child > .tabDrop {
-  left: auto;
-  right: -2px;
-}
-.tabDragged {
-  opacity: 0.4;
-}
-.tabGhost {
-  position: fixed;
-  z-index: 1000;
-  margin: 0;
-  pointer-events: none;
-  background: var(--bg-popup);
-  box-shadow: var(--shadow-popup);
-  opacity: 0.9;
-}
-
 /* Settings › Appearance › "Different tool window background". */
 :global(:root[data-tool-window-bg="different"]) .anchor {
   background: var(--bg-elev);
 }
 :global(:root[data-tool-window-bg="different"]) .anchor .header {
   --tw-header-bg: var(--bg-elev);
-}
-
-/* Status bar launcher: the bottom area's switcher. Hover comes from the status bar's own
-   buttons (BarButton); the window open in the bottom area stays pressed. */
-.launcher {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.launcher .launcherButton {
-  position: relative;
-  flex: none;
-  justify-content: center;
-  gap: 3px;
-  min-width: 24px;
-  margin: 0;
-  padding: 0 5px;
-  color: var(--fg-muted);
-}
-.launcher .launcherButton:not(:disabled):hover {
-  color: var(--fg-strong);
-}
-.launcher .launcherButton[aria-pressed="true"] {
-  background: var(--bg-toolbar-pressed, color-mix(in srgb, var(--fg-strong) 12%, transparent));
-  color: var(--fg-strong);
-}
-.launcherCount {
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--fg-muted);
-}
-.launcherError {
-  color: var(--danger);
-}
-.launcherDot {
-  position: absolute;
-  top: 2px;
-  right: 3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1.5px var(--bg-frame, var(--bg));
-}
-.launcherRunning {
-  background: var(--success);
-}
-.launcherPaused {
-  background: var(--warning);
 }

@@ -307,9 +307,9 @@ html {
   --fs-stripe-label: 11px;
   --stripe-button-w: 58px;
   --stripe-button-radius: 6px;
-  /* Icon-only stripe button, and the glyph drawn inside it. */
-  --stripe-icon-button: 32px;
-  --stripe-icon: 18px;
+  /* Tool window bar button (the bar is the button plus the island gap on each side: 36px), and its glyph. */
+  --stripe-icon-button: 28px;
+  --stripe-icon: 20px;
   --h-stripe-named: 44px;
   --h-stripe-more: 30px;
   /* Main toolbar controls (title bar). */
@@ -1362,8 +1362,8 @@ html {
   --stripe-button-w: 46px;
   --h-stripe-named: 36px;
   --h-stripe-more: 24px;
-  /* Inner margin of the icon rails; the island gap between panels stays put. */
-  --stripe-inset: 2px;
+  /* Inner margin of the tool window bars (30px wide); the island gap between panels stays put. */
+  --stripe-inset: 3px;
   --h-toolbar-control: 24px;
   --h-menu-title: 24px;
   --icon-toolbar: 16px;

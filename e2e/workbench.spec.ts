@@ -1,19 +1,24 @@
 import { expect, PROJECT, test } from "./fixtures";
 
-test("renders title bar, area tabs, launcher, tool window and status bar", async ({ workbench: page }) => {
+test("renders title bar, tool window bars, tool window and status bar", async ({ workbench: page }) => {
   const title = page.locator("header").first();
   await expect(title.getByRole("button", { name: PROJECT })).toBeVisible();
   await expect(title.getByRole("button", { name: "Search Everywhere" })).toBeVisible();
   await expect(title.getByRole("button", { name: "Find in Files" })).toBeVisible();
-  await expect(title.getByRole("button", { name: "Agents", exact: true })).toBeVisible();
+  await expect(title.getByRole("button", { name: "Layout" })).toBeVisible();
 
-  const left = page.getByRole("tablist", { name: "Left Top" });
-  for (const name of ["Project", "Commit"]) {
-    await expect(left.getByRole("tab", { name, exact: true })).toBeVisible();
-  }
-  const launcher = page.getByRole("toolbar", { name: "Bottom tool windows" });
-  for (const name of ["Git", "Terminal", "Problems"]) {
-    await expect(launcher.getByRole("button", { name, exact: true })).toBeVisible();
+  // Each bar group opens the area beside it.
+  const groups: Array<[string, string, string[]]> = [
+    ["Left tool windows", "Left Top", ["Project", "Commit"]],
+    ["Left tool windows", "Left Bottom", ["Structure", "Bookmarks"]],
+    ["Left tool windows", "Bottom Left", ["Git"]],
+    ["Right tool windows", "Right Top", ["Agents"]],
+    ["Right tool windows", "Right Bottom", ["Notifications"]],
+    ["Right tool windows", "Bottom Right", ["Terminal", "Problems", "TODO"]],
+  ];
+  for (const [bar, group, names] of groups) {
+    const g = page.getByRole("toolbar", { name: bar }).getByRole("group", { name: group });
+    for (const name of names) await expect(g.getByRole("button", { name, exact: true })).toBeVisible();
   }
 
   await expect(page.getByRole("region", { name: "Project" })).toBeVisible();
@@ -23,32 +28,31 @@ test("renders title bar, area tabs, launcher, tool window and status bar", async
   await expect(page.getByText("Search Everywhere", { exact: true }).last()).toBeVisible();
 });
 
-test("the launcher switches the bottom area; a second click or the title bar toggle closes it", async ({
+test("a bar button toggles its window; windows of the two bottom areas show side by side", async ({
   workbench: page,
 }) => {
-  const launcher = page.getByRole("toolbar", { name: "Bottom tool windows" });
+  const right = page.getByRole("toolbar", { name: "Right tool windows" });
+  const left = page.getByRole("toolbar", { name: "Left tool windows" });
   const problems = page.getByRole("region", { name: "Problems" });
   const terminal = page.getByRole("region", { name: "Terminal" });
-  const problemsButton = launcher.getByRole("button", { name: "Problems", exact: true });
+  const git = page.getByRole("region", { name: "Git" });
+  const problemsButton = right.getByRole("button", { name: "Problems", exact: true });
   await expect(problems).toBeHidden();
   await problemsButton.click();
   await expect(problems).toBeVisible();
   await expect(problemsButton).toHaveAttribute("aria-pressed", "true");
-  // The area shows the window alone: its siblings stay in the launcher, not as tabs.
-  const strip = page.getByRole("tablist", { name: "Bottom Left" }).filter({ visible: true });
-  await expect(strip.getByRole("tab", { name: "Terminal" })).toHaveCount(0);
-  await launcher.getByRole("button", { name: "Terminal", exact: true }).click();
+  // Same area: Terminal replaces Problems.
+  await right.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(terminal).toBeVisible();
   await expect(problems).toBeHidden();
-  await launcher.getByRole("button", { name: "Terminal", exact: true }).click();
+  // Bottom Left beside it.
+  await left.getByRole("button", { name: "Git", exact: true }).click();
+  await expect(git).toBeVisible();
+  await expect(terminal).toBeVisible();
+  const [g, t] = [await git.boundingBox(), await terminal.boundingBox()];
+  expect(g!.x).toBeLessThan(t!.x);
+  // A second click closes.
+  await right.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(terminal).toBeHidden();
-  await problemsButton.click();
-  await expect(problems).toBeVisible();
-  await page
-    .locator("header")
-    .first()
-    .getByRole("button", { name: /^Bottom Panel/ })
-    .click();
-  await expect(problems).toBeHidden();
-  await expect(problemsButton).toHaveAttribute("aria-pressed", "false");
+  await expect(right.getByRole("button", { name: "Terminal", exact: true })).toHaveAttribute("aria-pressed", "false");
 });

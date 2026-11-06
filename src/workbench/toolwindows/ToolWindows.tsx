@@ -30,8 +30,9 @@ import {
   type SlotRecord,
   type ToolWindowSlot,
 } from "./store";
-import { AreaTabs, AreaToolsButton, moveToMenu } from "./AreaTabs";
+import { moveToMenu, ToolWindowStripe, stripeWindows, useStripeDrag } from "./Stripes";
 import { contentTabRegistry } from "./content";
+import { useDistractionFree } from "../distractionFree";
 import styles from "./ToolWindows.module.css";
 import { tx } from "@/platform/i18n";
 
@@ -85,16 +86,7 @@ const noTitleMenu = (): { label: string; items: MenuItem[] } | null => null;
 const always = () => true;
 const never = () => false;
 
-function ToolWindowView({
-  tw,
-  hidden,
-  windows,
-}: {
-  tw: ToolWindowContribution;
-  hidden: boolean;
-  /** Every placed window: the header lists this area's as tabs. */
-  windows: ToolWindowContribution[];
-}) {
+function ToolWindowView({ tw, hidden }: { tw: ToolWindowContribution; hidden: boolean }) {
   const ref = useRef<HTMLElement>(null);
   const focusRequest = useToolWindowLayout((s) => s.focusRequest);
   const maximized = useToolWindowLayout((s) => s.maximized === tw.anchor);
@@ -155,57 +147,46 @@ function ToolWindowView({
       tabIndex={-1}
     >
       <header
-        className={clsx(styles.header, styles.headerTabbed)}
+        className={clsx(styles.header, Tabs && styles.headerTabbed)}
         onDoubleClick={(e) => e.target === e.currentTarget && toggleMaximizeToolWindow(tw.id)}
       >
-        <AreaTabs
-          slot={slotOf(tw)}
-          windows={windows}
-          active={tw}
-          activeContent={
-            <>
-              {Tabs && tabsReplaceTitle ? null : titleItems.length > 0 ? (
-                <>
-                  <button
-                    ref={titleRef}
-                    type="button"
-                    className={styles.titleButton}
-                    data-tab-own=""
-                    aria-haspopup="menu"
-                    aria-expanded={titleOpen}
-                    onClick={() => setTitleOpen((v) => !v)}
-                  >
-                    <span className={styles.title}>
-                      <T>{titleMenu?.label ?? tw.title}</T>
-                    </span>
-                    <Icon name="chevron-down" size={12} className={styles.titleChevron} />
-                  </button>
-                  <Menu
-                    open={titleOpen}
-                    onClose={() => setTitleOpen(false)}
-                    anchor={titleRef}
-                    items={titleItems}
-                    aria-label={titleMenu ? tx`${tw.title} views` : tx`${tw.title} view options`}
-                  />
-                </>
-              ) : (
-                <span className={clsx(styles.title, styles.titlePlain)}>
-                  <T>{tw.title}</T>
-                </span>
-              )}
-              {Tabs && (
-                <span className={styles.headerContent} data-tab-own="">
-                  <TabStripRegistry.Provider value={contentTabRegistry(tw.id)}>
-                    <Tabs id={tw.id} />
-                  </TabStripRegistry.Provider>
-                </span>
-              )}
-            </>
-          }
-        />
+        {Tabs && tabsReplaceTitle ? null : titleItems.length > 0 ? (
+          <>
+            <button
+              ref={titleRef}
+              type="button"
+              className={styles.titleButton}
+              aria-haspopup="menu"
+              aria-expanded={titleOpen}
+              onClick={() => setTitleOpen((v) => !v)}
+            >
+              <span className={styles.title}>
+                <T>{titleMenu?.label ?? tw.title}</T>
+              </span>
+              <Icon name="chevron-down" size={12} className={styles.titleChevron} />
+            </button>
+            <Menu
+              open={titleOpen}
+              onClose={() => setTitleOpen(false)}
+              anchor={titleRef}
+              items={titleItems}
+              aria-label={titleMenu ? tx`${tw.title} views` : tx`${tw.title} view options`}
+            />
+          </>
+        ) : (
+          <span className={clsx(styles.title, styles.titlePlain)}>
+            <T>{tw.title}</T>
+          </span>
+        )}
+        {Tabs && (
+          <div className={clsx(styles.headerContent, tabsReplaceTitle && styles.headerContentOnly)}>
+            <TabStripRegistry.Provider value={contentTabRegistry(tw.id)}>
+              <Tabs id={tw.id} />
+            </TabStripRegistry.Provider>
+          </div>
+        )}
         <div className={styles.headerActions}>
           {Actions && <Actions id={tw.id} />}
-          <AreaToolsButton slot={slotOf(tw)} windows={windows} active={tw} />
           <IconButton
             ref={moreRef}
             icon="more"
@@ -358,7 +339,7 @@ function SidePanel({
         hidden={!visibleId}
       >
         {list.map((w) => (
-          <ToolWindowView key={w.id} tw={w} hidden={w.id !== visibleId} windows={windows} />
+          <ToolWindowView key={w.id} tw={w} hidden={w.id !== visibleId} />
         ))}
       </div>
     );
@@ -482,25 +463,46 @@ function GapHandle({
   );
 }
 
-/** Settings › Appearance › Tool Windows (raw settings: the workbench does not depend on the settings feature). */
-function useWidescreen() {
-  return useProject((s) => s.settings?.appearance?.widescreenToolWindows === true);
+/**
+ * Settings › Appearance › Tool Windows (raw settings: the workbench does not depend on the
+ * settings feature). Distraction Free Mode hides the bars.
+ */
+function useToolWindowAppearance() {
+  const a = useProject((s) => s.settings?.appearance);
+  const distractionFree = useDistractionFree((s) => s.active);
+  return {
+    bars: a?.showToolWindowBars !== false && !distractionFree,
+    names: a?.showToolWindowNames === true,
+    widescreen: a?.widescreenToolWindows === true,
+  };
 }
 
 /**
- * The Islands frame below the title bar: side tool windows and the editor as rounded islands in
- * one row, bottom tool windows as a full-width island underneath (or, with "Widescreen tool
- * window layout", between the side windows). No stripes: each area's windows are the tabs of its
- * header, and closed areas open from the title bar, the status bar or their shortcuts. Resize
+ * The Islands frame below the title bar: the tool window bars on the window background, side
+ * tool windows and the editor as rounded islands in one row, bottom tool windows as a full-width
+ * island underneath (or, with "Widescreen tool window layout", between the side windows). Resize
  * handles sit in the gaps between islands. A CSS grid does the layout, so a window resize costs
  * no script.
  */
 export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
   const windows = useToolWindows();
   const visible = useEffectiveVisible(windows);
-  const widescreen = useWidescreen();
+  const { bars, names, widescreen } = useToolWindowAppearance();
   const sizes = useToolWindowLayout((s) => s.sizes);
   const maximized = useToolWindowLayout((s) => s.maximized);
+  const buttons = useToolWindowLayout((s) => s.stripeButtons);
+  // The right bar holds Right Top, Right Bottom and Bottom Right; with none of them it gives
+  // its room back, except as a drop target while a button is dragged.
+  const dragging = useStripeDrag((s) => !!s.id);
+  const hasRight = useMemo(
+    () =>
+      stripeWindows(windows, visible, buttons).some((w) => {
+        const slot = slotOf(w);
+        return slot === "right" || slot === "right-split" || slot === "bottom-split";
+      }),
+    [windows, visible, buttons],
+  );
+  const rightBar = bars && (hasRight || dragging);
   const gridRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const sync = () => {
@@ -517,8 +519,12 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
       sync={sync}
     />
   );
+  const stripe = (side: "left" | "right") => (
+    <ToolWindowStripe side={side} windows={windows} visible={visible} showNames={names} />
+  );
   return (
-    <div className={styles.frame}>
+    <div className={clsx(styles.frame, bars && styles.frameLeftBar, rightBar && styles.frameRightBar)}>
+      {bars && stripe("left")}
       <div ref={gridRef} className={clsx(styles.grid, widescreen && styles.widescreen)}>
         <SidePanel anchor="left" windows={windows} visible={visible} />
         {gap("left")}
@@ -530,6 +536,7 @@ export function ToolWindowLayout({ editor }: { editor: ReactNode }) {
         {gap("bottom")}
         <SidePanel anchor="bottom" windows={windows} visible={visible} />
       </div>
+      {rightBar && stripe("right")}
     </div>
   );
 }
