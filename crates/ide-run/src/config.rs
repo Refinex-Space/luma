@@ -345,24 +345,7 @@ fn ignore_local(root: &Path) -> IdeResult<()> {
 
 /// Adds `entry` to `.luma/.gitignore` unless it is already listed.
 pub(crate) fn ignore_private(root: &Path, entry: &str) -> IdeResult<()> {
-    let file = project_dir::path(root, ".gitignore");
-    let current = fs::read_to_string(&file).unwrap_or_default();
-    if current.lines().any(|l| l.trim() == entry) {
-        return Ok(());
-    }
-    let mut text = current;
-    if text.is_empty() {
-        text.push_str("# Per-user IDE state\n");
-    } else if !text.ends_with('\n') {
-        text.push('\n');
-    }
-    text.push_str(entry);
-    text.push('\n');
-    if let Some(dir) = file.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    fs::write(file, text)?;
-    Ok(())
+    Ok(project_dir::ensure_ignored(root, &[entry])?)
 }
 
 pub(crate) fn save(root: &Path, configs: &[RunConfig], removed_detected_ids: &[String]) -> IdeResult<()> {

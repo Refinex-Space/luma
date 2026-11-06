@@ -161,7 +161,7 @@ fn shelf_dir(root: &Path) -> PathBuf {
 }
 
 fn keep_private(root: &Path) {
-    if let Err(e) = ide_vcs::changelists::ensure_ignored(&ide_core::project_dir::path(root, ""), &PRIVATE_ENTRIES) {
+    if let Err(e) = ide_core::project_dir::ensure_ignored(root, &PRIVATE_ENTRIES) {
         tracing::warn!("could not update .luma/.gitignore: {e}");
     }
 }

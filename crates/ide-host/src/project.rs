@@ -281,8 +281,10 @@ impl Host {
         for repo in repos.read().all() {
             repo.set_execution_allowed(trusted.load(Ordering::Acquire));
         }
+        let store_ignore = StoreIgnoreGenerator::new(&root, &self.data_dir.join("store-ignore").join(&project_key));
         let watcher = {
             let kotlin_bridge = kotlin_bridge.clone();
+            let store_ignore = store_ignore.clone();
             let repos = repos.clone();
             let settings = settings.clone();
             let index = index.clone();
@@ -376,9 +378,15 @@ impl Host {
                     if git_dirs || vcs_moved {
                         sink.emit(IdeEvent::VcsChanged { root: root.clone().into() });
                     }
+                    // `.luma` appeared (a setting, run configuration or data source was saved).
+                    if store_ignore.pending() && batch.created.iter().any(|p| store_ignore.concerns(p)) {
+                        store_ignore.spawn(repos.clone());
+                    }
                 }),
             )?
         };
+        // After the project opens, as IDEA writes `.idea/.gitignore`.
+        store_ignore.spawn(repos.clone());
         if let Some(reason) = watcher.polling() {
             sink.emit(IdeEvent::Notify {
                 level: ide_core::event::NotifyLevel::Warning,
@@ -1029,6 +1037,75 @@ fn exclude_globs(root: &Path, settings: &ide_core::settings::Settings, detected:
     let mut globs = settings.file_excludes();
     globs.extend(linked_roots(root, settings, detected).excluded_globs());
     globs
+}
+
+/// Writes `.luma/.gitignore` once for a git project (IDEA's `GitIgnoreInStoreDirGenerator`):
+/// after the project opens, or when its `.luma` folder appears. The outcome is remembered
+/// (`marker`), so a `.gitignore` the user deleted, or a folder the team keeps in version
+/// control, stays as it is.
+struct StoreIgnoreGenerator {
+    root: PathBuf,
+    dir: PathBuf,
+    marker: PathBuf,
+    done: AtomicBool,
+    running: AtomicBool,
+}
+
+impl StoreIgnoreGenerator {
+    fn new(root: &Path, marker: &Path) -> Arc<Self> {
+        Arc::new(Self {
+            root: root.to_path_buf(),
+            dir: ide_core::project_dir::path(root, ""),
+            marker: marker.to_path_buf(),
+            done: AtomicBool::new(marker.exists()),
+            running: AtomicBool::new(false),
+        })
+    }
+
+    fn pending(&self) -> bool {
+        !self.done.load(Ordering::Acquire)
+    }
+
+    fn concerns(&self, path: &Path) -> bool {
+        path.starts_with(&self.dir)
+    }
+
+    fn spawn(self: &Arc<Self>, repos: Arc<RwLock<Repos>>) {
+        if !self.pending() || self.running.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let this = self.clone();
+        let spawned = std::thread::Builder::new().name("luma-store-ignore".into()).spawn(move || {
+            this.run(&repos);
+            this.running.store(false, Ordering::Release);
+        });
+        if spawned.is_err() {
+            self.running.store(false, Ordering::Release);
+        }
+    }
+
+    fn run(&self, repos: &RwLock<Repos>) {
+        // Only for git, like IDEA: without a repository there is nothing to keep out.
+        let Some(repo) = repos.read().for_path(&self.dir).cloned() else { return };
+        match repo.generate_store_ignore(&self.root) {
+            Ok(outcome) if outcome.is_settled() => {
+                if outcome == ide_vcs::StoreIgnore::Generated {
+                    tracing::info!("wrote {}", self.dir.join(".gitignore").display());
+                }
+                self.done.store(true, Ordering::Release);
+                let written = self
+                    .marker
+                    .parent()
+                    .map_or(Ok(()), std::fs::create_dir_all)
+                    .and_then(|()| std::fs::write(&self.marker, format!("{outcome:?}\n")));
+                if let Err(e) = written {
+                    tracing::warn!("cannot remember the .luma/.gitignore outcome: {e}");
+                }
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!("cannot write .luma/.gitignore: {e}"),
+        }
+    }
 }
 
 pub(crate) fn project_key(root: &Path) -> String {
