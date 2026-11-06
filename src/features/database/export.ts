@@ -60,17 +60,17 @@ export function extractorOf(id: string | null | undefined): Extractor {
 
 const SQL_ONLY: ReadonlySet<ExportFormat> = new Set(["sql", "sqlMultirow", "sqlUpdate", "oneRow"]);
 
-/** The extractors of a data source's data: Redis commands for Redis, SQL for the others. */
+/** The extractors of a data source's data: Redis commands for Redis, neither for Elasticsearch, SQL for the others. */
 export function formatsFor(driver: DbDriver | null | undefined): readonly Extractor[] {
-  return driver === "redis"
-    ? EXPORT_FORMATS.filter((f) => !SQL_ONLY.has(f.id))
-    : EXPORT_FORMATS.filter((f) => f.id !== "redis");
+  if (driver === "redis") return EXPORT_FORMATS.filter((f) => !SQL_ONLY.has(f.id));
+  if (driver === "elasticsearch") return EXPORT_FORMATS.filter((f) => f.id !== "redis" && !SQL_ONLY.has(f.id));
+  return EXPORT_FORMATS.filter((f) => f.id !== "redis");
 }
 
 /** The chosen extractor (one preference for every grid), or its counterpart where it doesn't apply. */
 export function effectiveExtractor(id: ExportFormat, driver: DbDriver | null | undefined): ExportFormat {
   if (formatsFor(driver).some((f) => f.id === id)) return id;
-  return driver === "redis" ? "redis" : "sql";
+  return driver === "redis" ? "redis" : driver === "elasticsearch" ? "json" : "sql";
 }
 
 /** The chooser's options, IDEA's sections first ("Built-in", "CSV"). */

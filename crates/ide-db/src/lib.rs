@@ -3,6 +3,7 @@
 //! and statement splitting ([`split`]), for SQLite, PostgreSQL and MySQL/MariaDB.
 
 pub mod conn;
+pub mod elastic;
 pub mod history;
 pub mod plan;
 pub mod redis;
@@ -12,6 +13,7 @@ pub mod split;
 pub mod sql;
 
 pub use conn::{Held, Pool, QueryResult, ResultColumn};
+pub use elastic::{EsAlias, EsCluster, EsDataStream, EsField, EsIndex, EsIndices, EsResponse};
 pub use history::HistoryEntry;
 pub use plan::{PlanNode, PlanProperty};
 pub use redis::{
@@ -229,6 +231,8 @@ pub struct DbManager {
     redis_conns: Mutex<HashMap<String, ::redis::aio::MultiplexedConnection>>,
     /// Redis console connections by target: their own, blocking commands and MULTI stay there.
     redis_consoles: Mutex<HashMap<String, ::redis::aio::MultiplexedConnection>>,
+    /// Elasticsearch HTTP clients by data source id (connected: answered `GET /`).
+    es_clients: Mutex<HashMap<String, elastic::EsClient>>,
 }
 
 type Session = Arc<tokio::sync::Mutex<Option<Held>>>;
@@ -358,6 +362,7 @@ impl DbManager {
             sessions: Mutex::default(),
             redis_conns: Mutex::default(),
             redis_consoles: Mutex::default(),
+            es_clients: Mutex::default(),
         }
     }
 
@@ -551,6 +556,9 @@ impl DbManager {
         if source.driver == DbDriver::Redis {
             return self.redis_test(source, password, ssh_secret).await;
         }
+        if source.driver == DbDriver::Elasticsearch {
+            return self.elastic_test(source, password, ssh_secret).await;
+        }
         let (target, tunnel) = self.endpoint(source, ssh_secret, false).await?;
         let pool = Pool::connect(&target, password.as_deref(), Some(&self.root)).await.map_err(|e| {
             through_tunnel(
@@ -560,7 +568,7 @@ impl DbManager {
             )
         })?;
         let version = match source.driver {
-            DbDriver::Redis => unreachable!("Redis data sources are tested above"),
+            DbDriver::Redis | DbDriver::Elasticsearch => unreachable!("tested above"),
             DbDriver::Sqlite => "SELECT 'SQLite ' || sqlite_version()",
             DbDriver::Postgres => "SELECT version()",
             DbDriver::Mysql => "SELECT CONCAT(@@version_comment, ' ', VERSION())",
@@ -572,21 +580,28 @@ impl DbManager {
     }
 
     pub fn is_connected(&self, id: &str) -> bool {
-        self.pools.lock().contains_key(id) || self.redis_conns.lock().contains_key(id)
+        self.pools.lock().contains_key(id)
+            || self.redis_conns.lock().contains_key(id)
+            || self.es_clients.lock().contains_key(id)
     }
 
     /// Connected targets (data source ids, `<id>:<database>`).
     pub fn connected(&self) -> Vec<String> {
         let mut out: Vec<String> = self.pools.lock().keys().cloned().collect();
         out.extend(self.redis_conns.lock().keys().cloned());
+        out.extend(self.es_clients.lock().keys().cloned());
         out
     }
 
     /// The pool of target `id`, connecting first if needed.
     pub async fn pool(&self, id: &str) -> IdeResult<Arc<Pool>> {
         let (source_id, _) = split_target(id);
-        if self.sources()?.iter().any(|s| s.id == source_id && s.driver == DbDriver::Redis) {
-            return Err(IdeError::invalid("Redis data sources have no SQL connection"));
+        if self
+            .sources()?
+            .iter()
+            .any(|s| s.id == source_id && matches!(s.driver, DbDriver::Redis | DbDriver::Elasticsearch))
+        {
+            return Err(IdeError::invalid("Redis and Elasticsearch data sources have no SQL connection"));
         }
         // A dropped SSH session leaves every pool through it unusable: start over.
         if self.tunnels.lock().get(source_id).is_some_and(|t| t.is_closed()) {
@@ -623,7 +638,8 @@ impl DbManager {
     fn drop_unused_tunnel(&self, source_id: &str) {
         let in_use = self.pools.lock().keys().any(|k| split_target(k).0 == source_id)
             || self.redis_conns.lock().keys().any(|k| split_target(k).0 == source_id)
-            || self.redis_consoles.lock().keys().any(|k| split_target(k).0 == source_id);
+            || self.redis_consoles.lock().keys().any(|k| split_target(k).0 == source_id)
+            || self.es_clients.lock().contains_key(source_id);
         if !in_use {
             self.tunnels.lock().remove(source_id);
         }
@@ -641,6 +657,7 @@ impl DbManager {
             p.close().await;
         }
         self.redis_disconnect(id);
+        self.elastic_disconnect(id);
         self.drop_unused_tunnel(split_target(id).0);
     }
 
@@ -829,7 +846,9 @@ impl DbManager {
             rows.into_iter().filter_map(|r| r.into_iter().nth(i).flatten()).collect()
         };
         match driver {
-            DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
+            DbDriver::Redis | DbDriver::Elasticsearch => {
+                unreachable!("Redis and Elasticsearch data sources have no SQL connection")
+            }
             DbDriver::Sqlite => {
                 let stmts = cells(pool.rows(&sql::sqlite_ddl(schema, name), MAX_META_ROWS).await?, 0);
                 if stmts.is_empty() {

@@ -1,0 +1,95 @@
+/* An Elasticsearch console response (Database Console window). */
+.bar {
+  gap: 8px;
+  padding: 0 6px 0 10px;
+}
+.status {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font: 700 var(--fs-tiny, 11px) / 1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.ok {
+  color: var(--es-green);
+  background: color-mix(in srgb, var(--es-green) 16%, transparent);
+}
+.warn {
+  color: var(--es-yellow);
+  background: color-mix(in srgb, var(--es-yellow) 18%, transparent);
+}
+.bad {
+  color: var(--es-red);
+  background: color-mix(in srgb, var(--es-red) 16%, transparent);
+}
+.request {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-small);
+}
+.request b {
+  color: var(--syn-keyword, var(--accent));
+  font-weight: 600;
+}
+.facts {
+  flex: none;
+  display: inline-flex;
+  gap: 12px;
+  color: var(--fg-muted);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hits {
+  color: var(--fg);
+  font-weight: 600;
+}
+.truncated {
+  color: var(--warning);
+}
+.segmented {
+  display: inline-flex;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.segmented button {
+  padding: 0 10px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 1px);
+  background: none;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+.segmented button[aria-checked="true"] {
+  background: var(--bg-tab-selected, var(--bg-hover));
+  color: var(--fg-strong);
+}
+.json {
+  overflow: auto;
+}
+.text {
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  color: var(--fg);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  white-space: pre;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.gridBar {
+  height: 30px;
+}

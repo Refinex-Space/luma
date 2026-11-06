@@ -10,6 +10,7 @@ import { splitTarget } from "./model";
 import { redisTargetOf } from "./redis/actions";
 import { bytesLabel } from "./redis/model";
 import { isRedisSource, loadKeys, openRedisConsoleOf, refreshRedis } from "./redis/store";
+import { fieldsOf, isElasticSource, openEsConsole, refreshElastic } from "./elastic/store";
 import { folderPattern } from "./redis/tree";
 import { nodeTarget, objectOf, schemaObjectOf, tableFolder, tableOf, type DbNode } from "./nodes";
 import { canDrop, canRename, reference, scriptSql, type ScriptKind } from "./objects";
@@ -178,11 +179,19 @@ async function runScriptFile(id: string) {
 function refreshNode(n: DbNode | null) {
   if (!n) {
     void loadSources();
-    for (const c of useDatabase.getState().connected) void (isRedisSource(c) ? refreshRedis(c) : refresh(c));
+    for (const c of useDatabase.getState().connected)
+      void (isRedisSource(c) ? refreshRedis(c) : isElasticSource(c) ? refreshElastic(c) : refresh(c));
     return;
   }
   const id = nodeTarget(n);
   if (!id) return;
+  if (isElasticSource(id)) {
+    if (n.kind === "esIndex") void fieldsOf(id, n.index.name, true).catch(() => undefined);
+    else if (n.kind === "esDataStream") void fieldsOf(id, n.stream.name, true).catch(() => undefined);
+    else if (n.kind === "esAlias") void fieldsOf(id, n.alias.name, true).catch(() => undefined);
+    else void refreshElastic(id);
+    return;
+  }
   if (isRedisSource(id)) {
     if (n.kind === "redisDb" || n.kind === "redisFolder" || n.kind === "redisKey") void loadKeys(id);
     else void refreshRedis(id);
@@ -247,6 +256,7 @@ export function registerDatabaseTreeActions(): () => void {
         const { sources } = useDatabase.getState();
         const target = id ?? (sources.length === 1 ? (sources[0]!.id ?? null) : null);
         if (target && isRedisSource(target)) void openRedisConsoleOf(redisTargetOf(n) ?? target);
+        else if (target && isElasticSource(target)) void openEsConsole(target);
         else if (target) void openConsole(target);
         else toolWindowService().show(DB_TOOL_WINDOW, true);
       },
@@ -388,6 +398,10 @@ export function registerDatabaseTreeActions(): () => void {
         if (n.kind === "source") return void copy(n.source.name ?? "", tx("Cannot copy the name"));
         if (n.kind === "database") return void copy(n.name, tx("Cannot copy the name"));
         if (n.kind === "redisDb") return void copy(`db${n.db}`, tx("Cannot copy the name"));
+        if (n.kind === "esIndex") return void copy(n.index.name, tx("Cannot copy the name"));
+        if (n.kind === "esDataStream") return void copy(n.stream.name, tx("Cannot copy the name"));
+        if (n.kind === "esAlias") return void copy(n.alias.name, tx("Cannot copy the name"));
+        if (n.kind === "esField") return void copy(n.field.name, tx("Cannot copy the name"));
         if (n.kind === "redisKey") return void copy(bytesLabel(n.entry.key), tx("Cannot copy the name"));
         if (n.kind === "redisFolder") return void copy(folderPattern(n.prefix), tx("Cannot copy the name"));
         const o = objectOf(n);

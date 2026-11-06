@@ -20,6 +20,7 @@ import {
   type DbTableDetails,
   type DbTableInfo,
   type DbTableKind,
+  type EsResponse,
   type RedisCommandOutcome,
   type RequestId,
   type SqlStatement,
@@ -80,6 +81,8 @@ export interface ResultTab {
   edits?: PendingEdits;
   /** A Redis console reply (`outcome` then only names the command; `sourceId` is the Redis target). */
   redis?: { outcome: RedisCommandOutcome };
+  /** An Elasticsearch console response (`outcome` then only names the request). */
+  elastic?: { method: string; path: string; response: EsResponse };
 }
 
 /** An editable result's table and how its columns map to the table's. */
@@ -916,6 +919,56 @@ export function showRedisResults(path: string, target: string, outcomes: readonl
   useDatabase.setState((s) => ({
     results: [...s.results, ...tabs].slice(-MAX_TABS),
     activeResult: failed || !tabs.length ? OUTPUT_TAB : tabs.at(-1)!.id,
+  }));
+  toolWindowService().show(RESULTS_WINDOW, false);
+}
+
+/** What an Elasticsearch response says in the Output log: status, time, hits. */
+export function esSummary(r: EsResponse): string {
+  const ms = r.elapsedMs ?? 0;
+  const time = ms < 10 ? ms.toFixed(1) : String(Math.round(ms));
+  let hits = "";
+  try {
+    const total = (JSON.parse(r.body) as { hits?: { total?: number | { value: number; relation: string } } }).hits
+      ?.total;
+    const n = typeof total === "number" ? total : total?.value;
+    if (n !== undefined) {
+      const count = n.toLocaleString("en");
+      hits = typeof total === "object" && total.relation === "gte" ? tx`, ${count}+ hits` : tx`, ${count} hits`;
+    }
+  } catch {
+    // Not JSON (`_cat` text): no hits to count.
+  }
+  const status = r.status;
+  return tx`${status} in ${time} ms${hits}`;
+}
+
+/** Shows Elasticsearch console responses in the Database Console window (a tab each, errors too). */
+export function showEsResults(
+  path: string,
+  id: string,
+  ran: ReadonlyArray<{ method: string; path: string; from: number; to: number; response: EsResponse }>,
+) {
+  const name = sourceById(id)?.name ?? id;
+  const tabs: ResultTab[] = [];
+  for (const r of ran) {
+    const text = `${r.method} ${r.path}`;
+    log("statement", text, `${name}>`);
+    const ok = r.response.status >= 200 && r.response.status < 300;
+    log(ok ? "result" : "error", esSummary(r.response));
+    const n = nextTab++;
+    tabs.push({
+      id: n,
+      title: tx`Result ${n}`,
+      path,
+      sourceId: id,
+      outcome: { statement: { from: r.from, to: r.to, text }, result: null, error: null },
+      elastic: { method: r.method, path: r.path, response: r.response },
+    });
+  }
+  useDatabase.setState((s) => ({
+    results: [...s.results, ...tabs].slice(-MAX_TABS),
+    activeResult: tabs.length ? tabs.at(-1)!.id : OUTPUT_TAB,
   }));
   toolWindowService().show(RESULTS_WINDOW, false);
 }

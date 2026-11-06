@@ -1,0 +1,8 @@
+id = "elasticsearch"
+name = "Elasticsearch"
+extensions = ["es"]
+line-comment = "#"
+indent = { tab-size = 2, insert-spaces = true }
+# Kibana Dev Tools syntax: `GET /index/_search` lines, each followed by its JSON body.
+# Highlighted by the Database feature's Elasticsearch mode (methods, paths, JSON, comments).
+ui-mode = "Elasticsearch"

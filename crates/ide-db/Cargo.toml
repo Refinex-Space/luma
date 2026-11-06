@@ -19,6 +19,7 @@ sqlx.workspace = true
 tiberius.workspace = true
 bb8.workspace = true
 redis.workspace = true
+reqwest.workspace = true
 rustls.workspace = true
 tokio-util = { workspace = true, features = ["compat"] }
 dirs.workspace = true

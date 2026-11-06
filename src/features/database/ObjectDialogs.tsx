@@ -271,6 +271,7 @@ const TYPES: Record<DbDriver, string[]> = {
   ],
   // Redis is no SQL dialect.
   redis: [],
+  elasticsearch: [],
 };
 
 interface ModifyProps {

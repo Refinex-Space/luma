@@ -4167,6 +4167,7 @@ dependencies = [
  "ide-ssh",
  "parking_lot",
  "redis",
+ "reqwest",
  "rustls",
  "serde",
  "serde_json",

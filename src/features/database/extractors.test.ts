@@ -134,6 +134,20 @@ describe("Redis data", () => {
     expect(effectiveExtractor("json", "redis")).toBe("json");
   });
 
+  it("offers Elasticsearch data neither SQL nor Redis commands", () => {
+    const esFormats = extractorOptions("elasticsearch").map((o) => o.value);
+    expect(esFormats).toContain("json");
+    expect(esFormats).toContain("csv");
+    expect(esFormats).not.toContain("sql");
+    expect(esFormats).not.toContain("sqlMultirow");
+    expect(esFormats).not.toContain("sqlUpdate");
+    expect(esFormats).not.toContain("oneRow");
+    expect(esFormats).not.toContain("redis");
+    expect(effectiveExtractor("sql", "elasticsearch")).toBe("json");
+    expect(effectiveExtractor("redis", "elasticsearch")).toBe("json");
+    expect(effectiveExtractor("csv", "elasticsearch")).toBe("csv");
+  });
+
   it("writes rows back as the commands of their type", () => {
     expect(
       exportData(

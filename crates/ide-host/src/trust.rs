@@ -199,6 +199,7 @@ pub fn restricted_command_allowed(cmd: &str) -> bool {
             | "docker_run_env"
             | "db_console_path"
             | "redis_console_path"
+            | "es_console_path"
             | "db_export_file"
             | "vcs_write_patch"
             | "app_metrics"

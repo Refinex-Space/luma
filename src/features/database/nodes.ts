@@ -10,6 +10,10 @@ import type {
   DbTableInfo,
   DbTableKind,
   DbTriggerInfo,
+  EsAlias,
+  EsDataStream,
+  EsField,
+  EsIndex,
   RedisKeyEntry,
 } from "@/platform/ipc";
 import type { DbObjectRef } from "./objects";
@@ -53,6 +57,14 @@ export type DbNode =
   | { kind: "redisKey"; key: string; id: string; entry: RedisKeyEntry; name: string }
   /** “Load more keys”: the database's scan has not reached its end. */
   | { kind: "redisMore"; key: string; id: string }
+  /** Elasticsearch: an index, data stream or alias of data source `id`, searchable by `name`. */
+  | { kind: "esIndex"; key: string; id: string; index: EsIndex }
+  | { kind: "esDataStream"; key: string; id: string; stream: EsDataStream }
+  | { kind: "esAlias"; key: string; id: string; alias: EsAlias }
+  /** The Data Streams / Aliases folders under an Elasticsearch data source. */
+  | { kind: "esGroup"; key: string; id: string; group: "dataStreams" | "aliases"; count: number }
+  /** A field of an index pattern (`_field_caps`). */
+  | { kind: "esField"; key: string; id: string; pattern: string; field: EsField }
   | { kind: "message"; key: string; text: string; error?: boolean };
 
 /** The connection target a node belongs to. */

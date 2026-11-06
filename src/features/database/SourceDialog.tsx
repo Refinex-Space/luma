@@ -324,6 +324,14 @@ function NamePicker({
   );
 }
 
+type EsAuth = "basic" | "apiKey" | "none";
+
+const ES_AUTH: SelectOption<EsAuth>[] = [
+  { value: "basic", label: "User & Password" },
+  { value: "apiKey", label: "API Key" },
+  { value: "none", label: "No auth" },
+];
+
 function Section({ title }: { title: string }) {
   return (
     <div className={styles.formSection}>
@@ -346,6 +354,12 @@ export function SourceDialog({
   const [s, setS] = useState<DataSource>(() => ({ ...blank(), ...preset, ...initial }));
   // `undefined`: unchanged (editing keeps the stored password).
   const [password, setPassword] = useState<string | undefined>(presetPassword ?? undefined);
+  // Elasticsearch authentication: a user, an API key (the password of no user), or none.
+  const [esAuth, setEsAuth] = useState<EsAuth>(() => {
+    const at = { ...blank(), ...preset, ...initial };
+    if (at.user?.trim()) return "basic";
+    return initial && initial.savePassword ? "apiKey" : initial ? "none" : "basic";
+  });
   // Same convention for the SSH password / passphrase.
   const [sshSecret, setSshSecret] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<Tab>("general");
@@ -379,6 +393,9 @@ export function SourceDialog({
   const sqlite = s.driver === "sqlite";
   const postgres = s.driver === "postgres";
   const redis = s.driver === "redis";
+  const elastic = s.driver === "elasticsearch";
+  // Key-value / search stores: no schemas, no SQL session options, no driver properties.
+  const nosql = redis || elastic;
   const urlOnly = !sqlite && !!s.urlOnly;
   const parsedUrl = urlOnly ? parseSourceUrl(s.url ?? "") : null;
   const urlValid = !!parsedUrl && parsedUrl.source.driver === s.driver;
@@ -388,7 +405,7 @@ export function SourceDialog({
     s.name?.trim() ||
     (sqlite
       ? fileSourceName(s.file ?? "")
-      : redis
+      : nosql
         ? `${host || "localhost"}:${(urlOnly ? parsedUrl?.source.port : s.port) ?? vendor.port ?? 6379}`
         : `${database || s.user || "db"}@${host || "localhost"}`);
   const sshOn = !sqlite && !!ssh.enabled;
@@ -482,10 +499,10 @@ export function SourceDialog({
       ? []
       : [
           { id: "ssh" as const, label: "SSH/SSL" },
-          // Redis has no schemas to pick nor driver properties.
-          ...(redis ? [] : [{ id: "schemas" as const, label: "Schemas" }]),
+          // Redis and Elasticsearch have no schemas to pick nor driver properties.
+          ...(nosql ? [] : [{ id: "schemas" as const, label: "Schemas" }]),
         ]),
-    ...(redis ? [] : [{ id: "advanced" as const, label: "Advanced" }]),
+    ...(nosql ? [] : [{ id: "advanced" as const, label: "Advanced" }]),
   ];
   const current = tabs.some((t) => t.id === tab) ? tab : "general";
   // Drivers without properties (Redis has no Advanced tab) get none.
@@ -551,34 +568,64 @@ export function SourceDialog({
               <span className={styles.formHint}>{tx`Reached from the SSH host ${sshLabel({ ssh: sshUsed })}.`}</span>
             </>
           )}
-          <label className={styles.formLabel} htmlFor="db-user">
-            <T>User:</T>
-          </label>
-          <Input
-            id="db-user"
-            value={s.user ?? ""}
-            placeholder={urlOnly ? "from the URL" : redis ? "default" : ""}
-            onChange={(e) => set({ user: e.target.value })}
-          />
-          <label className={styles.formLabel} htmlFor="db-password">
-            <T>Password:</T>
-          </label>
-          <div className={styles.formRow}>
-            <Input
-              id="db-password"
-              className={styles.fill}
-              type="password"
-              value={password ?? ""}
-              placeholder={initial && password === undefined ? "<unchanged>" : ""}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Checkbox
-              checked={!!s.savePassword}
-              onChange={(savePassword) => set({ savePassword })}
-              label="Save password"
-            />
-          </div>
-          {!urlOnly && (
+          {elastic && (
+            <>
+              <span className={styles.formLabel}>
+                <T>Authentication:</T>
+              </span>
+              <Select
+                aria-label="Authentication"
+                className={styles.narrowSelect}
+                value={esAuth}
+                options={ES_AUTH}
+                onChange={(next) => {
+                  setEsAuth(next);
+                  // An API key travels as the password of a nameless user; no auth has neither.
+                  if (next !== "basic") set({ user: "" });
+                  if (next === "none") {
+                    setPassword("");
+                    set({ user: "", savePassword: false });
+                  }
+                }}
+              />
+            </>
+          )}
+          {(!elastic || esAuth === "basic") && (
+            <>
+              <label className={styles.formLabel} htmlFor="db-user">
+                <T>User:</T>
+              </label>
+              <Input
+                id="db-user"
+                value={s.user ?? ""}
+                placeholder={urlOnly ? "from the URL" : redis ? "default" : elastic ? "elastic" : ""}
+                onChange={(e) => set({ user: e.target.value })}
+              />
+            </>
+          )}
+          {(!elastic || esAuth !== "none") && (
+            <>
+              <label className={styles.formLabel} htmlFor="db-password">
+                <T>{elastic && esAuth === "apiKey" ? "API key:" : "Password:"}</T>
+              </label>
+              <div className={styles.formRow}>
+                <Input
+                  id="db-password"
+                  className={styles.fill}
+                  type="password"
+                  value={password ?? ""}
+                  placeholder={initial && password === undefined ? "<unchanged>" : ""}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Checkbox
+                  checked={!!s.savePassword}
+                  onChange={(savePassword) => set({ savePassword })}
+                  label="Save password"
+                />
+              </div>
+            </>
+          )}
+          {!urlOnly && !elastic && (
             <>
               <label className={styles.formLabel} htmlFor="db-database">
                 <T>Database:</T>
@@ -630,6 +677,22 @@ export function SourceDialog({
       <Section title="Connection" />
       <span />
       <Checkbox checked={!!s.readOnly} onChange={(readOnly) => set({ readOnly })} label="Read-only" />
+      {elastic && (
+        <>
+          <span />
+          <Checkbox
+            checked={!!intro.showSystem}
+            onChange={(showSystem) => setIntro({ showSystem })}
+            label="Show hidden and system indices"
+          />
+          <SecondsOption
+            label="Auto-disconnect after"
+            value={options.autoDisconnectSecs}
+            fallback={300}
+            onChange={(autoDisconnectSecs) => setOptions({ autoDisconnectSecs })}
+          />
+        </>
+      )}
       {redis && (
         <>
           <label className={styles.formLabel} htmlFor="db-key-separator">
@@ -657,7 +720,7 @@ export function SourceDialog({
           />
         </>
       )}
-      {!redis && (
+      {!nosql && (
         <>
           <span className={styles.formLabel}>
             <T>Transaction control:</T>

@@ -20,6 +20,8 @@ pub enum DbDriver {
     SqlServer,
     /// Redis (and compatible servers: Valkey, KeyDB, Dragonfly): a key-value store, not SQL.
     Redis,
+    /// Elasticsearch (and OpenSearch): a search engine over its REST API, not SQL.
+    Elasticsearch,
 }
 
 impl DbDriver {
@@ -30,6 +32,7 @@ impl DbDriver {
             DbDriver::Mysql => Some(3306),
             DbDriver::SqlServer => Some(1433),
             DbDriver::Redis => Some(6379),
+            DbDriver::Elasticsearch => Some(9200),
         }
     }
 }
@@ -261,6 +264,9 @@ pub fn scheme_driver(scheme: &str) -> Option<DbDriver> {
         "sqlserver" | "mssql" | "mssqlserver" => Some(DbDriver::SqlServer),
         "sqlite" | "sqlite3" => Some(DbDriver::Sqlite),
         "redis" | "rediss" | "valkey" | "valkeys" => Some(DbDriver::Redis),
+        "elasticsearch" | "elasticsearchs" | "es" | "ess" | "opensearch" | "opensearchs" => {
+            Some(DbDriver::Elasticsearch)
+        }
         _ => None,
     }
 }
@@ -318,8 +324,8 @@ pub fn parse_url(raw: &str) -> IdeResult<ParsedUrl> {
         parsed.user = percent_decode(user);
         parsed.password = password;
     }
-    // `rediss://`: Redis over TLS.
-    if matches!(scheme.to_ascii_lowercase().as_str(), "rediss" | "valkeys") {
+    // `rediss://`, `elasticsearchs://`: over TLS.
+    if matches!(scheme.to_ascii_lowercase().as_str(), "rediss" | "valkeys" | "elasticsearchs" | "ess" | "opensearchs") {
         parsed.params.push(("sslmode".into(), "require".into()));
     }
     for pair in query.split('&').filter(|p| !p.is_empty()) {
@@ -509,6 +515,16 @@ mod tests {
         assert_eq!(parse_url("tidb://h:4000").unwrap().driver, Some(DbDriver::Mysql));
         assert_eq!(parse_url("sqlite:/tmp/a.db").unwrap().file.as_deref(), Some("/tmp/a.db"));
         assert!(parse_url("oracle://x").is_err());
+        let u = parse_url("elasticsearch://elastic:pw@search.local:9201").unwrap();
+        assert_eq!((u.driver, u.host.as_str(), u.port), (Some(DbDriver::Elasticsearch), "search.local", Some(9201)));
+        assert!(u.params.is_empty());
+        for tls in ["elasticsearchs://h", "ess://h", "opensearchs://h:443"] {
+            let u = parse_url(tls).unwrap();
+            assert_eq!(u.driver, Some(DbDriver::Elasticsearch));
+            assert_eq!(u.params, vec![("sslmode".into(), "require".into())]);
+        }
+        assert_eq!(parse_url("es://h").unwrap().driver, Some(DbDriver::Elasticsearch));
+        assert_eq!(parse_url("opensearch://h").unwrap().driver, Some(DbDriver::Elasticsearch));
         assert!(parse_url("postgres://h:99999/db").is_err());
     }
 

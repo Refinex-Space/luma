@@ -179,6 +179,7 @@ export const DATA_TYPES: Record<DbDriver, string[]> = {
   ],
   // Redis is no SQL dialect.
   redis: [],
+  elasticsearch: [],
 };
 
 const f = (name: string, params: string, returns?: string, aggregate?: boolean): SqlFunction => ({
@@ -301,6 +302,7 @@ const FUNCTIONS: Record<DbDriver, SqlFunction[]> = {
   ],
   // Redis is no SQL dialect.
   redis: [],
+  elasticsearch: [],
 };
 
 export function functions(driver: DbDriver): SqlFunction[] {

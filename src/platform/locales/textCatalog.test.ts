@@ -171,6 +171,12 @@ const UNTRANSLATED = new Set<string>([
   // Redis products and a key pattern / database name shown as typed.
   "Redis",
   "Valkey",
+  // Elasticsearch product names, its default user and an example index name.
+  "Elasticsearch",
+  "Discover",
+  "elastic",
+  "logs-2026.11",
+  "_exists_",
   "user:*",
   "db{db}",
   "db{index}",

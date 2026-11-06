@@ -1126,6 +1126,16 @@ export const commands = {
 	dbApplyEdits: (id: string, schema: string, table: string, edits: DbRowEdit[]) => typedError<number | null, IdeError>(__TAURI_INVOKE("db_apply_edits", { id, schema, table, edits })),
 	/**  The query console file of data source `id` (`<appData>/consoles/db/<id>/console.sql`), created on first use. */
 	dbConsolePath: (id: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("db_console_path", { id })),
+	/**  Name, version, health, nodes, shards and totals of data source `id`'s cluster. */
+	esCluster: (id: string) => typedError<EsCluster, IdeError>(__TAURI_INVOKE("es_cluster", { id })),
+	/**  Indices (hidden ones included), data streams and aliases of data source `id`. */
+	esIndices: (id: string) => typedError<EsIndices, IdeError>(__TAURI_INVOKE("es_indices", { id })),
+	/**  Fields of `index` (a name, alias, data stream or pattern) with their types and abilities. */
+	esFields: (id: string, index: string) => typedError<EsField[], IdeError>(__TAURI_INVOKE("es_fields", { id, index })),
+	/**  One REST request (`GET /logs/_search` with a JSON body). Cancel with `cancel_request(request)`. */
+	esRequest: (request: RequestId, id: string, method: string, path: string, body: string | null) => typedError<EsResponse, IdeError>(__TAURI_INVOKE("es_request", { request, id, method, path, body })),
+	/**  The console file of data source `id` (`console.es`, Kibana Dev Tools syntax), created empty. */
+	esConsolePath: (id: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("es_console_path", { id })),
 	/**  Databases of the server of data source `id` with their key counts, its version and mode. */
 	redisKeyspace: (id: string) => typedError<RedisKeyspace, IdeError>(__TAURI_INVOKE("redis_keyspace", { id })),
 	/**  Keys of `target` matching `pattern` (of type `kind`), continuing from `cursor` (`0`: the start). */
@@ -2315,7 +2325,9 @@ export type DbDriver = "sqlite" | "postgres" |
 /**  Microsoft SQL Server. */
 "sqlServer" | 
 /**  Redis (and compatible servers: Valkey, KeyDB, Dragonfly): a key-value store, not SQL. */
-"redis";
+"redis" | 
+/**  Elasticsearch (and OpenSearch): a search engine over its REST API, not SQL. */
+"elasticsearch";
 
 /**  `schema.table (columns) REFERENCES ref_schema.ref_table (ref_columns)`. */
 export type DbForeignKey = {
@@ -3134,6 +3146,91 @@ export type ErrorKind = "notFound" | "alreadyExists" | "permissionDenied" | "inv
 "outOfSync" | "cancelled" | "timedOut" | 
 /**  A required external tool (language server, git, debugger) is unavailable. */
 "unavailable" | "io" | "protocol" | "internal";
+
+/**  An alias and the indices it points to. */
+export type EsAlias = {
+	name: string,
+	indices: string[],
+};
+
+/**  The cluster of a data source (`GET /`, `_cluster/health`, `_cluster/stats`). */
+export type EsCluster = {
+	name: string,
+	uuid: string,
+	/**  `elasticsearch` or `opensearch`. */
+	distribution: string,
+	version: string,
+	/**  `green`, `yellow` or `red`. */
+	status: string,
+	nodes: number,
+	dataNodes: number,
+	activeShards: number,
+	activePrimaryShards: number,
+	relocatingShards: number,
+	initializingShards: number,
+	unassignedShards: number,
+	indices: number,
+	docs: number | null,
+	storeBytes: number | null,
+};
+
+/**  A data stream (`_data_stream`) and its backing indices, oldest first. */
+export type EsDataStream = {
+	name: string,
+	timestampField: string,
+	indices: string[],
+	status: string,
+	hidden: boolean,
+};
+
+/**  A field of an index pattern (`_field_caps`): its type(s) and what it can do. */
+export type EsField = {
+	/**  Dotted path (`user.name`, `message.keyword`). */
+	name: string,
+	/**  Mapping types; more than one when indices of the pattern disagree. */
+	types: string[],
+	searchable: boolean,
+	aggregatable: boolean,
+	/**  `_id`, `_index`, … (`_field_caps` metadata fields). */
+	metadata: boolean,
+};
+
+/**  An index (`_cat/indices`), hidden and system ones included. */
+export type EsIndex = {
+	name: string,
+	/**  `green`, `yellow`, `red`; empty for closed indices. */
+	health: string,
+	/**  `open` or `close`. */
+	status: string,
+	uuid: string,
+	primaries: number,
+	replicas: number,
+	docs: number | null,
+	storeBytes: number | null,
+	/**  Hidden (`index.hidden`) or a system index (a leading `.`). */
+	hidden: boolean,
+	/**  The data stream it backs, if any. */
+	dataStream: string | null,
+	aliases: string[],
+};
+
+/**  Everything the tree lists of a cluster. */
+export type EsIndices = {
+	indices: EsIndex[],
+	dataStreams: EsDataStream[],
+	aliases: EsAlias[],
+};
+
+/**  One REST request's answer (`es_request`): status and the body as text (JSON mostly). */
+export type EsResponse = {
+	status: number,
+	/**  Round trip as measured by Luma (ES's own `took` is in the body). */
+	elapsedMs: number | null,
+	contentType: string,
+	body: string,
+	/**  The body was cut at the size limit (`MAX_BODY_BYTES`). */
+	truncated: boolean,
+};
 
 /**  An exception breakpoint filter offered by an adapter (`exceptionBreakpointFilters`). */
 export type ExceptionFilter = {

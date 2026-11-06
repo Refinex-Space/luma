@@ -1,0 +1,164 @@
+/* Elasticsearch › Cluster Overview: health pill, shard bar, node meters, index table. */
+.health {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px 0 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dot) 16%, transparent);
+  color: var(--dot);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.health::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+.shardBar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bg-progress-track, var(--border));
+}
+.shardBar > i {
+  display: block;
+  height: 100%;
+  transition: width var(--dur) var(--ease);
+}
+.active {
+  background: var(--es-green);
+}
+.relocating {
+  background: var(--accent);
+}
+.initializing {
+  background: var(--es-yellow);
+}
+.unassigned {
+  background: var(--es-red);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+}
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.legend b {
+  color: var(--fg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.meter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 96px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--bg-progress-track, var(--border));
+  overflow: hidden;
+  vertical-align: middle;
+}
+.meter > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--es-green) 55%, transparent);
+  transition: width var(--dur) var(--ease);
+}
+.meter.warn > i {
+  background: color-mix(in srgb, var(--es-yellow) 65%, transparent);
+}
+.meter.bad > i {
+  background: color-mix(in srgb, var(--es-red) 65%, transparent);
+}
+.meter > b {
+  position: relative;
+  padding-left: 6px;
+  color: var(--fg-strong);
+  font-size: var(--fs-tiny, 11px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.nodeName {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.masterMark {
+  color: var(--es-yellow);
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.panelHead h3 {
+  margin: 0 !important;
+}
+.filter {
+  width: 220px;
+}
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sortMark {
+  color: var(--accent);
+}
+.indexRow {
+  cursor: default;
+}
+.indexName {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+.indexName:hover {
+  text-decoration: underline;
+}
+.indexName:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+  text-decoration: none;
+}
+.closed {
+  margin-left: 8px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+  font-size: var(--fs-tiny, 11px);
+}

@@ -492,14 +492,14 @@ fn database_of(target: &str, source: &DataSource) -> IdeResult<i64> {
 }
 
 /// Installs rustls' ring provider once: the workspace builds rustls with two providers.
-fn tls_provider() {
+pub(crate) fn tls_provider() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         let _ = rustls::crypto::ring::default_provider().install_default();
     });
 }
 
-fn expand_home(path: &str) -> std::path::PathBuf {
+pub(crate) fn expand_home(path: &str) -> std::path::PathBuf {
     match path.strip_prefix("~/") {
         Some(rest) => dirs_home().join(rest),
         None => std::path::PathBuf::from(path),

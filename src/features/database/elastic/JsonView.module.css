@@ -1,0 +1,109 @@
+/* The read-only JSON viewer: editor colours, fold chevrons, one 20px line per entry. */
+
+.json {
+  min-width: 0;
+  overflow: auto;
+  padding: 4px 0 8px;
+  outline: none;
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  line-height: 20px;
+  color: var(--fg-editor);
+  background: var(--bg-editor);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.row {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  padding-right: 12px;
+  white-space: pre;
+}
+.json:focus-visible .active,
+.json:focus-within .active {
+  background: var(--bg-current-line);
+}
+.gutter {
+  flex: none;
+  width: 16px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.chevron {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-fold-marker, var(--fg-muted));
+  cursor: pointer;
+  transition:
+    transform var(--dur) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.chevron:hover {
+  color: var(--fg);
+  background: var(--bg-toolbar-hover);
+}
+.chevronOpen {
+  transform: rotate(90deg);
+}
+.line {
+  min-width: 0;
+}
+.key {
+  color: var(--syn-property);
+}
+.string {
+  color: var(--syn-string);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.number {
+  color: var(--syn-number);
+}
+.keyword {
+  color: var(--syn-keyword);
+}
+.punct {
+  color: var(--syn-punct);
+}
+.ellipsis {
+  margin: 0 1px;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--fg-fold-placeholder, var(--fg-muted));
+  background: var(--bg-fold-placeholder, var(--bg-hover));
+}
+.count {
+  margin-left: 8px;
+  color: var(--fg-faint, var(--fg-muted));
+  font-family: var(--font-ui);
+  font-size: var(--fs-tiny, var(--fs-small));
+  -webkit-user-select: none;
+  user-select: none;
+}
+.more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+.more:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

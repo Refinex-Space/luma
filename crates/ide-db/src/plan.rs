@@ -33,7 +33,9 @@ pub struct PlanNode {
 pub fn explain_statement(driver: DbDriver, statement: &str) -> String {
     let s = statement.trim().trim_end_matches(';');
     match driver {
-        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
+        DbDriver::Redis | DbDriver::Elasticsearch => {
+            unreachable!("Redis and Elasticsearch data sources have no SQL connection")
+        }
         DbDriver::Sqlite => format!("EXPLAIN QUERY PLAN {s}"),
         DbDriver::Postgres => format!("EXPLAIN (FORMAT JSON) {s}"),
         DbDriver::Mysql => format!("EXPLAIN {s}"),
@@ -44,7 +46,9 @@ pub fn explain_statement(driver: DbDriver, statement: &str) -> String {
 /// Reads the result of [`explain_statement`].
 pub fn parse(driver: DbDriver, result: &QueryResult) -> IdeResult<Vec<PlanNode>> {
     match driver {
-        DbDriver::Redis => unreachable!("Redis data sources have no SQL connection"),
+        DbDriver::Redis | DbDriver::Elasticsearch => {
+            unreachable!("Redis and Elasticsearch data sources have no SQL connection")
+        }
         DbDriver::Sqlite => Ok(sqlite(&result.rows)),
         DbDriver::Postgres => {
             let text: String =

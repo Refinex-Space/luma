@@ -6,6 +6,7 @@
  * source to open its query console.
  */
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import clsx from "clsx";
 import type { DbDatabases, DbTableDetails } from "@/platform/ipc";
 import { setContext } from "@/platform/context";
 import { executeAction } from "@/platform/actions";
@@ -58,6 +59,11 @@ import { indexKeys, type KeyIndex } from "./redis/tree";
 import { newMenu, nodeMenu } from "./treeMenu";
 import styles from "./Database.module.css";
 import { tx } from "@/platform/i18n";
+import type { EsIndices } from "@/platform/ipc";
+import { compactCount, healthColor } from "./elastic/model";
+import { fieldsOf, loadIndices, openDiscover, openEsConsole, showsHidden, useElastic } from "./elastic/store";
+import esStyles from "./elastic/Elastic.module.css";
+import { sizeLabel } from "./redis/model";
 
 const GROUP_LABELS: Record<Group, string> = {
   columns: "columns",
@@ -76,6 +82,16 @@ const FOLDER_LABELS: Record<Folder, string> = {
 };
 
 const FOLDERS: readonly Folder[] = ["tables", "views", "materializedViews", "routines", "sequences"];
+
+function esHealthTitle(health: string): string {
+  if (!health) return tx("Closed");
+  return tx`Health: ${health}`;
+}
+
+/** What an Elasticsearch index, data stream or alias node searches. */
+function esName(n: Extract<Node, { kind: "esIndex" | "esDataStream" | "esAlias" }>): string {
+  return n.kind === "esIndex" ? n.index.name : n.kind === "esDataStream" ? n.stream.name : n.alias.name;
+}
 
 function status<T>(key: string, l: Loaded<T> | undefined, map: (v: T) => Node[]): Node[] | undefined {
   if (!l) return undefined;
@@ -120,6 +136,7 @@ function keyIndexOf(keys: DbKeys, separator: string): KeyIndex {
 export function DatabaseView() {
   const st = useDatabase();
   const redis = useRedis();
+  const elastic = useElastic();
   const tree = useRef<TreeHandle>(null);
   useEffect(() => {
     if (!st.loaded) void loadSources();
@@ -218,10 +235,53 @@ export function DatabaseView() {
     return nodes;
   };
 
+  /** Indices of an Elasticsearch data source, then its Data Streams and Aliases folders. */
+  const esRoots = (id: string, v: EsIndices): Node[] => {
+    const hidden = showsHidden(id);
+    const out: Node[] = v.indices
+      // Data stream backing indices (`.ds-…`) are reached through their stream.
+      .filter((index) => hidden || (!index.hidden && !index.dataStream))
+      .map((index) => ({ kind: "esIndex", key: `${id}/i:${index.name}`, id, index }));
+    const streams = v.dataStreams.filter((d) => hidden || !d.hidden).length;
+    const aliases = v.aliases.filter((a) => hidden || !a.name.startsWith(".")).length;
+    if (streams) out.push({ kind: "esGroup", key: `${id}/g:dataStreams`, id, group: "dataStreams", count: streams });
+    if (aliases) out.push({ kind: "esGroup", key: `${id}/g:aliases`, id, group: "aliases", count: aliases });
+    return out.length ? out : [{ kind: "message", key: `${id}/empty`, text: tx("No indices") }];
+  };
+  const esGroupChildren = (n: Extract<Node, { kind: "esGroup" }>): Node[] | undefined => {
+    const l = elastic.indices[n.id];
+    if (l?.status !== "ok") return undefined;
+    const hidden = showsHidden(n.id);
+    if (n.group === "dataStreams")
+      return l.value.dataStreams
+        .filter((d) => hidden || !d.hidden)
+        .map((stream) => ({ kind: "esDataStream", key: `${n.key}/${stream.name}`, id: n.id, stream }));
+    return l.value.aliases
+      .filter((a) => hidden || !a.name.startsWith("."))
+      .map((alias) => ({ kind: "esAlias", key: `${n.key}/${alias.name}`, id: n.id, alias }));
+  };
+  const esFieldNodes = (n: Node, id: string, pattern: string) =>
+    status(n.key, elastic.fields[`${id}\u0000${pattern}`], (fields) => {
+      // Kibana's field list: leaves only — an `object` is the prefix of the fields that follow it.
+      const shown = fields.filter((f) => !f.metadata && !(f.types.length === 1 && f.types[0] === "object"));
+      return shown.length
+        ? shown.map((field) => ({ kind: "esField", key: `${n.key}/${field.name}`, id, pattern, field }) as Node)
+        : [{ kind: "message", key: `${n.key}/empty`, text: tx("No fields") }];
+    });
+
   const children = (n: Node): readonly Node[] | undefined => {
     switch (n.kind) {
+      case "esGroup":
+        return esGroupChildren(n);
+      case "esIndex":
+        return esFieldNodes(n, n.id, n.index.name);
+      case "esDataStream":
+        return esFieldNodes(n, n.id, n.stream.name);
+      case "esAlias":
+        return esFieldNodes(n, n.id, n.alias.name);
       case "source": {
         const id = n.source.id ?? "";
+        if (n.source.driver === "elasticsearch") return status(n.key, elastic.indices[id], (v) => esRoots(id, v));
         if (n.source.driver === "redis")
           return status(n.key, redis.keyspace[id], (v) =>
             redisDatabases(id, v).map((d): Node => ({
@@ -324,6 +384,15 @@ export function DatabaseView() {
   };
 
   const load = async (n: Node) => {
+    if (n.kind === "source" && n.source.driver === "elasticsearch") {
+      const id = n.source.id ?? "";
+      if (await connect(id)) await loadIndices(id);
+      return;
+    }
+    if (n.kind === "esIndex" || n.kind === "esDataStream" || n.kind === "esAlias") {
+      await fieldsOf(n.id, esName(n)).catch(() => undefined);
+      return;
+    }
     if (n.kind === "source" && n.source.driver === "redis") {
       const id = n.source.id ?? "";
       if (await connect(id)) await loadKeyspace(id);
@@ -346,6 +415,14 @@ export function DatabaseView() {
 
   const label = (n: Node): string => {
     switch (n.kind) {
+      case "esIndex":
+      case "esDataStream":
+      case "esAlias":
+        return esName(n);
+      case "esGroup":
+        return n.group === "dataStreams" ? tx("Data Streams") : tx("Aliases");
+      case "esField":
+        return n.field.name;
       case "source":
         return n.source.name ?? "";
       case "database":
@@ -389,6 +466,14 @@ export function DatabaseView() {
   /** Grey text after the label: counts, column types, key columns. */
   const detail = (n: Node): string | undefined => {
     switch (n.kind) {
+      case "esIndex":
+        return n.index.status === "close" ? tx("closed") : compactCount(n.index.docs ?? 0);
+      case "esGroup":
+        return count(n.count);
+      case "esAlias":
+        return count(n.alias.indices.length);
+      case "esField":
+        return n.field.types.join(" | ");
       case "source": {
         const id = n.source.id ?? "";
         if (listsDatabases(n.source)) {
@@ -436,6 +521,16 @@ export function DatabaseView() {
 
   const icon = (n: Node): string | undefined => {
     switch (n.kind) {
+      case "esIndex":
+        return "db-table";
+      case "esDataStream":
+        return "db-view";
+      case "esAlias":
+        return "db-foreign-key";
+      case "esGroup":
+        return "db-folder";
+      case "esField":
+        return "db-column";
       case "source":
         return sourceIcon(n.source);
       case "database":
@@ -511,7 +606,11 @@ export function DatabaseView() {
             n.kind === "table" ||
             n.kind === "group" ||
             n.kind === "redisDb" ||
-            n.kind === "redisFolder"
+            n.kind === "redisFolder" ||
+            n.kind === "esGroup" ||
+            n.kind === "esIndex" ||
+            n.kind === "esDataStream" ||
+            n.kind === "esAlias"
           }
           loadChildren={load}
           getIcon={(n) => icon(n)}
@@ -526,7 +625,10 @@ export function DatabaseView() {
               n.kind === "folder" ||
               n.kind === "group" ||
               n.kind === "redisDb" ||
-              n.kind === "redisFolder";
+              n.kind === "redisFolder" ||
+              n.kind === "esIndex" ||
+              n.kind === "esGroup" ||
+              n.kind === "esAlias";
             const labelClass =
               n.kind === "message" && n.error
                 ? styles.treeError
@@ -551,8 +653,24 @@ export function DatabaseView() {
                   </span>
                 )}
                 {n.kind === "redisKey" && <KindChip kind={n.entry.kind} />}
+                {n.kind === "esIndex" && (
+                  <span
+                    className={esStyles.healthDot}
+                    style={{ "--dot": healthColor(n.index.health) } as CSSProperties}
+                    title={esHealthTitle(n.index.health)}
+                  />
+                )}
                 {n.kind === "redisMore" && redis.keys[n.id]?.loading && <Spinner size={12} />}
-                <span className={labelClass} title={n.kind === "redisKey" ? bytesLabel(n.entry.key) : undefined}>
+                <span
+                  className={clsx(labelClass, n.kind === "esIndex" && n.index.status === "close" && styles.treeDetail)}
+                  title={
+                    n.kind === "redisKey"
+                      ? bytesLabel(n.entry.key)
+                      : n.kind === "esIndex"
+                        ? tx`${count(n.index.docs ?? 0)} documents · ${sizeLabel(n.index.storeBytes ?? 0)}`
+                        : undefined
+                  }
+                >
                   {label(n)}
                 </span>
                 {d && (
@@ -577,6 +695,10 @@ export function DatabaseView() {
             useDatabase.setState({ selectedSource: lead ? nodeTarget(lead) : null, selectedNode: lead })
           }
           onActivate={(n) => {
+            if (n.kind === "esIndex" || n.kind === "esDataStream" || n.kind === "esAlias")
+              return void openDiscover(n.id, esName(n));
+            if (n.kind === "source" && n.source.driver === "elasticsearch")
+              return void openEsConsole(n.source.id ?? "");
             if (n.kind === "redisKey") return openKey(n.id, n.entry.key);
             if (n.kind === "redisDb") return openBrowser(n.id);
             if (n.kind === "redisMore") return void loadKeys(n.id, { more: true });
@@ -589,7 +711,13 @@ export function DatabaseView() {
               if (o) void openObjectDdl(o.id, o.schema, o.kind, o.name);
             }
           }}
-          activateExpandable={(n) => n.kind === "table" || n.kind === "redisDb"}
+          activateExpandable={(n) =>
+            n.kind === "table" ||
+            n.kind === "redisDb" ||
+            n.kind === "esIndex" ||
+            n.kind === "esDataStream" ||
+            n.kind === "esAlias"
+          }
           onContextMenu={(n, _sel, e) => {
             const items = nodeMenu(n);
             if (items.length) showContextMenu(e, items);

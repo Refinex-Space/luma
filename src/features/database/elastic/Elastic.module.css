@@ -1,0 +1,39 @@
+/* Elasticsearch parts of the Database feature: health colours shared by the tree, Discover and the cluster overview. */
+:global(:root) {
+  --es-green: #3aa35b;
+  --es-yellow: #d6a21d;
+  --es-red: #d94b4b;
+}
+.healthDot {
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--fg-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot, var(--fg-muted)) 22%, transparent);
+}
+.formError {
+  color: var(--danger);
+  font-size: var(--fs-small);
+  overflow-wrap: anywhere;
+}
+.jsonInput {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 6px 8px;
+  border: 1px solid var(--border-input, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--bg-input);
+  color: var(--fg);
+  font-family: var(--luma-editor-font, var(--font-mono));
+  font-size: var(--fs-code);
+  line-height: 1.5;
+}
+.jsonInput:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}

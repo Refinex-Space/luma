@@ -22,6 +22,11 @@ import { DatabaseDialogs } from "./Dialogs";
 import { redisLanguageDescription } from "./redis/console/language";
 import { REDIS_LANGUAGE, executeRedisInView, redisConsoleExtension } from "./redis/console/RedisConsole";
 import { redisTargetOf, registerRedisActions } from "./redis/actions";
+import { ES_CLUSTER_KIND, ES_DISCOVER_KIND, type EsClusterRef, type EsDiscoverRef } from "./elastic/model";
+import { registerElasticActions } from "./elastic/actions";
+import { esLanguageDescription } from "./elastic/console/language";
+import { ES_LANGUAGE, esConsoleExtension, executeEsRequests } from "./elastic/EsConsole";
+import "./elastic/Elastic.module.css";
 import {
   REDIS_BROWSER_KIND,
   REDIS_INFO_KIND,
@@ -81,6 +86,10 @@ export function activate(): () => void {
     }),
     registerOverlay({ id: "database.dialogs", component: DatabaseDialogs }),
     registerOverlay({
+      id: "database.elasticDialogs",
+      component: lazyComponent(() => import("./elastic/EsDialogs").then((m) => m.EsDialogs)),
+    }),
+    registerOverlay({
       id: "database.redisDialogs",
       component: lazyComponent(() => import("./redis/RedisDialogs").then((m) => m.RedisDialogs)),
     }),
@@ -98,6 +107,23 @@ export function activate(): () => void {
         return `${sourceById(id)?.name ?? "Redis"} · db${db}`;
       },
       icon: () => "db-redis",
+      restorable: true,
+    }),
+    registerEditorKind({
+      kind: ES_DISCOVER_KIND,
+      component: lazyComponent(() => import("./elastic/discover/Discover").then((m) => m.EsDiscover)),
+      title: (input) => (input.data as EsDiscoverRef).index,
+      icon: () => "db-elasticsearch",
+      restorable: true,
+    }),
+    registerEditorKind({
+      kind: ES_CLUSTER_KIND,
+      component: lazyComponent(() => import("./elastic/ClusterView").then((m) => m.EsClusterView)),
+      title: (input) => {
+        const name = sourceById((input.data as EsClusterRef).id)?.name ?? "Elasticsearch";
+        return tx`${name} Cluster`;
+      },
+      icon: () => "db-elasticsearch",
       restorable: true,
     }),
     registerEditorKind({
@@ -119,6 +145,7 @@ export function activate(): () => void {
       icon: () => "db-redis",
     }),
     registerRedisActions(),
+    registerElasticActions(),
     registerCodeStyleSection({
       id: "database.sqlFormatting",
       language: SQL_LANGUAGE_ID,
@@ -127,6 +154,8 @@ export function activate(): () => void {
     registerEditorContribution({ id: "database.console", order: 57, extensions: consoleExtension }),
     registerLanguageMode(redisLanguageDescription),
     registerEditorContribution({ id: "database.redisConsole", order: 57, extensions: redisConsoleExtension }),
+    registerLanguageMode(esLanguageDescription),
+    registerEditorContribution({ id: "database.esConsole", order: 57, extensions: esConsoleExtension }),
     // A reopened project starts with a fresh backend: forget the old one's state.
     useProject.subscribe((s, prev) => {
       if (s.project?.root === prev.project?.root) return;
@@ -210,7 +239,7 @@ export function activate(): () => void {
         title: "Execute SQL Statement",
         category: "Tools",
         icon: "run",
-        when: `editorTextFocus && (editorLangId == ${SQL_LANGUAGE} || editorLangId == ${REDIS_LANGUAGE})`,
+        when: `editorTextFocus && (editorLangId == ${SQL_LANGUAGE} || editorLangId == ${REDIS_LANGUAGE} || editorLangId == ${ES_LANGUAGE})`,
         run: async () => {
           const e = activeEditor();
           if (!e) return;
@@ -219,6 +248,8 @@ export function activate(): () => void {
             if (!useDatabase.getState().loaded) await loadSources();
             return executeRedisInView(e.view, e.ctx.path);
           }
+          // An Elasticsearch console runs the request at the caret (Kibana's ▶).
+          if (e.ctx.language === ES_LANGUAGE) return executeEsRequests(e.view, e.ctx.path);
           if (e.ctx.language !== SQL_LANGUAGE) return;
           if (!useDatabase.getState().loaded) await loadSources();
           if (!consoleSource(e.ctx.path) && !useDatabase.getState().sources.length) {

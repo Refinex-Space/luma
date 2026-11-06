@@ -1,6 +1,6 @@
 /**
  * Data source types of New ▸ Data Source: the drivers the backend speaks (SQLite,
- * PostgreSQL, MySQL, SQL Server, Redis) and products that speak their wire protocol
+ * PostgreSQL, MySQL, SQL Server, Redis, Elasticsearch) and products that speak their wire protocol
  * (a preset of port, icon and URL scheme).
  */
 import type { DataSource, DbDriver, DbSslMode } from "@/platform/ipc";
@@ -36,6 +36,16 @@ export const VENDORS: readonly DbVendor[] = [
     port: 26257,
     icon: "db-cockroach",
     scheme: "postgresql",
+  },
+  {
+    id: "elasticsearch",
+    label: "Elasticsearch",
+    driver: "elasticsearch",
+    port: 9200,
+    icon: "db-elasticsearch",
+    scheme: "elasticsearch",
+    // HTTPS when the server speaks it (Elasticsearch 8's default), else HTTP.
+    ssl: "prefer",
   },
   { id: "greenplum", label: "Greenplum", driver: "postgres", port: 5432, icon: "db-greenplum", scheme: "postgresql" },
   { id: "mariadb", label: "MariaDB", driver: "mysql", port: 3306, icon: "db-mariadb", scheme: "mariadb" },
@@ -127,6 +137,16 @@ const SCHEMES: Record<string, string> = {
   mssql: "sqlServer",
   redis: "redis",
   rediss: "redis",
+  // OpenSearch speaks Elasticsearch's REST API: one type (the server says which it is).
+  elasticsearch: "elasticsearch",
+  elasticsearchs: "elasticsearch",
+  es: "elasticsearch",
+  ess: "elasticsearch",
+  opensearch: "elasticsearch",
+  opensearchs: "elasticsearch",
+  // A bare REST endpoint (`https://my-deployment.es.io`): only Elasticsearch has one.
+  http: "elasticsearch",
+  https: "elasticsearch",
   // Valkey speaks Redis: one type for both (old `valkey` presets fall back to it).
   valkey: "redis",
   valkeys: "redis",
@@ -140,6 +160,11 @@ const bracketed = (host: string) => (host.includes(":") && !host.startsWith("[")
 export function sourceUrl(s: DataSource): string {
   const v = vendorOf(s);
   if (v.driver === "sqlite") return `jdbc:sqlite:${s.file ?? ""}`;
+  if (v.driver === "elasticsearch") {
+    // The REST endpoint itself: `https://host:9200`.
+    const tls = !!s.ssl && s.ssl !== "disable";
+    return `${tls ? "https" : "http"}://${bracketed(s.host?.trim() || "localhost")}:${s.port ?? 9200}`;
+  }
   if (v.driver === "redis") {
     // Redis URLs (no JDBC): `redis://host:6379/0`, `rediss://` over TLS.
     const tls = s.ssl && s.ssl !== "disable" && s.ssl !== "prefer";

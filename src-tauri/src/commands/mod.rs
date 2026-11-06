@@ -20,6 +20,7 @@ pub mod dependencies;
 pub mod deploy;
 pub mod doc;
 pub mod docker;
+pub mod elastic;
 pub mod env;
 pub mod fonts;
 pub mod fs;
@@ -532,6 +533,11 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         db::db_table_page,
         db::db_apply_edits,
         db::db_console_path,
+        elastic::es_cluster,
+        elastic::es_indices,
+        elastic::es_fields,
+        elastic::es_request,
+        elastic::es_console_path,
         redis::redis_keyspace,
         redis::redis_scan,
         redis::redis_key_info,

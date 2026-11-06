@@ -74,7 +74,8 @@ function actionTitles(): Map<string, string> {
 
 const titles = actionTitles();
 /** Product names shown as they are in every language. */
-const PROPER_NAMES = new Set(["Vim"]);
+// Product / feature names kept in English (Kibana calls it Discover in every language).
+const PROPER_NAMES = new Set(["Vim", "Discover"]);
 
 it("has a Chinese entry for every literal action title, including action factory arguments", () => {
   // Ensure the helper-argument regression cannot disappear through a scanner change.

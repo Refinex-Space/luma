@@ -360,6 +360,12 @@ export function parseSourceUrl(raw: string): { source: Partial<DataSource>; pass
   if (vendor.id !== vendor.driver) source.vendor = vendor.id;
   // Redis: `rediss://` is TLS; plain `redis://` never negotiates it.
   if (vendor.driver === "redis") source.ssl = /^(rediss|valkeys)$/i.test(m[1]!) ? "require" : "disable";
+  // Elasticsearch: `https://` and the `…s` schemes are TLS; a bare `https://` endpoint defaults to 443.
+  if (vendor.driver === "elasticsearch") {
+    const tls = /^(https|elasticsearchs|ess|opensearchs)$/i.test(m[1]!);
+    source.ssl = tls ? "require" : "disable";
+    if (port === null) source.port = /^https$/i.test(m[1]!) ? 443 : /^http$/i.test(m[1]!) ? 80 : 9200;
+  }
   const properties: DbProperty[] = [];
   for (const [k, v] of new URLSearchParams(m[7] ?? "")) {
     switch (k.toLowerCase()) {
