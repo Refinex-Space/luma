@@ -46,6 +46,10 @@ pub struct Project {
     pub(crate) java_launch_snapshots: Mutex<crate::ops::java::cache::Session>,
     /// "N usages" counts of Java declarations, persisted in `cache_dir`.
     pub java_usages: crate::ops::java::usages::UsageCounts,
+    /// Luma's Java engine: module class paths for in-process resolution.
+    pub java_engine: Arc<crate::java_engine::JavaEngine>,
+    /// Problems of closed files, shown again at once on reopen (IDEA's highlighting grave).
+    pub diagnostics: Arc<crate::diagnostics_grave::GraveObserver>,
     /// Database tool window: data sources and their connections.
     pub db: Arc<ide_db::DbManager>,
     /// HTTP Client responses (IDEA's `.idea/httpRequests`), in the app data dir.
@@ -122,9 +126,27 @@ impl Host {
             sink.clone(),
         )?;
         mark("index");
-        let lsp = LspManager::new(root.clone(), languages.clone(), sink.clone());
+        // The language servers' problems pass through the grave that keeps closed files' ones.
+        let grave = Arc::new(crate::diagnostics_grave::DiagnosticsGrave::new(
+            &self.local_data_dir.join("cache").join(&project_key),
+        ));
+        let lsp_sink: SharedSink = {
+            let (sink, grave) = (sink.clone(), grave.clone());
+            Arc::new(move |e: IdeEvent| {
+                grave.record(&e);
+                sink.emit(e)
+            })
+        };
+        let diagnostics = Arc::new(crate::diagnostics_grave::GraveObserver::new(grave, sink.clone()));
+        let lsp = LspManager::new(root.clone(), languages.clone(), lsp_sink);
         lsp.set_execution_allowed(trusted.load(Ordering::Acquire));
         lsp.set_content_roots(extra_roots.clone());
+        let java_engine =
+            Arc::new(crate::java_engine::JavaEngine::new(&self.local_data_dir.join("cache").join(&project_key)));
+        {
+            let engine = java_engine.clone();
+            lsp.set_java_config_hook(Box::new(move |path| engine.sonar_config(path)));
+        }
         let settings = Arc::new(settings);
         {
             let settings = settings.clone();
@@ -260,6 +282,7 @@ impl Host {
         documents.add_observer(Arc::new(SyntaxObserver(syntax.clone())));
         documents.add_observer(Arc::new(LspObserver(lsp.clone())));
         documents.add_observer(Arc::new(HistoryObserver(history.clone())));
+        documents.add_observer(diagnostics.clone());
         documents.add_observer(Arc::new(DeployObserver {
             remote: self.remote.clone(),
             settings: settings.clone(),
@@ -459,6 +482,8 @@ impl Host {
             java_usages: crate::ops::java::usages::UsageCounts::new(
                 &self.local_data_dir.join("cache").join(&project_key),
             ),
+            java_engine,
+            diagnostics,
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),
@@ -487,6 +512,22 @@ impl Host {
         self.insert_project(window, project.clone());
         if let Some(bridge) = &project.kotlin_bridge {
             bridge.start(&self.runtime);
+        }
+        // SonarQube for IDE on: its engine starts now, not when the first file is opened.
+        if project.settings.effective().sonarlint.enabled && crate::sonarlint::installed(&self.local_data_dir) {
+            project.lsp.prewarm_sonar();
+        }
+        // Java: each Maven module's class path for the engine, worked out now (from the snapshot,
+        // the last sync or the POMs) as IDEA imports the project model on open — not by the
+        // first usage count.
+        if project.root.join("pom.xml").is_file() {
+            let weak = Arc::downgrade(&project);
+            let spawned = std::thread::Builder::new()
+                .name("java-engine-prewarm".into())
+                .spawn(move || crate::java_engine::prewarm(&weak));
+            if let Err(e) = spawned {
+                tracing::debug!("java engine prewarm: {e}");
+            }
         }
         if let Some(cmd) = post_start {
             self.environment.spawn_post_start(cmd, project.root.clone(), project.sink.clone());
@@ -587,6 +628,16 @@ impl Host {
             java_usages: crate::ops::java::usages::UsageCounts::new(
                 &self.local_data_dir.join("cache").join(&project_key),
             ),
+            java_engine: Arc::new(crate::java_engine::JavaEngine::new(
+                &self.local_data_dir.join("cache").join(&project_key),
+            )),
+            // LightEdit: no project problems to keep.
+            diagnostics: Arc::new(crate::diagnostics_grave::GraveObserver::new(
+                Arc::new(crate::diagnostics_grave::DiagnosticsGrave::new(
+                    &self.local_data_dir.join("cache").join(&project_key),
+                )),
+                Arc::new(ide_core::NullSink),
+            )),
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),

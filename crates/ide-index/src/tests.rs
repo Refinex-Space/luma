@@ -192,6 +192,29 @@ fn recent_files_skip_deleted_files_but_keep_virtual_documents() {
 }
 
 #[test]
+fn an_index_version_change_extracts_only_its_files_again() {
+    let fx = sample();
+    drop(fx.open());
+    // As if the Java stub extractor (then the Python symbols) had a new version.
+    let outdate = |key: &str| {
+        let store = store::Store::open(&fx.cache, &fx.root).unwrap();
+        let mut versions = store.versions();
+        assert!(versions.contains_key(key), "{key} in {versions:?}");
+        versions.insert(key.to_owned(), "old".into());
+        store.save_versions(&versions).unwrap();
+    };
+    outdate("java");
+    {
+        let idx = fx.open();
+        assert_eq!(idx.shared.parsed.load(Ordering::SeqCst), 2, "the two Java files only");
+        assert_eq!(symbols(&idx, "OrderController", SymbolFilter::Types)[0], "OrderController");
+    }
+    assert_eq!(fx.open().shared.parsed.load(Ordering::SeqCst), 0, "the new versions are kept");
+    outdate("symbols/python");
+    assert_eq!(fx.open().shared.parsed.load(Ordering::SeqCst), 1, "app.py only");
+}
+
+#[test]
 fn persistence_skips_unchanged_files_on_reopen() {
     let fx = sample();
     {
@@ -609,7 +632,7 @@ fn java_index_on_a_real_project() {
         let positions: Vec<_> =
             stub.types.iter().flat_map(|t| std::iter::once(t.at).chain(t.members.iter().map(|m| m.at))).collect();
         let scopes: Vec<usize> =
-            idx.java_usage_scopes(&path, &text, &positions).into_iter().flatten().map(|s| s.files.len()).collect();
+            idx.java_usage_scopes(&path, &text, &[], &positions).into_iter().flatten().map(|s| s.files.len()).collect();
         println!(
             "{rel}: markers {markers:?} ({} markers, {targets} targets, {} unresolved); {} usage scopes in {:?}, candidate files max {} / median {}",
             m.markers.len(),

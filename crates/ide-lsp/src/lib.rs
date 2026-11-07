@@ -80,6 +80,9 @@ pub type ApplyEditHook = Arc<dyn Fn(WorkspaceEdit) -> bool + Send + Sync>;
 /// settings before each launch; receives the server's workspace root.
 pub type ConfigFn = dyn Fn(&mut LanguageServerConfig, &Path) + Send + Sync;
 pub type ConfigHook = Arc<ConfigFn>;
+/// Answers SonarQube for IDE's `sonarlint/getJavaConfig` for a file from the project's model,
+/// without waiting for jdtls; `None` to ask jdtls.
+pub type JavaConfigFn = dyn Fn(&Path) -> Option<serde_json::Value> + Send + Sync;
 /// Prepares dependencies on a blocking worker immediately before launching an installed server.
 pub type PrepareFn = dyn Fn(&LanguageServerConfig, &Path, &CancellationToken) + Send + Sync;
 /// The servers a language uses, from its definition's list (user settings
@@ -175,6 +178,7 @@ pub struct LspManager {
     apply_edit_hook: RwLock<Option<ApplyEditHook>>,
     applied_edits: tokio::sync::broadcast::Sender<(ide_core::ServerId, WorkspaceEdit)>,
     config_hook: RwLock<Option<ConfigHook>>,
+    pub(crate) java_config_hook: RwLock<Option<Arc<JavaConfigFn>>>,
     prepare_hook: RwLock<Option<Arc<PrepareFn>>>,
     servers_hook: RwLock<Option<Arc<ServersFn>>>,
     candidates_hook: RwLock<Option<Arc<CandidateFn>>>,
@@ -212,6 +216,23 @@ fn runtime_handle() -> tokio::runtime::Handle {
             .handle()
             .clone()
     })
+}
+
+/// Whether moving a running server from `current` to `next` takes a restart: anything but its
+/// settings (sent with `workspace/didChangeConfiguration`) changed. SonarQube for IDE's rules are
+/// in its initialization options too, yet it re-reads them from its settings: a rule switched
+/// on or off is a settings change, not a restart of the engine (a JVM loading every analyzer).
+pub(crate) fn restart_needed(current: &LanguageServerConfig, next: &LanguageServerConfig) -> bool {
+    let comparable = |c: &LanguageServerConfig| {
+        let mut c = LanguageServerConfig { settings: None, ..c.clone() };
+        if c.name == sonarlint::SERVER
+            && let Some(toml::Value::Table(t)) = c.initialization_options.as_mut()
+        {
+            t.remove("rules");
+        }
+        c
+    };
+    comparable(current) != comparable(next)
 }
 
 fn rpc_err(server: &str, method: &str, e: RpcError) -> IdeError {
@@ -313,6 +334,7 @@ impl LspManager {
             apply_edit_hook: RwLock::new(None),
             applied_edits: tokio::sync::broadcast::channel(64).0,
             config_hook: RwLock::new(None),
+            java_config_hook: RwLock::new(None),
             prepare_hook: RwLock::new(None),
             servers_hook: RwLock::new(None),
             candidates_hook: RwLock::new(None),
@@ -2386,6 +2408,10 @@ impl LspManager {
         *self.config_hook.write() = Some(Arc::from(hook));
     }
 
+    pub fn set_java_config_hook(&self, hook: Box<JavaConfigFn>) {
+        *self.java_config_hook.write() = Some(Arc::from(hook));
+    }
+
     pub fn set_prepare_hook(&self, hook: Box<PrepareFn>) {
         *self.prepare_hook.write() = Some(Arc::from(hook));
     }
@@ -2454,9 +2480,8 @@ impl LspManager {
             if next == current {
                 continue;
             }
-            let without_settings = |c: &LanguageServerConfig| LanguageServerConfig { settings: None, ..c.clone() };
             if let Some(run) = s.running()
-                && without_settings(&next) == without_settings(&current)
+                && !restart_needed(&current, &next)
                 && !jdtls::source_paths_removed(&current, &next)
             {
                 s.set_effective_config(next);
@@ -2794,5 +2819,44 @@ mod code_action_tests {
         assert!(!source_actions_only(&kinds(&["quickfix"])));
         assert!(!source_actions_only(&kinds(&["source.organizeImports", "refactor"])));
         assert!(!source_actions_only(&kinds(&["sourcefoo"])));
+    }
+}
+
+#[cfg(test)]
+mod restart_tests {
+    use super::*;
+
+    fn sonar(rules: &str, vm: &str) -> LanguageServerConfig {
+        let init: toml::Value =
+            toml::from_str(&format!("productKey = \"luma\"\nrules = {{ \"java:S1\" = {{ level = \"{rules}\" }} }}"))
+                .unwrap();
+        LanguageServerConfig {
+            name: sonarlint::SERVER.into(),
+            command: "java".into(),
+            args: vec![vm.into()],
+            env: Default::default(),
+            root_markers: Vec::new(),
+            require_root_marker: false,
+            initialization_options: Some(init),
+            settings: None,
+            install_hint: None,
+            connect: None,
+            fallback: false,
+            max_java: None,
+            launch_error: None,
+            tsserver_project: false,
+        }
+    }
+
+    #[test]
+    fn sonar_rule_changes_are_settings_not_restarts() {
+        assert!(!restart_needed(&sonar("on", "-Xmx1g"), &sonar("off", "-Xmx1g")));
+        assert!(restart_needed(&sonar("on", "-Xmx1g"), &sonar("on", "-Xmx2g")), "JVM options need a restart");
+        // Another server's initialization options do restart it.
+        let mut a = sonar("on", "-Xmx1g");
+        let mut b = sonar("off", "-Xmx1g");
+        a.name = "other".into();
+        b.name = "other".into();
+        assert!(restart_needed(&a, &b));
     }
 }

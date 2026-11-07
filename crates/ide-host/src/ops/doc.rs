@@ -5,15 +5,30 @@ use std::path::PathBuf;
 
 pub async fn open(host: &Host, window: &str, path: PathBuf) -> IdeResult<DocumentInfo> {
     let project = host.project(window)?;
-    host.blocking(move || {
-        let info = project.documents.open(&path)?;
-        project.index.mark_recent(&path);
-        if let Some(dir) = path.parent().filter(|_| project.light) {
-            project.watch_light_dir(dir);
-        }
-        Ok(info)
-    })
-    .await
+    let opened = {
+        let (project, path) = (project.clone(), path.clone());
+        host.blocking(move || {
+            let info = project.documents.open(&path)?;
+            project.index.mark_recent(&path);
+            if let Some(dir) = path.parent().filter(|_| project.light) {
+                project.watch_light_dir(dir);
+            }
+            Ok(info)
+        })
+        .await
+    };
+    // A Java file: learn its module's class path from jdtls in the background, so the engine
+    // and SonarQube for IDE have it before they are asked.
+    if opened.is_ok()
+        && !project.light
+        && path.extension().is_some_and(|e| e == "java")
+        && !project.java_engine.fresh(&path)
+    {
+        tokio::spawn(async move {
+            project.java_engine.refresh(&project.lsp, &path).await;
+        });
+    }
+    opened
 }
 
 pub fn close(host: &Host, window: &str, doc: DocId) -> IdeResult<()> {

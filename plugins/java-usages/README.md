@@ -40,8 +40,16 @@ matches are only counted, per file, without access classification. Returns per t
   credited, those targets are searched one by one instead. Equal names (overloads, a class and
   its constructors) are always searched one by one.
 
-The Rust side (`ide-host` `ops::java::usages`) keeps the counts per referencing file and asks
-only for files whose content or name dependencies changed.
+The Rust side (`ide-host` `ops::java::usages`) keeps the counts per referencing file and recounts
+only files whose content, name dependencies or class path changed. Luma's own engine
+(`crates/ide-java`) counts first, in process, with IDEA's inlay semantics (a method's usages are
+those of its deepest super methods, overrides included; Javadoc references count); this command
+is asked, in the background, only for the files where the engine left an occurrence undecided
+and for declarations it cannot resolve. Open files with unsaved edits are counted from their
+editor text by the engine too. Before jdtls has described a module, the engine uses the class
+path of the last Maven sync, else the one it works out from the POMs (Maven's mediation rules
+over the local repository), with the project JDK or the installed one matching the build's
+release.
 
 ## Search plan and access semantics
 

@@ -191,6 +191,8 @@ struct RawDep {
     classifier: Option<String>,
     scope: Option<String>,
     optional: bool,
+    /// `<exclusions>`: (groupId, artifactId), `*` for any.
+    exclusions: Vec<(String, String)>,
 }
 
 impl RawDep {
@@ -258,6 +260,11 @@ fn read_dep(e: &Element) -> Option<RawDep> {
         classifier: e.text_of("classifier"),
         scope: e.text_of("scope"),
         optional: e.text_of("optional").is_some_and(|o| o == "true"),
+        exclusions: e
+            .list("exclusions", "exclusion")
+            .into_iter()
+            .filter_map(|x| Some((x.text_of("groupId")?, x.text_of("artifactId").unwrap_or_else(|| "*".into()))))
+            .collect(),
     })
 }
 
@@ -453,10 +460,13 @@ struct Resolver {
     local_repo: Option<PathBuf>,
     poms: HashMap<PathBuf, Option<RawPom>>,
     contexts: HashMap<PathBuf, Inherited>,
+    /// `groupId:artifactId` → POM of the build's own projects, which win over the local
+    /// repository (a reactor BOM imported by its siblings is usually not installed).
+    reactor: HashMap<String, PathBuf>,
 }
 
 /// `~/.m2/repository`, or `<localRepository>` from `~/.m2/settings.xml`.
-pub(crate) fn default_local_repo() -> Option<PathBuf> {
+pub fn default_local_repo() -> Option<PathBuf> {
     let m2 = dirs::home_dir()?.join(".m2");
     local_repository_of(&m2.join("settings.xml")).or(Some(m2.join("repository")))
 }
@@ -476,7 +486,7 @@ pub fn local_repository_of(settings: &Path) -> Option<PathBuf> {
 
 impl Resolver {
     fn new(local_repo: Option<PathBuf>) -> Self {
-        Self { local_repo, poms: HashMap::new(), contexts: HashMap::new() }
+        Self { local_repo, poms: HashMap::new(), contexts: HashMap::new(), reactor: HashMap::new() }
     }
 
     fn pom(&mut self, path: &Path) -> Option<RawPom> {
@@ -487,6 +497,9 @@ impl Resolver {
     }
 
     fn repo_pom(&self, group: &str, artifact: &str, version: &str) -> Option<PathBuf> {
+        if let Some(pom) = self.reactor.get(&format!("{group}:{artifact}")) {
+            return Some(pom.clone());
+        }
         if version.is_empty() || version.contains("${") {
             return None;
         }
@@ -615,6 +628,188 @@ impl Resolver {
             set("parent.version", &p.version);
         }
         props
+    }
+}
+
+/// The class path of the reactor's projects worked out from their POMs alone (no Maven run), as
+/// IDEA's importer would before Maven answers: the dependencies with Maven's rules — nearest
+/// wins (the first declared at a depth), compile and runtime dependencies are transitive (test,
+/// provided and optional ones are not), exclusions apply below the dependency declaring them,
+/// the project's `<dependencyManagement>` (with imported BOMs) sets transitive versions — as
+/// jars of the local repository, and reactor projects as their output folders.
+pub struct StaticClasspath {
+    resolver: Resolver,
+}
+
+/// A dependency being resolved.
+struct Pending {
+    group: String,
+    artifact: String,
+    version: String,
+    kind: String,
+    classifier: Option<String>,
+    scope: String,
+    exclusions: Vec<(String, String)>,
+    depth: usize,
+}
+
+/// A managed dependency: version, scope, exclusions.
+type Managed = (Option<String>, Option<String>, Vec<(String, String)>);
+
+const MAX_ARTIFACTS: usize = 4000;
+const MAX_DEPTH: usize = 40;
+
+/// Management applies per artifact: `x:y` and its `test-jar` are managed separately.
+fn managed_key(group: &str, artifact: &str, d: &RawDep) -> String {
+    format!("{group}:{artifact}:{}:{}", d.kind.as_deref().unwrap_or("jar"), d.classifier.as_deref().unwrap_or(""))
+}
+
+fn excluded(exclusions: &[(String, String)], group: &str, artifact: &str) -> bool {
+    exclusions.iter().any(|(g, a)| (g == "*" || g == group) && (a == "*" || a == artifact))
+}
+
+impl StaticClasspath {
+    pub fn new(local_repo: Option<PathBuf>) -> Self {
+        Self { resolver: Resolver::new(local_repo.or_else(default_local_repo)) }
+    }
+
+    /// Class path entries of the project whose POM is `pom` (test scope: everything it
+    /// compiles its tests against): its output folders, then dependencies breadth first.
+    /// `reactor` maps `groupId:artifactId` of the build's projects to their directories.
+    pub fn of(&mut self, pom: &Path, reactor: &HashMap<String, PathBuf>) -> Vec<PathBuf> {
+        let poms: HashMap<String, PathBuf> = reactor.iter().map(|(k, d)| (k.clone(), d.join("pom.xml"))).collect();
+        if poms != self.resolver.reactor {
+            self.resolver.reactor = poms;
+            self.resolver.contexts.clear();
+        }
+        let dir = pom.parent().unwrap_or(Path::new("")).to_path_buf();
+        let mut out: Vec<PathBuf> =
+            ["target/classes", "target/test-classes"].iter().map(|o| dir.join(o)).filter(|p| p.is_dir()).collect();
+        let Some(raw) = self.resolver.pom(pom) else { return out };
+        let ctx = self.resolver.context(pom, 0);
+        let props = self.resolver.properties_for(&raw, &ctx, &dir);
+        let i = |s: &str| interpolate(s, &props);
+        // The project's management: versions, scopes and exclusions of its dependencies at any
+        // depth (Spring Boot's BOM, for one, excludes protobuf from the MySQL driver).
+        let managed: HashMap<String, Managed> = ctx
+            .managed
+            .iter()
+            .map(|m| {
+                let key = managed_key(&i(&m.group_id), &i(&m.artifact_id), m);
+                (key, (m.version.as_deref().map(i), m.scope.clone(), m.exclusions.clone()))
+            })
+            .collect();
+        let mut queue: std::collections::VecDeque<Pending> = ctx
+            .deps
+            .iter()
+            .filter_map(|d| {
+                let (g, a) = (i(&d.group_id), i(&d.artifact_id));
+                let m = managed.get(&managed_key(&g, &a, d));
+                let version = d.version.as_deref().map(i).or_else(|| m.and_then(|m| m.0.clone()))?;
+                Some(Pending {
+                    scope: d.scope.clone().or_else(|| m.and_then(|m| m.1.clone())).unwrap_or_else(|| "compile".into()),
+                    group: g,
+                    artifact: a,
+                    version,
+                    kind: d.kind.clone().unwrap_or_else(|| "jar".into()),
+                    classifier: d.classifier.clone(),
+                    exclusions: [d.exclusions.clone(), m.map(|m| m.2.clone()).unwrap_or_default()].concat(),
+                    depth: 0,
+                })
+            })
+            .collect();
+        let mut chosen: HashSet<String> = HashSet::new();
+        while let Some(d) = queue.pop_front() {
+            if chosen.len() >= MAX_ARTIFACTS || d.depth > MAX_DEPTH {
+                break;
+            }
+            if d.version.contains("${") || d.scope == "import" {
+                continue;
+            }
+            // Nearest wins: the first occurrence of an artifact (breadth first) is the one used.
+            let key = format!("{}:{}:{}:{}", d.group, d.artifact, d.kind, d.classifier.as_deref().unwrap_or(""));
+            if !chosen.insert(key) {
+                continue;
+            }
+            // A project of the build: its output folder, and its own dependencies.
+            let module_pom = reactor.get(&format!("{}:{}", d.group, d.artifact)).map(|m| m.join("pom.xml"));
+            let dep_pom = match &module_pom {
+                Some(p) => {
+                    // Listed even before it is built: its position says which module's sources
+                    // come first (a missing folder holds no classes).
+                    out.push(p.parent().unwrap_or(Path::new("")).join("target/classes"));
+                    Some(p.clone())
+                }
+                None => {
+                    let classifier = match (d.kind.as_str(), &d.classifier) {
+                        (_, Some(c)) => format!("-{c}"),
+                        ("test-jar", None) => "-tests".to_owned(),
+                        _ => String::new(),
+                    };
+                    if d.kind != "pom"
+                        && let Some(repo) = self.resolver.local_repo.clone()
+                    {
+                        let mut jar = repo;
+                        jar.extend(d.group.split('.'));
+                        jar.push(&d.artifact);
+                        jar.push(&d.version);
+                        jar.push(format!("{}-{}{classifier}.jar", d.artifact, d.version));
+                        if jar.is_file() {
+                            out.push(jar);
+                        }
+                    }
+                    self.resolver.repo_pom(&d.group, &d.artifact, &d.version)
+                }
+            };
+            // Its dependencies: compile and runtime ones, not optional, not excluded.
+            let Some(dep_pom) = dep_pom else { continue };
+            let Some(dep_raw) = self.resolver.pom(&dep_pom) else { continue };
+            let dep_ctx = self.resolver.context(&dep_pom, 0);
+            let dep_dir = dep_pom.parent().unwrap_or(Path::new("")).to_path_buf();
+            let dep_props = self.resolver.properties_for(&dep_raw, &dep_ctx, &dep_dir);
+            let di = |s: &str| interpolate(s, &dep_props);
+            let dep_managed: HashMap<String, (Option<String>, Option<String>)> = dep_ctx
+                .managed
+                .iter()
+                .map(|m| {
+                    (
+                        managed_key(&di(&m.group_id), &di(&m.artifact_id), m),
+                        (m.version.as_deref().map(di), m.scope.clone()),
+                    )
+                })
+                .collect();
+            for t in &dep_ctx.deps {
+                let (g, a) = (di(&t.group_id), di(&t.artifact_id));
+                let key = managed_key(&g, &a, t);
+                let own = dep_managed.get(&key);
+                let root = managed.get(&key);
+                let scope =
+                    t.scope.clone().or_else(|| own.and_then(|m| m.1.clone())).unwrap_or_else(|| "compile".into());
+                if t.optional || !matches!(scope.as_str(), "compile" | "runtime") || excluded(&d.exclusions, &g, &a) {
+                    continue;
+                }
+                // The project's management wins over the dependency's own versions.
+                let version = root
+                    .and_then(|m| m.0.clone())
+                    .or_else(|| t.version.as_deref().map(di))
+                    .or_else(|| own.and_then(|m| m.0.clone()));
+                let Some(version) = version else { continue };
+                let mut exclusions = d.exclusions.clone();
+                exclusions.extend(t.exclusions.iter().cloned());
+                exclusions.extend(root.map(|m| m.2.clone()).unwrap_or_default());
+                queue.push_back(Pending {
+                    group: g,
+                    artifact: a,
+                    version,
+                    kind: t.kind.clone().unwrap_or_else(|| "jar".into()),
+                    classifier: t.classifier.clone(),
+                    scope,
+                    exclusions,
+                    depth: d.depth + 1,
+                });
+            }
+        }
+        out
     }
 }
 
@@ -1902,5 +2097,171 @@ mod linkage_tests {
         let mut restored = original.clone();
         UnlinkedProjects::from_model(&original, &MavenSettings::default()).filter(&mut restored);
         assert_eq!(restored, original);
+    }
+}
+
+#[cfg(test)]
+mod static_classpath_tests {
+    use super::*;
+
+    fn artifact(repo: &Path, g: &str, a: &str, v: &str, deps: &str) -> PathBuf {
+        let mut dir = repo.to_owned();
+        dir.extend(g.split('.'));
+        dir.push(a);
+        dir.push(v);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join(format!("{a}-{v}.pom")),
+            format!("<project><groupId>{g}</groupId><artifactId>{a}</artifactId><version>{v}</version><dependencies>{deps}</dependencies></project>"),
+        )
+        .unwrap();
+        let jar = dir.join(format!("{a}-{v}.jar"));
+        std::fs::write(&jar, b"").unwrap();
+        jar
+    }
+
+    fn dep(g: &str, a: &str, v: &str, extra: &str) -> String {
+        format!(
+            "<dependency><groupId>{g}</groupId><artifactId>{a}</artifactId><version>{v}</version>{extra}</dependency>"
+        )
+    }
+
+    #[test]
+    fn maven_rules_for_the_dependency_graph() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        let root = dir.path().join("proj");
+        let a = artifact(
+            &repo,
+            "x",
+            "a",
+            "1.0",
+            &[
+                dep("x", "b", "1.0", ""),
+                dep("x", "c", "1.0", "<scope>test</scope>"),
+                dep("x", "d", "1.0", "<optional>true</optional>"),
+                dep("x", "e", "1.0", ""),
+                dep("x", "f", "2.0", ""),
+            ]
+            .concat(),
+        );
+        artifact(&repo, "x", "b", "1.0", "");
+        let b2 = artifact(&repo, "x", "b", "2.0", "");
+        artifact(&repo, "x", "c", "1.0", "");
+        artifact(&repo, "x", "d", "1.0", "");
+        artifact(&repo, "x", "e", "1.0", "");
+        let f1 = artifact(&repo, "x", "f", "1.0", "");
+        artifact(&repo, "x", "f", "2.0", "");
+        std::fs::create_dir_all(root.join("lib/target/classes")).unwrap();
+        std::fs::write(
+            root.join("lib/pom.xml"),
+            format!("<project><groupId>p</groupId><artifactId>lib</artifactId><version>1</version><dependencies>{}</dependencies></project>", dep("x", "f", "1.0", "")),
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::write(
+            root.join("app/pom.xml"),
+            format!(
+                "<project><groupId>p</groupId><artifactId>app</artifactId><version>1</version>\
+                 <dependencyManagement><dependencies>{}</dependencies></dependencyManagement>\
+                 <dependencies>{}{}{}</dependencies></project>",
+                dep("x", "b", "2.0", ""),
+                dep(
+                    "x",
+                    "a",
+                    "1.0",
+                    "<exclusions><exclusion><groupId>x</groupId><artifactId>e</artifactId></exclusion></exclusions>"
+                ),
+                dep("x", "f", "1.0", ""),
+                dep("p", "lib", "1", ""),
+            ),
+        )
+        .unwrap();
+        let reactor: HashMap<String, PathBuf> = [("p:lib".to_owned(), root.join("lib"))].into();
+        let cp = StaticClasspath::new(Some(repo.clone())).of(&root.join("app/pom.xml"), &reactor);
+        // a; f 1.0 (nearer than a's f 2.0); lib's output (built or not); b managed to 2.0; not c (test), d
+        // (optional) or e (excluded).
+        assert_eq!(cp, [a, f1, root.join("lib/target/classes"), b2]);
+    }
+
+    #[test]
+    fn managed_exclusions_apply_to_direct_and_transitive_dependencies() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        let root = dir.path().join("proj");
+        // The driver needs protobuf; the starter pulls the client, which needs netty-buffer.
+        let driver = artifact(&repo, "x", "driver", "1.0", &dep("x", "protobuf", "1.0", ""));
+        artifact(&repo, "x", "protobuf", "1.0", "");
+        let starter = artifact(&repo, "x", "starter", "1.0", &dep("x", "client", "1.0", ""));
+        let client = artifact(&repo, "x", "client", "1.0", &dep("x", "buffer", "1.0", ""));
+        artifact(&repo, "x", "buffer", "1.0", "");
+        let exclude = |a: &str| {
+            format!("<exclusions><exclusion><groupId>x</groupId><artifactId>{a}</artifactId></exclusion></exclusions>")
+        };
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(
+            root.join("pom.xml"),
+            format!(
+                "<project><groupId>p</groupId><artifactId>app</artifactId><version>1</version>\
+                 <dependencyManagement><dependencies>{}{}</dependencies></dependencyManagement>\
+                 <dependencies>{}{}</dependencies></project>",
+                dep("x", "driver", "1.0", &exclude("protobuf")),
+                dep("x", "client", "1.0", &exclude("buffer")),
+                "<dependency><groupId>x</groupId><artifactId>driver</artifactId><scope>runtime</scope></dependency>",
+                dep("x", "starter", "1.0", ""),
+            ),
+        )
+        .unwrap();
+        let cp = StaticClasspath::new(Some(repo)).of(&root.join("pom.xml"), &HashMap::new());
+        assert_eq!(cp, [driver, starter, client]);
+    }
+
+    #[test]
+    fn reactor_boms_and_test_jar_management() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        let root = dir.path().join("proj");
+        // The client's parent manages its api twice: the jar, and a test-jar in test scope.
+        std::fs::create_dir_all(repo.join("x/parent/1.0")).unwrap();
+        std::fs::write(
+            repo.join("x/parent/1.0/parent-1.0.pom"),
+            "<project><groupId>x</groupId><artifactId>parent</artifactId><version>1.0</version><dependencyManagement><dependencies>\
+             <dependency><groupId>x</groupId><artifactId>api</artifactId><version>${project.version}</version></dependency>\
+             <dependency><groupId>x</groupId><artifactId>api</artifactId><version>${project.version}</version><type>test-jar</type><scope>test</scope></dependency>\
+             </dependencies></dependencyManagement></project>",
+        )
+        .unwrap();
+        let client = artifact(
+            &repo,
+            "x",
+            "client",
+            "1.0",
+            "<dependency><groupId>x</groupId><artifactId>api</artifactId></dependency>",
+        );
+        let pom = client.with_extension("pom");
+        let text = std::fs::read_to_string(&pom).unwrap();
+        std::fs::write(&pom, text.replace("<groupId>x</groupId><artifactId>client</artifactId>", "<parent><groupId>x</groupId><artifactId>parent</artifactId><version>1.0</version></parent><groupId>x</groupId><artifactId>client</artifactId>")).unwrap();
+        let api = artifact(&repo, "x", "api", "1.0", "");
+        // The build's BOM (not installed) sets the client's version for the app.
+        std::fs::create_dir_all(root.join("bom")).unwrap();
+        std::fs::write(
+            root.join("bom/pom.xml"),
+            format!("<project><groupId>p</groupId><artifactId>bom</artifactId><version>1</version><packaging>pom</packaging><dependencyManagement><dependencies>{}</dependencies></dependencyManagement></project>", dep("x", "client", "1.0", "")),
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::write(
+            root.join("app/pom.xml"),
+            "<project><groupId>p</groupId><artifactId>app</artifactId><version>1</version><dependencyManagement><dependencies>\
+             <dependency><groupId>p</groupId><artifactId>bom</artifactId><version>1</version><type>pom</type><scope>import</scope></dependency>\
+             </dependencies></dependencyManagement><dependencies>\
+             <dependency><groupId>x</groupId><artifactId>client</artifactId></dependency>\
+             </dependencies></project>",
+        )
+        .unwrap();
+        let reactor: HashMap<String, PathBuf> =
+            [("p:bom".to_owned(), root.join("bom")), ("p:app".to_owned(), root.join("app"))].into();
+        let cp = StaticClasspath::new(Some(repo)).of(&root.join("app/pom.xml"), &reactor);
+        assert_eq!(cp, [client, api]);
     }
 }

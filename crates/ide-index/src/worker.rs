@@ -166,20 +166,70 @@ impl Shared {
         }
     }
 
+    /// The current version of each index (IDEA's `FileBasedIndexExtension.getVersion`): the
+    /// symbols of every language, and the Java stubs.
+    fn index_versions(&self) -> std::collections::BTreeMap<String, String> {
+        let mut out: std::collections::BTreeMap<String, String> = self
+            .languages
+            .all()
+            .iter()
+            .map(|l| (format!("symbols/{}", l.id.as_str()), self.syntax.symbols_fingerprint(&l.id)))
+            .collect();
+        let java = self.syntax.symbols_fingerprint(&ide_core::LanguageId::new("java"));
+        out.insert("java".to_owned(), format!("{}/{java}", crate::java::STUB_VERSION));
+        out
+    }
+
+    /// The indexes a record of `lang` is in.
+    fn indexes_of(lang: &str) -> Vec<String> {
+        match lang {
+            "" => Vec::new(),
+            "java" => vec!["symbols/java".to_owned(), "java".to_owned()],
+            l => vec![format!("symbols/{l}")],
+        }
+    }
+
     fn load_persisted(&self) {
         let Some(store) = &self.store else { return };
         let filter = self.filter();
         let root = filter.root().to_owned();
+        // Records of an index whose version changed are extracted again — only those (a new
+        // Java stub version re-reads the Java files, not the rest of the project).
+        let stored = store.versions();
+        let current = self.index_versions();
+        let stale = |lang: &str| Self::indexes_of(lang).iter().any(|k| stored.get(k) != current.get(k));
         match store.load() {
             Ok(records) => {
-                let entries: Vec<FileEntry> = records
+                let loaded: Vec<(FileEntry, Option<(String, FileRecord)>)> = records
                     .into_par_iter()
                     .filter(|(rel, _)| !filter.is_excluded(&root.join(rel), false))
-                    .map(|(rel, rec)| FileEntry::new(root.join(&rel), rel, rec))
+                    .map(|(rel, mut rec)| {
+                        let outdated = stale(&rec.lang).then(|| {
+                            // Unknown mtime and content: the next scan re-extracts it (its old
+                            // declarations answer until then).
+                            rec.mtime = 0;
+                            rec.hash = [0; 32];
+                            (rel.clone(), rec.clone())
+                        });
+                        (FileEntry::new(root.join(&rel), rel, rec), outdated)
+                    })
                     .collect();
-                let mut d = self.data.write();
-                for e in entries {
-                    d.insert(e);
+                let mut outdated = Vec::new();
+                {
+                    let mut d = self.data.write();
+                    for (e, o) in loaded {
+                        d.insert(e);
+                        outdated.extend(o);
+                    }
+                }
+                if !outdated.is_empty() {
+                    tracing::info!("index: {} files to extract again (index versions changed)", outdated.len());
+                    self.persist(&outdated, &[], true);
+                }
+                if stored != current
+                    && let Err(e) = store.save_versions(&current)
+                {
+                    tracing::warn!("index cache versions: {e}");
                 }
             }
             Err(e) => tracing::warn!("index cache load failed: {e}"),
@@ -313,7 +363,7 @@ impl Shared {
                         rec.size = f.size;
                         Some((rel, rec, f.path.clone()))
                     }
-                    Extracted::New(rec) => Some((rel, rec, f.path.clone())),
+                    Extracted::New(rec) => Some((rel, *rec, f.path.clone())),
                 }
             })
             .collect();
@@ -344,14 +394,14 @@ impl Shared {
     fn extract(&self, f: &Found, prev_hash: Option<[u8; 32]>) -> Extracted {
         let mut rec = FileRecord { mtime: f.mtime, size: f.size, ..Default::default() };
         if f.size > MAX_SYMBOL_FILE {
-            return Extracted::New(rec);
+            return Extracted::New(Box::new(rec));
         }
         let mut bytes = Vec::with_capacity(f.size as usize);
         match std::fs::File::open(&f.path).and_then(|mut file| file.read_to_end(&mut bytes)) {
             Ok(_) => {}
             Err(e) => {
                 tracing::debug!("index: cannot read {}: {e}", f.path.display());
-                return Extracted::New(rec);
+                return Extracted::New(Box::new(rec));
             }
         }
         rec.hash = *blake3::hash(&bytes).as_bytes();
@@ -360,10 +410,11 @@ impl Shared {
         }
         self.parsed.fetch_add(1, Ordering::Relaxed);
         if bytes[..bytes.len().min(8192)].contains(&0) {
-            return Extracted::New(rec);
+            return Extracted::New(Box::new(rec));
         }
         let text = String::from_utf8_lossy(&bytes);
         let lang = self.languages.detect(&f.path, Some(first_line(&text)));
+        rec.lang = lang.as_str().to_owned();
         if self.syntax.has_symbols(&lang) {
             rec.symbols = self
                 .syntax
@@ -375,7 +426,7 @@ impl Shared {
         if lang.as_str() == "java" {
             rec.java = self.syntax.with_parsed(&lang, &text, &|| false, |p| crate::java::extract(p.tree, p.text)).ok();
         }
-        Extracted::New(rec)
+        Extracted::New(Box::new(rec))
     }
 
     fn process(&self, jobs: Vec<Job>) {
@@ -500,5 +551,5 @@ fn first_line(text: &str) -> &str {
 enum Extracted {
     /// Content hash matches the indexed version.
     Unchanged,
-    New(FileRecord),
+    New(Box<FileRecord>),
 }

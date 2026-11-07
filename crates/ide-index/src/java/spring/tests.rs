@@ -21,7 +21,7 @@ fn index(files: &[(&str, &str)]) -> IndexData {
 }
 
 fn view<'a>(d: &'a IndexData, path: &str, stub: &'a JavaStub) -> JavaView<'a> {
-    JavaView { data: d, overlay: Some(Overlay { file: d.slot(Path::new(path)), stub }) }
+    JavaView::new(d, Some(Overlay { file: d.slot(Path::new(path)), stub }))
 }
 
 /// `line:name Kind targets` of the Spring markers of `rel` among `files`.
@@ -870,7 +870,7 @@ fn tool_window_and_dependency_graph() {
         ),
     ];
     let d = index(files);
-    let v = JavaView { data: &d, overlay: None };
+    let v = JavaView::new(&d, None);
     let model = SpringModel::build(&v, Path::new(""), &SpringOptions::default());
     let contexts = model.context_infos(&v);
     assert_eq!(contexts.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["config:shop.AppConfig"]);

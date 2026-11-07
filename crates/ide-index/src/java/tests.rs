@@ -19,7 +19,7 @@ fn index(files: &[(&str, &str)]) -> IndexData {
 }
 
 fn view<'a>(d: &'a IndexData, path: &str, stub: &'a JavaStub) -> JavaView<'a> {
-    JavaView { data: d, overlay: Some(Overlay { file: d.slot(Path::new(path)), stub }) }
+    JavaView::new(d, Some(Overlay { file: d.slot(Path::new(path)), stub }))
 }
 
 fn summary(m: &JavaMarkers) -> Vec<String> {
@@ -109,7 +109,8 @@ public abstract class Shape<T extends Comparable<T>> extends Base<T> implements 
     assert!(s.words.contains(&"Comparable".to_owned()) && s.words.contains(&"names".to_owned()));
     assert!(!s.words.contains(&"comment".to_owned()), "comments are not code");
     assert!(!s.words.contains(&"shape".to_owned()), "strings are not code");
-    assert!(!s.words.contains(&"Other".to_owned()), "doc comments are not code");
+    // A doc tag's reference is a usage (IDEA's id index records doc tag values as code).
+    assert!(s.words.contains(&"Other".to_owned()), "{{@link Other}} names a class");
 }
 
 #[test]
@@ -477,4 +478,134 @@ class Billing<T> extends Base<T> implements Repository<Bill, Long> {
     assert_eq!(nested[0].arg("value"), Some(&AnnotationValue::Num("-1".into())));
     let AnnotationValue::Annotation(inner) = nested[1].arg("value").unwrap() else { panic!() };
     assert_eq!((inner.name.as_str(), inner.arg("x")), ("Inner", Some(&AnnotationValue::Num("1".into()))));
+}
+
+#[test]
+fn generic_signatures_are_kept_canonically() {
+    let s = stub(
+        r#"package p;
+import java.util.*;
+public class Repo<T extends @Valid Comparable<? super T>, ID> extends Base<T> implements Iterable<T>, java.io.Serializable {
+    private Map<String, List<? extends T>> index;
+    int legacy[], plain;
+    public <R extends Number & Comparable<R>> Optional<R> find(@NonNull Map.Entry<ID, ? super R> key, String... names) { return null; }
+    public Outer<T>.Inner inner(int[] a, String b[]) { return null; }
+    Repo(List<T> items) {}
+    record Pair<A>(A left, List<A> rest) {}
+    Object x = new Comparator<String>() { public int compare(String a, String b) { return 0; } };
+}
+interface Store<E> extends Collection<E>, Comparable<Store<E>> {}
+enum Color { RED }
+"#,
+    );
+    let repo = &s.types[0];
+    assert_eq!(repo.sig.extends.as_deref(), Some("Base<T>"));
+    assert_eq!(repo.sig.implements, ["Iterable<T>", "java.io.Serializable"]);
+    assert_eq!(
+        repo.sig.type_params[0],
+        TypeParamText { name: "T".into(), bounds: (vec!["Comparable<? super T>".into()]).into() }
+    );
+    assert_eq!(repo.sig.type_params[1], TypeParamText { name: "ID".into(), bounds: (vec![]).into() });
+    let m = |name: &str| repo.members.iter().find(|m| m.name == name).unwrap();
+    assert_eq!(m("index").sig.ty, "Map<String,List<? extends T>>");
+    assert_eq!(m("legacy").sig.ty, "int[]");
+    assert_eq!(m("plain").sig.ty, "int");
+    let find = &m("find").sig;
+    assert_eq!(find.ty, "Optional<R>");
+    assert_eq!(find.params, ["Map.Entry<ID,? super R>", "String[]"]);
+    assert!(find.varargs);
+    assert_eq!(find.type_params[0].bounds, ["Number", "Comparable<R>"]);
+    let inner = &m("inner").sig;
+    assert_eq!(inner.ty, "Outer<T>.Inner");
+    assert_eq!(inner.params, ["int[]", "String[]"]);
+    assert!(!inner.varargs);
+    let ctor = repo.members.iter().find(|m| m.kind == JavaMemberKind::Constructor).unwrap();
+    assert_eq!((ctor.sig.ty.as_str(), ctor.sig.params.as_slice()), ("", &["List<T>".to_owned()][..]));
+    let pair = s.types.iter().find(|t| t.name == "Pair").unwrap();
+    assert_eq!(pair.sig.type_params[0].name, "A");
+    let rest: Vec<_> = pair.members.iter().filter(|m| m.name == "rest").map(|m| m.sig.ty.as_str()).collect();
+    assert_eq!(rest, ["List<A>", "List<A>"], "the component's field and accessor");
+    let anon = s.types.iter().find(|t| t.is(ANONYMOUS)).unwrap();
+    assert_eq!(anon.sig.extends.as_deref(), Some("Comparator<String>"));
+    let store = s.types.iter().find(|t| t.name == "Store").unwrap();
+    assert_eq!(store.sig.extends, None);
+    assert_eq!(store.sig.implements, ["Collection<E>", "Comparable<Store<E>>"]);
+    let color = s.types.iter().find(|t| t.name == "Color").unwrap();
+    assert_eq!(color.members[0].sig.ty, "Color");
+}
+
+#[test]
+fn doc_comment_references_are_words() {
+    let s = stub(
+        "package p;\n/** Resumes with {@link a.Agent#resume(Pause, java.util.Map)}; plain prose here.\n * @see Other#stop\n * {@code notAWord()} */\nclass A {}",
+    );
+    for w in ["Agent", "resume", "Pause", "Map", "Other", "stop"] {
+        assert!(s.words.iter().any(|x| x == w), "{w}");
+    }
+    for w in ["prose", "notAWord", "Resumes"] {
+        assert!(!s.words.iter().any(|x| x == w), "{w}");
+    }
+}
+
+#[test]
+fn other_unsaved_files_answer_from_their_text() {
+    let d = index(&[
+        ("a/Api.java", "package a;\npublic interface Api { void run(); }\n"),
+        ("a/Impl.java", "package a;\nclass Impl { }\n"),
+        ("b/Use.java", "package b;\nclass Use { }\n"),
+        ("old/Gone.java", "package old;\nclass Gone { }\n"),
+    ]);
+    let api = stub("package a;\npublic interface Api { void run(); }\n");
+    // Unsaved: Impl now implements Api; Use calls run(); Gone moved to another package.
+    let impl_ = stub("package a;\nclass Impl implements Api { public void run() {} }\n");
+    let use_ = stub("package b;\nclass Use { void f(a.Api x) { x.run(); } }\n");
+    let gone = stub("package fresh;\nclass Gone { }\n");
+    let mut v = view(&d, "/p/a/Api.java", &api);
+    let slot = |rel: &str| d.slot(&Path::new("/p").join(rel));
+    let before = (v.files_mentioning("run"), v.direct_subtypes(TypeId { file: slot("a/Api.java").unwrap(), ty: 0 }));
+    assert_eq!(before.0, [slot("a/Api.java").unwrap()]);
+    assert!(before.1.is_empty());
+    assert!(v.has_package("old") && !v.has_package("fresh"));
+    v.others = vec![
+        Overlay { file: slot("a/Impl.java"), stub: &impl_ },
+        Overlay { file: slot("b/Use.java"), stub: &use_ },
+        Overlay { file: slot("old/Gone.java"), stub: &gone },
+    ];
+    let mut mentioning = v.files_mentioning("run");
+    mentioning.sort();
+    let mut expected = vec![slot("a/Api.java").unwrap(), slot("a/Impl.java").unwrap(), slot("b/Use.java").unwrap()];
+    expected.sort();
+    assert_eq!(mentioning, expected);
+    let api_id = TypeId { file: slot("a/Api.java").unwrap(), ty: 0 };
+    assert_eq!(v.direct_subtypes(api_id), [TypeId { file: slot("a/Impl.java").unwrap(), ty: 0 }]);
+    assert!(v.stub(slot("a/Impl.java").unwrap()).unwrap().types[0].members.iter().any(|m| m.name == "run"));
+    assert!(!v.has_package("old") && v.has_package("fresh"));
+    assert_eq!(v.types_named("Gone").len(), 1);
+    // Usages of run() may now be in the unsaved Impl and Use.
+    let at = api.types[0].members[0].at;
+    let scope = usage_scope(&v, at).unwrap();
+    let files: Vec<String> = scope.files.iter().map(|(p, _)| p.to_string_lossy().into_owned()).collect();
+    assert_eq!(files, ["/p/a/Impl.java", "/p/b/Use.java"]);
+}
+
+#[test]
+fn anonymous_classes_in_bodies_only_change_their_members_dependencies() {
+    let base = "package a;\npublic class Use { void m() { int x = 1; } }\n";
+    let with_anon =
+        "package a;\npublic class Use { void m() { Runnable r = new Runnable() { public void run() {} }; } }\n";
+    let other_super =
+        "package a;\npublic class Use { void m() { Runnable r = new Thread() { public void run() {} }; } }\n";
+    let hash = |text: &str, words: &[&str]| {
+        let d = index(&[("a/Use.java", text), ("a/Api.java", "package a;\npublic interface Api { void place(); }\n")]);
+        let words: Vec<String> = words.iter().map(|w| (*w).to_owned()).collect();
+        d.java.dependency_hash(&words)
+    };
+    // Counts of `place` do not depend on an anonymous Runnable in a method body…
+    assert_eq!(hash(base, &["place"]), hash(with_anon, &["place"]));
+    // …counts of `run` do, and on what it extends.
+    assert_ne!(hash(base, &["run"]), hash(with_anon, &["run"]));
+    assert_ne!(hash(with_anon, &["run"]), hash(other_super, &["run"]));
+    // A top-level class still changes every dependency (its name may rebind any reference).
+    let extra = "package a;\npublic class Use { void m() { int x = 1; } }\nclass Extra {}\n";
+    assert_ne!(hash(base, &["place"]), hash(extra, &["place"]));
 }

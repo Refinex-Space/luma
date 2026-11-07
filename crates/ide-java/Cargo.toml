@@ -1,0 +1,22 @@
+[package]
+name = "ide-java"
+description = "Java semantic engine: class-file and JDK image stubs, class paths, types and resolution (IntelliJ's Java PSI model, in Rust)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ide-index.workspace = true
+ide-core.workspace = true
+tree-sitter.workspace = true
+tree-sitter-java = "0.23.5"
+serde.workspace = true
+parking_lot.workspace = true
+rayon.workspace = true
+tracing.workspace = true
+ignore.workspace = true
+flate2 = "1.1"
+
+[dev-dependencies]
+tempfile.workspace = true
+zip = { workspace = true, features = ["deflate"] }

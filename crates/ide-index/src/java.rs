@@ -25,6 +25,8 @@ pub const DEFAULT: u16 = 1 << 6;
 pub const LOCAL: u16 = 1 << 7;
 /// `new Foo() { … }`.
 pub const ANONYMOUS: u16 = 1 << 8;
+/// A field declared with an initializer (`int x = 1;`).
+pub const INITIALIZED: u16 = 1 << 9;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum JavaTypeKind {
@@ -172,21 +174,54 @@ pub struct JavaType {
     pub outer: Option<u32>,
     pub flags: u16,
     /// Supertypes as written, without type arguments: `Foo`, `Outer.Inner`, `java.util.List`.
-    pub supers: Vec<String>,
-    pub type_params: Vec<String>,
+    pub supers: Slim<String>,
+    pub type_params: Slim<String>,
     /// Simple names of the annotations.
-    pub annotations: Vec<String>,
+    pub annotations: Slim<String>,
     /// The name (the type after `new` for an anonymous class).
     pub at: Pos,
     pub end_line: u32,
     pub members: Vec<JavaMember>,
     /// String values of annotations: `@Service("orders")` → `("Service", "orders")`.
-    pub values: Vec<(String, String)>,
+    pub values: Slim<(String, String)>,
     /// The annotations with their arguments.
-    pub annotation_args: Vec<JavaAnnotation>,
+    pub annotation_args: Slim<JavaAnnotation>,
     /// Erased type arguments of each supertype, parallel to [`JavaType::supers`]:
     /// `implements Repository<User, Long>` → `[User, Long]`.
-    pub super_args: Vec<Vec<String>>,
+    pub super_args: Slim<Vec<String>>,
+    /// The generic signature, for semantic analysis (IDEA's class stub reference lists).
+    #[serde(default)]
+    pub sig: TypeSignature,
+}
+
+/// Types in signatures are written canonically: as in the source without annotations and
+/// whitespace, type arguments kept: `Map<String,List<? extends Foo>>`, `java.util.List<E>[]`,
+/// `Outer<T>.Inner`. Wildcards are `?`, `? extends T`, `? super T`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TypeSignature {
+    /// The superclass of a class (an anonymous class: the class or interface it instantiates).
+    pub extends: Option<String>,
+    /// Interfaces a class, enum or record implements, or an interface extends.
+    pub implements: Slim<String>,
+    pub type_params: Slim<TypeParamText>,
+}
+
+/// `T extends Number & Comparable<T>` → `T`, `[Number, Comparable<T>]`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TypeParamText {
+    pub name: String,
+    pub bounds: Slim<String>,
+}
+
+/// The generic signature of a member (IDEA's method / field stub types).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MemberSignature {
+    /// Field type, method return type; empty for constructors.
+    pub ty: String,
+    /// Parameter types; a variable-arity parameter as its array type (`String[]`).
+    pub params: Slim<String>,
+    pub varargs: bool,
+    pub type_params: Slim<TypeParamText>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -195,21 +230,24 @@ pub struct JavaMember {
     pub kind: JavaMemberKind,
     pub flags: u16,
     /// Erased parameter types as written, simple names: `List`, `String[]`, `T`.
-    pub params: Vec<String>,
+    pub params: Slim<String>,
     /// Erased type of a field (its accessors' names depend on `boolean`).
     pub ty: String,
-    pub type_params: Vec<String>,
-    pub annotations: Vec<String>,
+    pub type_params: Slim<String>,
+    pub annotations: Slim<String>,
     pub at: Pos,
     pub end_line: u32,
     /// Erased type arguments of a field's type or a method's return type: `List<Order>` → `[Order]`.
-    pub ty_args: Vec<String>,
+    pub ty_args: Slim<String>,
     /// String values of annotations (see [`JavaType::values`]).
-    pub values: Vec<(String, String)>,
+    pub values: Slim<(String, String)>,
     /// Parameters of methods and constructors, in detail.
-    pub param_details: Vec<JavaParam>,
+    pub param_details: Slim<JavaParam>,
     /// The annotations with their arguments.
-    pub annotation_args: Vec<JavaAnnotation>,
+    pub annotation_args: Slim<JavaAnnotation>,
+    /// The generic signature, for semantic analysis.
+    #[serde(default)]
+    pub sig: MemberSignature,
 }
 
 /// A parameter of a method or constructor.
@@ -219,12 +257,12 @@ pub struct JavaParam {
     /// Erased type as written.
     pub ty: String,
     /// Erased type arguments.
-    pub ty_args: Vec<String>,
-    pub annotations: Vec<String>,
-    pub values: Vec<(String, String)>,
+    pub ty_args: Slim<String>,
+    pub annotations: Slim<String>,
+    pub values: Slim<(String, String)>,
     pub at: Pos,
     /// The annotations with their arguments.
-    pub annotation_args: Vec<JavaAnnotation>,
+    pub annotation_args: Slim<JavaAnnotation>,
 }
 
 impl JavaType {
@@ -336,26 +374,51 @@ impl JavaStub {
 }
 
 impl JavaStub {
+    /// Whether type `i` is local or anonymous, or declared inside one: no other file can name it.
+    fn in_local_scope(&self, i: u32) -> bool {
+        let mut next = Some(i);
+        while let Some(t) = next.and_then(|i| self.types.get(i as usize)) {
+            if t.is(LOCAL) || t.is(ANONYMOUS) {
+                return true;
+            }
+            next = t.outer;
+        }
+        false
+    }
+
+    fn put_type_header(h: &mut Hash, t: &JavaType) {
+        h.put(&format!("{:?}{}", t.kind, t.flags));
+        t.supers.iter().chain(&t.type_params).chain(&t.annotations).for_each(|s| h.put(s));
+        h.put("}");
+    }
+
     /// Hash of the file's type hierarchy: its types' names, kinds, modifiers, type parameters,
-    /// supertypes and annotations (which may generate members).
+    /// supertypes and annotations (which may generate members). Local and anonymous classes are
+    /// left out — only their own file can name them, and what they change elsewhere (overriding
+    /// a method) is in their members' [`JavaStub::name_hashes`] — so editing a method body
+    /// with an anonymous class does not change it.
     pub fn hierarchy_hash(&self) -> u128 {
         let mut h = Hash::default();
         h.put(&self.package);
         for (i, t) in self.types.iter().enumerate() {
+            if self.in_local_scope(i as u32) {
+                continue;
+            }
             h.put(&self.qualified_name(i as u32));
-            h.put(&format!("{:?}{}", t.kind, t.flags));
-            t.supers.iter().chain(&t.type_params).chain(&t.annotations).for_each(|s| h.put(s));
-            h.put("}");
+            Self::put_type_header(&mut h, t);
         }
         h.finish()
     }
 
-    /// Per member name, a hash of the declarations so named: owner, kind, modifiers, signature.
-    /// A reference to a member only resolves differently when one of these changes.
+    /// Per member name, a hash of the declarations so named: owner, kind, modifiers, signature
+    /// (and for a member of a local or anonymous class, that class's supertypes, which decide
+    /// what it overrides). A reference to a member only resolves differently when one of these
+    /// changes.
     pub fn name_hashes(&self) -> Vec<(&str, u128)> {
         let mut out = Vec::new();
         for (i, t) in self.types.iter().enumerate() {
             let owner = self.qualified_name(i as u32);
+            let local = self.in_local_scope(i as u32);
             for m in &t.members {
                 let mut h = Hash::default();
                 h.put(&owner);
@@ -363,6 +426,13 @@ impl JavaStub {
                 h.put(&format!("{:?}{}", m.kind, m.flags));
                 h.put(&m.ty);
                 m.params.iter().chain(&m.type_params).chain(&m.annotations).for_each(|s| h.put(s));
+                if local {
+                    let mut next = Some(i as u32);
+                    while let Some(o) = next.and_then(|o| self.types.get(o as usize)) {
+                        Self::put_type_header(&mut h, o);
+                        next = o.outer;
+                    }
+                }
                 out.push((m.name.as_str(), h.finish()));
             }
         }
@@ -429,6 +499,10 @@ pub fn simple(name: &str) -> &str {
 // ---------------------------------------------------------------------------
 // Extraction
 
+/// Version of [`extract`]'s output: bump when it changes what a stub holds, and only the Java
+/// files are indexed again.
+pub(crate) const STUB_VERSION: u32 = 9;
+
 /// The stub of a parsed Java file.
 pub fn extract(tree: &Tree, text: &str) -> JavaStub {
     let mut stub = JavaStub::default();
@@ -486,6 +560,11 @@ fn compact(s: &str) -> String {
 }
 
 /// 0-based line and UTF-16 column of a node's start.
+/// Where node `n` starts, as the index records positions (UTF-16 columns).
+pub fn node_pos(n: Node, text: &str) -> Pos {
+    pos(n, text)
+}
+
 fn pos(n: Node, text: &str) -> Pos {
     let p = n.start_position();
     let start = n.start_byte();
@@ -628,11 +707,11 @@ fn param_details(params: Option<Node>, text: &str) -> Vec<JavaParam> {
         out.push(JavaParam {
             name: node_text(name, text).to_owned(),
             ty: erased(ty, text),
-            ty_args: type_args(ty, text),
-            annotations,
-            values: annotation_values(p, text),
+            ty_args: type_args(ty, text).into(),
+            annotations: annotations.into(),
+            values: annotation_values(p, text).into(),
             at: pos(name, text),
-            annotation_args: annotation_args(p, text),
+            annotation_args: annotation_args(p, text).into(),
         });
     }
     out
@@ -881,6 +960,176 @@ fn parameters(params: Option<Node>, text: &str) -> Vec<String> {
     out
 }
 
+/// The canonical text of a type node (see [`TypeSignature`]): annotations and whitespace
+/// dropped, type arguments kept.
+pub fn type_text(n: Node, text: &str) -> String {
+    let mut out = String::new();
+    write_type(n, text, &mut out);
+    out
+}
+
+/// Annotations and comments inside a type: not part of it.
+fn is_annotation(n: Node) -> bool {
+    matches!(n.kind(), "annotation" | "marker_annotation") || n.is_extra()
+}
+
+fn write_type(n: Node, text: &str, out: &mut String) {
+    match n.kind() {
+        "annotated_type" => {
+            let mut c = n.walk();
+            if let Some(inner) = n.named_children(&mut c).filter(|c| !is_annotation(*c)).last() {
+                write_type(inner, text, out);
+            }
+        }
+        "generic_type" => {
+            let mut c = n.walk();
+            for child in n.named_children(&mut c) {
+                if child.kind() == "type_arguments" {
+                    out.push('<');
+                    let mut a = child.walk();
+                    for (i, arg) in child.named_children(&mut a).filter(|c| !is_annotation(*c)).enumerate() {
+                        if i > 0 {
+                            out.push(',');
+                        }
+                        write_type(arg, text, out);
+                    }
+                    out.push('>');
+                } else if !is_annotation(child) {
+                    write_type(child, text, out);
+                }
+            }
+        }
+        "scoped_type_identifier" => {
+            let mut c = n.walk();
+            for (i, child) in n.named_children(&mut c).filter(|c| !is_annotation(*c)).enumerate() {
+                if i > 0 {
+                    out.push('.');
+                }
+                write_type(child, text, out);
+            }
+        }
+        "wildcard" => {
+            out.push('?');
+            let mut c = n.walk();
+            let children: Vec<Node> = n.named_children(&mut c).filter(|c| !is_annotation(*c)).collect();
+            let lower = children.iter().any(|c| c.kind() == "super");
+            if let Some(bound) = children.iter().rev().find(|c| c.kind() != "super") {
+                out.push_str(if lower { " super " } else { " extends " });
+                write_type(*bound, text, out);
+            }
+        }
+        "array_type" => {
+            if let Some(e) = n.child_by_field_name("element") {
+                write_type(e, text, out);
+            }
+            let dims = n.child_by_field_name("dimensions").map_or(1, |d| node_text(d, text).matches('[').count());
+            out.push_str(&"[]".repeat(dims.max(1)));
+        }
+        _ => out.push_str(&strip_annotations(&compact(node_text(n, text)))),
+    }
+}
+
+/// `@NonNull String` written inline in a node without structure → `String`.
+fn strip_annotations(s: &str) -> String {
+    if !s.contains('@') {
+        return s.to_owned();
+    }
+    s.split('.').filter(|p| !p.starts_with('@')).collect::<Vec<_>>().join(".")
+}
+
+/// Extra `[]` written after a name (`String args[]`).
+fn dims_after(n: Node, text: &str) -> String {
+    n.child_by_field_name("dimensions")
+        .map(|d| "[]".repeat(node_text(d, text).matches('[').count()))
+        .unwrap_or_default()
+}
+
+fn type_param_texts(decl: Node, text: &str) -> Vec<TypeParamText> {
+    let Some(params) = decl.child_by_field_name("type_parameters") else { return Vec::new() };
+    let mut c = params.walk();
+    params
+        .named_children(&mut c)
+        .filter(|p| p.kind() == "type_parameter")
+        .filter_map(|p| {
+            let mut pc = p.walk();
+            let children: Vec<Node> = p.named_children(&mut pc).collect();
+            let name = children.iter().find(|n| n.kind() == "type_identifier")?;
+            let bounds = children
+                .iter()
+                .filter(|n| n.kind() == "type_bound")
+                .flat_map(|b| {
+                    let mut bc = b.walk();
+                    b.named_children(&mut bc)
+                        .filter(|t| !is_annotation(*t))
+                        .map(|t| type_text(t, text))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            Some(TypeParamText { name: node_text(*name, text).to_owned(), bounds })
+        })
+        .collect()
+}
+
+/// Parameter types of a formal parameter list, and whether the last is variable-arity.
+fn param_texts(params: Option<Node>, text: &str) -> (Vec<String>, bool) {
+    let Some(params) = params else { return (Vec::new(), false) };
+    let mut out = Vec::new();
+    let mut varargs = false;
+    let mut c = params.walk();
+    for p in params.named_children(&mut c) {
+        match p.kind() {
+            "formal_parameter" => {
+                let ty = p.child_by_field_name("type").map(|t| type_text(t, text)).unwrap_or_default();
+                out.push(format!("{ty}{}", dims_after(p, text)));
+            }
+            "spread_parameter" => {
+                let mut pc = p.walk();
+                let ty = p
+                    .named_children(&mut pc)
+                    .find(|n| {
+                        !matches!(n.kind(), "modifiers" | "annotation" | "marker_annotation" | "variable_declarator")
+                    })
+                    .map(|t| type_text(t, text))
+                    .unwrap_or_default();
+                out.push(format!("{ty}[]"));
+                varargs = true;
+            }
+            _ => {}
+        }
+    }
+    (out, varargs)
+}
+
+/// The generic signature of a type declaration.
+fn type_signature(decl: Node, kind: JavaTypeKind, text: &str) -> TypeSignature {
+    let mut sig = TypeSignature { type_params: type_param_texts(decl, text).into(), ..Default::default() };
+    let mut c = decl.walk();
+    for child in decl.children(&mut c) {
+        let list = match child.kind() {
+            "superclass" => {
+                let mut sc = child.walk();
+                sig.extends =
+                    child.named_children(&mut sc).filter(|t| !is_annotation(*t)).last().map(|t| type_text(t, text));
+                continue;
+            }
+            "super_interfaces" | "extends_interfaces" => child,
+            _ => continue,
+        };
+        let mut lc = list.walk();
+        for t in list.named_children(&mut lc) {
+            if t.kind() == "type_list" {
+                let mut tc = t.walk();
+                sig.implements
+                    .extend(t.named_children(&mut tc).filter(|x| !is_annotation(*x)).map(|x| type_text(x, text)));
+            } else if !is_annotation(t) {
+                sig.implements.push(type_text(t, text));
+            }
+        }
+    }
+    let _ = kind;
+    sig
+}
+
 fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &mut JavaStub) {
     let Some(kind) = type_kind(decl.kind()) else { return };
     let Some(name) = decl.child_by_field_name("name") else { return };
@@ -917,15 +1166,16 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
         kind,
         outer,
         flags,
-        supers,
-        type_params: type_params(decl, text),
-        annotations,
+        supers: supers.into(),
+        type_params: type_params(decl, text).into(),
+        annotations: annotations.into(),
         at: pos(name, text),
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
-        values: annotation_values(decl, text),
-        annotation_args: annotation_args(decl, text),
-        super_args,
+        values: annotation_values(decl, text).into(),
+        annotation_args: annotation_args(decl, text).into(),
+        super_args: super_args.into(),
+        sig: type_signature(decl, kind, text),
     });
     if kind == JavaTypeKind::Record
         && let Some(params) = decl.child_by_field_name("parameters")
@@ -934,21 +1184,23 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
         for p in params.named_children(&mut pc).filter(|p| p.kind() == "formal_parameter") {
             let (Some(n), Some(t)) = (p.child_by_field_name("name"), p.child_by_field_name("type")) else { continue };
             let (ty, at, end_line) = (erased(t, text), pos(n, text), p.end_position().row as u32);
+            let generic = format!("{}{}", type_text(t, text), dims_after(p, text));
             let name = node_text(n, text).to_owned();
             let member = |kind, flags, ty: &str| JavaMember {
                 name: name.clone(),
                 kind,
                 flags,
-                params: Vec::new(),
+                params: Vec::new().into(),
                 ty: ty.to_owned(),
-                type_params: Vec::new(),
-                annotations: Vec::new(),
+                type_params: Vec::new().into(),
+                annotations: Vec::new().into(),
                 at,
                 end_line,
-                ty_args: Vec::new(),
-                values: Vec::new(),
-                param_details: Vec::new(),
-                annotation_args: Vec::new(),
+                ty_args: Vec::new().into(),
+                values: Vec::new().into(),
+                param_details: Vec::new().into(),
+                annotation_args: Vec::new().into(),
+                sig: MemberSignature { ty: generic.clone(), ..Default::default() },
             };
             // The component's field and its accessor, both at the component.
             let members = &mut stub.types[index as usize].members;
@@ -996,20 +1248,38 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                 } else {
                     parameters(child.child_by_field_name("parameters"), text)
                 };
+                let sig = {
+                    let (params, varargs) = if kind == "compact_constructor_declaration" {
+                        (record_component_texts(stub, owner), false)
+                    } else {
+                        param_texts(child.child_by_field_name("parameters"), text)
+                    };
+                    let ty = child
+                        .child_by_field_name("type")
+                        .map(|t| format!("{}{}", type_text(t, text), dims_after(child, text)))
+                        .unwrap_or_default();
+                    MemberSignature {
+                        ty,
+                        params: params.into(),
+                        varargs,
+                        type_params: type_param_texts(child, text).into(),
+                    }
+                };
                 stub.types[owner as usize].members.push(JavaMember {
                     name: node_text(name, text).to_owned(),
                     kind: member_kind,
                     flags,
-                    params,
+                    params: params.into(),
                     ty: child.child_by_field_name("type").map(|t| erased(t, text)).unwrap_or_default(),
-                    type_params: type_params(child, text),
-                    annotations,
+                    type_params: type_params(child, text).into(),
+                    annotations: annotations.into(),
                     at: pos(name, text),
                     end_line: child.end_position().row as u32,
-                    ty_args: child.child_by_field_name("type").map(|t| type_args(t, text)).unwrap_or_default(),
-                    values: annotation_values(child, text),
-                    param_details: param_details(child.child_by_field_name("parameters"), text),
-                    annotation_args: annotation_args(child, text),
+                    ty_args: (child.child_by_field_name("type").map(|t| type_args(t, text)).unwrap_or_default()).into(),
+                    values: annotation_values(child, text).into(),
+                    param_details: (param_details(child.child_by_field_name("parameters"), text)).into(),
+                    annotation_args: annotation_args(child, text).into(),
+                    sig,
                 });
                 if let Some(body) = child.child_by_field_name("body") {
                     local_types(body, owner, text, stub);
@@ -1021,6 +1291,7 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                     flags |= PUBLIC | STATIC | FINAL;
                 }
                 let ty_node = child.child_by_field_name("type");
+                let generic = ty_node.map(|t| type_text(t, text)).unwrap_or_default();
                 let ty = ty_node.map(|t| erased(t, text)).unwrap_or_default();
                 let ty_args = ty_node.map(|t| type_args(t, text)).unwrap_or_default();
                 let values = annotation_values(child, text);
@@ -1028,23 +1299,25 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                 let mut dc = child.walk();
                 for d in child.children_by_field_name("declarator", &mut dc) {
                     let Some(name) = d.child_by_field_name("name") else { continue };
+                    let flags = if d.child_by_field_name("value").is_some() { flags | INITIALIZED } else { flags };
                     stub.types[owner as usize].members.push(JavaMember {
                         name: node_text(name, text).to_owned(),
                         kind: JavaMemberKind::Field,
                         flags,
-                        params: Vec::new(),
+                        params: Vec::new().into(),
                         ty: ty.clone(),
-                        type_params: Vec::new(),
-                        annotations: annotations.clone(),
+                        type_params: Vec::new().into(),
+                        annotations: annotations.clone().into(),
                         at: pos(name, text),
                         end_line: d.end_position().row as u32,
-                        ty_args: ty_args.clone(),
-                        values: values.clone(),
-                        param_details: Vec::new(),
-                        annotation_args: args.clone(),
+                        ty_args: ty_args.clone().into(),
+                        values: values.clone().into(),
+                        param_details: Vec::new().into(),
+                        annotation_args: args.clone().into(),
+                        sig: MemberSignature { ty: format!("{generic}{}", dims_after(d, text)), ..Default::default() },
                     });
                     if let Some(value) = d.child_by_field_name("value") {
-                        local_types(value, owner, text, stub);
+                        local_types_at(value, owner, text, stub);
                     }
                 }
             }
@@ -1052,20 +1325,22 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                 let Some(name) = child.child_by_field_name("name") else { continue };
                 let (_, annotations) = modifiers(child, text);
                 let ty = stub.types[owner as usize].name.clone();
+                let sig = MemberSignature { ty: ty.clone(), ..Default::default() };
                 stub.types[owner as usize].members.push(JavaMember {
                     name: node_text(name, text).to_owned(),
                     kind: JavaMemberKind::EnumConstant,
                     flags: PUBLIC | STATIC | FINAL,
-                    params: Vec::new(),
+                    params: Vec::new().into(),
                     ty,
-                    type_params: Vec::new(),
-                    annotations,
+                    type_params: Vec::new().into(),
+                    annotations: annotations.into(),
                     at: pos(name, text),
                     end_line: child.end_position().row as u32,
-                    ty_args: Vec::new(),
-                    values: Vec::new(),
-                    param_details: Vec::new(),
-                    annotation_args: annotation_args(child, text),
+                    ty_args: Vec::new().into(),
+                    values: Vec::new().into(),
+                    param_details: Vec::new().into(),
+                    annotation_args: annotation_args(child, text).into(),
+                    sig,
                 });
                 if let Some(args) = child.child_by_field_name("arguments") {
                     local_types(args, owner, text, stub);
@@ -1091,49 +1366,99 @@ fn record_components(stub: &JavaStub, owner: u32) -> Vec<String> {
         .collect()
 }
 
+/// Generic types of a record's components (its canonical constructor's parameters).
+fn record_component_texts(stub: &JavaStub, owner: u32) -> Vec<String> {
+    stub.types[owner as usize]
+        .members
+        .iter()
+        .filter(|m| m.kind == JavaMemberKind::Field && !m.is(STATIC))
+        .map(|m| m.sig.ty.clone())
+        .collect()
+}
+
 /// Local and anonymous classes inside code.
 fn local_types(n: Node, owner: u32, text: &str, stub: &mut JavaStub) {
     let mut c = n.walk();
     for child in n.named_children(&mut c) {
-        if type_kind(child.kind()).is_some() {
-            declare_type(child, Some(owner), LOCAL, text, stub);
-        } else if child.kind() == "object_creation_expression" {
-            let mut cc = child.walk();
-            let body = child.named_children(&mut cc).find(|b| b.kind() == "class_body");
-            match (body, child.child_by_field_name("type")) {
-                (Some(body), Some(ty)) => {
-                    let base = erased(ty, text);
-                    if let Some(args) = child.child_by_field_name("arguments") {
-                        local_types(args, owner, text, stub);
-                    }
-                    anonymous_type(body, base, pos(ty, text), child, owner, text, stub);
+        local_types_at(child, owner, text, stub);
+    }
+}
+
+/// Local and anonymous classes of `child` itself and inside it.
+fn local_types_at(child: Node, owner: u32, text: &str, stub: &mut JavaStub) {
+    if type_kind(child.kind()).is_some() {
+        declare_type(child, Some(owner), LOCAL, text, stub);
+    } else if child.kind() == "object_creation_expression" {
+        let mut cc = child.walk();
+        let body = child.named_children(&mut cc).find(|b| b.kind() == "class_body");
+        match (body, child.child_by_field_name("type")) {
+            (Some(body), Some(ty)) => {
+                let base = erased(ty, text);
+                if let Some(args) = child.child_by_field_name("arguments") {
+                    local_types(args, owner, text, stub);
                 }
-                _ => local_types(child, owner, text, stub),
+                anonymous_type(body, base, pos(ty, text), child, owner, text, stub);
             }
-        } else {
-            local_types(child, owner, text, stub);
+            _ => local_types(child, owner, text, stub),
         }
+    } else {
+        local_types(child, owner, text, stub);
     }
 }
 
 fn anonymous_type(body: Node, base: String, at: Pos, decl: Node, owner: u32, text: &str, stub: &mut JavaStub) {
     let index = stub.types.len() as u32;
+    // `new Comparator<String>() {…}`: the instantiated type with its arguments.
+    let extends = match decl.kind() {
+        "object_creation_expression" => decl.child_by_field_name("type").map(|t| type_text(t, text)),
+        _ => None,
+    }
+    .unwrap_or_else(|| base.clone());
     stub.types.push(JavaType {
         name: String::new(),
         kind: JavaTypeKind::Class,
         outer: Some(owner),
         flags: ANONYMOUS | LOCAL | FINAL,
-        supers: vec![base],
-        type_params: Vec::new(),
-        annotations: Vec::new(),
+        supers: (vec![base]).into(),
+        type_params: Vec::new().into(),
+        annotations: Vec::new().into(),
         at,
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
-        values: Vec::new(),
-        annotation_args: Vec::new(),
-        super_args: vec![Vec::new()],
+        values: Vec::new().into(),
+        annotation_args: Vec::new().into(),
+        super_args: (vec![Vec::new()]).into(),
+        sig: TypeSignature { extends: Some(extends), ..Default::default() },
     });
     declare_members(body, index, JavaTypeKind::Class, text, stub);
+}
+
+/// Identifiers of the references a doc comment's tags hold (`{@link a.B#c(D)}`, `@see`,
+/// `@throws`…): usages for the searches, as IDEA's id index records doc tag values in code
+/// context. Other comment text is left out.
+fn doc_words<'a>(comment: &'a str, out: &mut HashSet<&'a str>) {
+    const TAGS: [&str; 6] = ["{@link ", "{@linkplain ", "{@value ", "@see ", "@throws ", "@exception "];
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+    let mut i = 0;
+    while let Some(at) = comment[i..].find('@') {
+        let start = i + at;
+        i = start + 1;
+        let from = if start > 0 && comment.as_bytes()[start - 1] == b'{' { start - 1 } else { start };
+        let Some(tag) = TAGS.iter().find(|t| comment[from..].starts_with(*t)) else { continue };
+        let rest = comment[from + tag.len()..].trim_start();
+        // The reference: up to whitespace or `}`, a signature's parentheses kept whole.
+        let mut end = rest.find(|c: char| c.is_whitespace() || c == '}').unwrap_or(rest.len());
+        if let (Some(open), Some(close)) = (rest[..end].find('('), rest.find(')'))
+            && close > open
+        {
+            end = end.max(close + 1);
+        }
+        for word in rest[..end].split(|c: char| !is_ident(c)) {
+            if word.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$') {
+                out.insert(word);
+            }
+        }
+    }
 }
 
 fn collect_words<'a>(root: Node, text: &'a str, out: &mut HashSet<&'a str>) {
@@ -1142,6 +1467,11 @@ fn collect_words<'a>(root: Node, text: &'a str, out: &mut HashSet<&'a str>) {
         let n = cursor.node();
         if matches!(n.kind(), "identifier" | "type_identifier") {
             out.insert(node_text(n, text));
+        } else if n.kind() == "block_comment" {
+            let comment = node_text(n, text);
+            if comment.starts_with("/**") {
+                doc_words(comment, out);
+            }
         }
         if !matches!(n.kind(), "line_comment" | "block_comment" | "string_literal") && cursor.goto_first_child() {
             continue;
@@ -1179,6 +1509,8 @@ pub(crate) struct JavaGraph {
     hierarchy: u128,
     /// Per member name, XOR of the files' [`JavaStub::name_hashes`].
     names: HashMap<Box<str>, u128>,
+    /// Packages (dotted) with the number of files declaring them.
+    packages: HashMap<Box<str>, u32>,
     pub files: u32,
 }
 
@@ -1221,6 +1553,7 @@ impl JavaGraph {
         for (name, h) in stub.name_hashes() {
             *self.names.entry(name.into()).or_default() ^= h;
         }
+        *self.packages.entry(stub.package.as_str().into()).or_default() += 1;
         self.files += 1;
         words
     }
@@ -1257,6 +1590,12 @@ impl JavaGraph {
                 }
             }
         }
+        if let Some(n) = self.packages.get_mut(stub.package.as_str()) {
+            *n -= 1;
+            if *n == 0 {
+                self.packages.remove(stub.package.as_str());
+            }
+        }
         self.files -= 1;
     }
 
@@ -1270,6 +1609,18 @@ impl JavaGraph {
             h.put(&self.names.get(w.as_str()).copied().unwrap_or_default().to_string());
         }
         h.finish()
+    }
+
+    /// Sizes for a memory measurement: words, their bytes, postings, names, by-name entries.
+    #[doc(hidden)]
+    pub fn stats(&self) -> [usize; 5] {
+        [
+            self.word_names.len(),
+            self.word_names.iter().map(|w| w.len()).sum(),
+            self.postings.iter().map(Vec::len).sum(),
+            self.names.len(),
+            self.by_name.values().map(Vec::len).sum::<usize>() + self.by_super.values().map(Vec::len).sum::<usize>(),
+        ]
     }
 
     /// Files whose code mentions `word`.
@@ -1300,15 +1651,31 @@ pub enum Resolved {
 /// Overlay file pseudo-slot when the edited file is not indexed.
 const OVERLAY: u32 = u32::MAX;
 
-/// Queries over the index, with the edited file's unsaved declarations.
+/// Queries over the index, with the edited file's unsaved declarations — and those of the other
+/// open files with unsaved edits (IDEA's PSI of every open document, not only the focused one).
 pub struct JavaView<'a> {
     pub(crate) data: &'a IndexData,
     pub(crate) overlay: Option<Overlay<'a>>,
+    /// Other indexed files with unsaved edits (each `file` is `Some`).
+    pub(crate) others: Vec<Overlay<'a>>,
 }
 
 impl<'a> JavaView<'a> {
+    pub(crate) fn new(data: &'a IndexData, overlay: Option<Overlay<'a>>) -> Self {
+        Self { data, overlay, others: Vec::new() }
+    }
+
     fn overlay_slot(&self) -> Option<u32> {
         self.overlay.as_ref().map(|o| o.file.unwrap_or(OVERLAY))
+    }
+
+    /// Slots whose declarations come from unsaved text rather than the index.
+    fn edited(&self) -> impl Iterator<Item = (u32, &'a JavaStub)> + '_ {
+        self.overlay.iter().chain(&self.others).map(|o| (o.file.unwrap_or(OVERLAY), o.stub))
+    }
+
+    fn is_edited(&self, file: u32) -> bool {
+        self.overlay_slot() == Some(file) || self.others.iter().any(|o| o.file == Some(file))
     }
 
     /// The edited file's slot (or its pseudo-slot when it is not indexed).
@@ -1317,11 +1684,14 @@ impl<'a> JavaView<'a> {
     }
 
     pub fn stub(&self, file: u32) -> Option<&'a JavaStub> {
-        if let Some(o) = &self.overlay
-            && o.file.unwrap_or(OVERLAY) == file
-        {
-            return Some(o.stub);
+        if let Some((_, stub)) = self.edited().find(|(f, _)| *f == file) {
+            return Some(stub);
         }
+        self.data.files.get(file as usize)?.as_ref()?.java.as_deref()
+    }
+
+    /// The indexed (saved) declarations of `file`, whatever its unsaved text says.
+    fn indexed_stub(&self, file: u32) -> Option<&'a JavaStub> {
         self.data.files.get(file as usize)?.as_ref()?.java.as_deref()
     }
 
@@ -1333,21 +1703,18 @@ impl<'a> JavaView<'a> {
         self.data.files.get(file as usize)?.as_ref().map(|e| e.path.as_path())
     }
 
-    /// Types named `name`, the edited file's from its unsaved text.
+    /// Types named `name`, the edited files' from their unsaved text.
     fn named(&self, name: &str) -> Vec<TypeId> {
-        let skip = self.overlay_slot();
         let mut out: Vec<TypeId> = self
             .data
             .java
             .by_name
             .get(name)
-            .map(|v| v.iter().copied().filter(|id| Some(id.file) != skip).collect())
+            .map(|v| v.iter().copied().filter(|id| !self.is_edited(id.file)).collect())
             .unwrap_or_default();
-        if let Some(o) = &self.overlay {
-            let file = o.file.unwrap_or(OVERLAY);
+        for (file, stub) in self.edited() {
             out.extend(
-                o.stub
-                    .types
+                stub.types
                     .iter()
                     .enumerate()
                     .filter(|(_, t)| t.name == name)
@@ -1357,21 +1724,71 @@ impl<'a> JavaView<'a> {
         out
     }
 
+    /// The slot of an indexed file.
+    pub fn file_slot(&self, path: &std::path::Path) -> Option<u32> {
+        self.data.slot(path)
+    }
+
+    /// Content hash of an indexed file as last indexed (what its saved stub describes). Use it
+    /// rather than the index's `file_hash` while holding a view: the view holds the index's read
+    /// lock, which must not be taken again on the same thread.
+    pub fn indexed_hash(&self, path: &std::path::Path) -> Option<[u8; 32]> {
+        self.data.get(path).map(|e| e.hash)
+    }
+
+    /// Source types named `name` (simple name), the edited file's from its unsaved text.
+    pub fn types_named(&self, name: &str) -> Vec<TypeId> {
+        self.named(name)
+    }
+
+    /// Member type `name` declared in `owner` (not inherited, not local).
+    pub fn member_type_of(&self, owner: TypeId, name: &str) -> Option<TypeId> {
+        self.member_type(owner, name)
+    }
+
+    /// Whether some source file declares package `package` (dotted; `""` for the default one) or
+    /// a package below it (`com` for `com.acme`).
+    pub fn has_package(&self, package: &str) -> bool {
+        let below = |p: &str| {
+            p == package || p.len() > package.len() && p.starts_with(package) && p.as_bytes()[package.len()] == b'.'
+        };
+        if self.edited().any(|(_, stub)| below(&stub.package)) {
+            return true;
+        }
+        if self.data.java.packages.keys().any(|k| k.as_ref() != package && below(k)) {
+            return true;
+        }
+        // The files declaring it may all be edited ones, whose package changed.
+        let declaring = self.data.java.packages.get(package).copied().unwrap_or(0) as usize;
+        let edited_away =
+            self.edited().filter(|(f, _)| self.indexed_stub(*f).is_some_and(|old| old.package == package)).count();
+        declaring > edited_away
+    }
+
+    /// Indexed files whose code mentions `word` (the edited ones by their unsaved text).
+    pub fn files_mentioning(&self, word: &str) -> Vec<u32> {
+        let mut out: Vec<u32> =
+            self.data.java.files_with_word(word).iter().copied().filter(|f| !self.is_edited(*f)).collect();
+        out.extend(
+            self.edited()
+                .filter(|(_, stub)| stub.words.binary_search_by(|w| w.as_str().cmp(word)).is_ok())
+                .map(|(f, _)| f),
+        );
+        out
+    }
+
     /// Types writing a supertype named `name` (simple name).
     fn writing_super(&self, name: &str) -> Vec<TypeId> {
-        let skip = self.overlay_slot();
         let mut out: Vec<TypeId> = self
             .data
             .java
             .by_super
             .get(name)
-            .map(|v| v.iter().copied().filter(|id| Some(id.file) != skip).collect())
+            .map(|v| v.iter().copied().filter(|id| !self.is_edited(id.file)).collect())
             .unwrap_or_default();
-        if let Some(o) = &self.overlay {
-            let file = o.file.unwrap_or(OVERLAY);
+        for (file, stub) in self.edited() {
             out.extend(
-                o.stub
-                    .types
+                stub.types
                     .iter()
                     .enumerate()
                     .filter(|(_, t)| t.supers.iter().any(|s| simple(s) == name))
@@ -1593,6 +2010,8 @@ impl<'a> JavaView<'a> {
 }
 
 mod insight;
+mod slim;
+pub use slim::Slim;
 pub mod spring;
 pub use insight::{
     JavaMarker, JavaMarkerKind, JavaMarkerTarget, JavaMarkers, JavaTypeItem, UsageScope, declaration_named_at,

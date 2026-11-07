@@ -204,6 +204,11 @@ impl LspManager {
             }
             "sonarlint/getJavaConfig" => {
                 let path = single_str(&params).and_then(uri_to_path)?;
+                // The project model's view first: the analyzer must not wait for jdtls's import.
+                let hook = self.java_config_hook.read().clone();
+                if let Some(config) = hook.and_then(|h| h(&path)) {
+                    return Some(config);
+                }
                 self.runtime.block_on(async {
                     tokio::time::timeout(JAVA_CONFIG_TIMEOUT, self.sonar_java_config(&path))
                         .await
@@ -304,6 +309,18 @@ impl LspManager {
                 server.status_message().unwrap_or_else(|| "SonarQube for IDE is not running".to_owned()),
             )),
         }
+    }
+
+    /// Starts this project's engine in the background: loading every analyzer takes the JVM
+    /// seconds, which the first file opened should not wait for.
+    pub fn prewarm_sonar(&self) {
+        let Some(me) = self.me.upgrade() else { return };
+        self.runtime.spawn(async move {
+            match me.sonar().await {
+                Ok(_) => tracing::debug!("{SERVER}: prewarmed"),
+                Err(e) => tracing::debug!("{SERVER}: not prewarmed: {}", e.message),
+            }
+        });
     }
 
     /// Every rule of the installed analyzers.

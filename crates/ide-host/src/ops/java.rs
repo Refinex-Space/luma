@@ -1,6 +1,9 @@
 //! Java launch support: classpath / JDK resolution and the java-debug server (jdtls).
 pub(crate) mod cache;
+pub(crate) mod complete;
+pub(crate) mod find;
 pub(crate) mod navigation;
+pub(crate) mod rename;
 pub mod usages;
 
 use crate::Host;

@@ -103,7 +103,7 @@ impl ProjectIndex {
         if !root.is_dir() {
             return Err(ide_core::IdeError::not_found(format!("{} is not a directory", root.display())));
         }
-        let store = store::Store::open(cache_dir, &root, &syntax.fingerprint());
+        let store = store::Store::open(cache_dir, &root);
         let filter = filter::PathFilter::new(&root, &content_roots.into(), &excludes);
         let shared = Arc::new(Shared::new(filter, languages, syntax, sink, store));
         Self::start(shared, root, true)
@@ -191,11 +191,34 @@ impl ProjectIndex {
     /// Runs `f` over the Java structure index, with the declarations of `path` taken from its
     /// (possibly unsaved) `text`. `None` when `text` cannot be parsed as Java.
     pub fn with_java<R>(&self, path: &Path, text: &str, f: impl FnOnce(&java::JavaView) -> R) -> Option<R> {
+        self.with_java_edits(path, text, &[], f)
+    }
+
+    /// [`Self::with_java`], with the declarations of the other indexed files in `others` taken
+    /// from their unsaved text too (the other open editors with changes).
+    pub fn with_java_edits<R>(
+        &self,
+        path: &Path,
+        text: &str,
+        others: &[(PathBuf, String)],
+        f: impl FnOnce(&java::JavaView) -> R,
+    ) -> Option<R> {
         let lang = ide_core::LanguageId::new("java");
-        let stub = self.shared.syntax.with_parsed(&lang, text, &|| false, |p| java::extract(p.tree, p.text)).ok()?;
+        let extract =
+            |text: &str| self.shared.syntax.with_parsed(&lang, text, &|| false, |p| java::extract(p.tree, p.text)).ok();
+        let stub = extract(text)?;
         let path = self.normalize(path).unwrap_or_else(|| path.to_owned());
-        let d = self.shared.data.read();
-        let view = java::JavaView { data: &d, overlay: Some(java::Overlay { file: d.slot(&path), stub: &stub }) };
+        let edited: Vec<(PathBuf, java::JavaStub)> = others
+            .iter()
+            .filter_map(|(p, t)| Some((self.normalize(p).unwrap_or_else(|| p.clone()), extract(t)?)))
+            .filter(|(p, _)| *p != path)
+            .collect();
+        // Recursive: a view may be opened inside another (a usage scope while searching), and a
+        // plain read waits behind a queued indexer write that waits for the outer read.
+        let d = self.shared.data.read_recursive();
+        let mut view = java::JavaView::new(&d, Some(java::Overlay { file: d.slot(&path), stub: &stub }));
+        view.others =
+            edited.iter().filter_map(|(p, stub)| Some(java::Overlay { file: Some(d.slot(p)?), stub })).collect();
         Some(f(&view))
     }
 
@@ -213,7 +236,7 @@ impl ProjectIndex {
             if !SpringModel::reusable_for(view) {
                 return f(view, &SpringModel::build(view, path, options));
             }
-            let base = java::JavaView { data: view.data, overlay: None };
+            let base = java::JavaView::new(view.data, None);
             let key = SpringModel::key(&base, options);
             let cached = self.spring.lock().as_ref().filter(|(k, _)| *k == key).map(|(_, m)| m.clone());
             let model = match cached {
@@ -237,7 +260,7 @@ impl ProjectIndex {
     ) -> R {
         use java::spring::SpringModel;
         let d = self.shared.data.read();
-        let view = java::JavaView { data: &d, overlay: None };
+        let view = java::JavaView::new(&d, None);
         let key = SpringModel::key(&view, options);
         let cached = self.spring.lock().as_ref().filter(|(k, _)| *k == key).map(|(_, m)| m.clone());
         let model = match cached {
@@ -309,14 +332,16 @@ impl ProjectIndex {
     }
 
     /// Where usages of the Java declarations named at `positions` can be (see
-    /// [`java::UsageScope`]); `None` for a position that names no declaration.
+    /// [`java::UsageScope`]); `None` for a position that names no declaration. `others`: the
+    /// other files with unsaved edits, whose editor text may mention the names.
     pub fn java_usage_scopes(
         &self,
         path: &Path,
         text: &str,
+        others: &[(PathBuf, String)],
         positions: &[ide_core::Pos],
     ) -> Vec<Option<java::UsageScope>> {
-        self.with_java(path, text, |v| positions.iter().map(|&p| java::usage_scope(v, p)).collect())
+        self.with_java_edits(path, text, others, |v| positions.iter().map(|&p| java::usage_scope(v, p)).collect())
             .unwrap_or_else(|| vec![None; positions.len()])
     }
 
@@ -330,7 +355,7 @@ impl ProjectIndex {
     /// Content hash of an indexed file, as last indexed.
     pub fn file_hash(&self, path: &Path) -> Option<[u8; 32]> {
         let path = self.normalize(path)?;
-        self.shared.data.read().get(&path).map(|e| e.hash)
+        self.shared.data.read_recursive().get(&path).map(|e| e.hash)
     }
 
     /// Incrementally re-indexes changed paths (called from the vfs watcher).
@@ -453,6 +478,104 @@ impl Drop for ProjectIndex {
 
 #[cfg(test)]
 mod tests;
+
+/// In-memory Java sources for tests of crates building on the structure index; not a stable API.
+impl ProjectIndex {
+    /// Copies of the index's parts by name (`java`: the Java stubs; `symbols`: the files'
+    /// symbols and paths), for a test measuring their heap with a counting allocator.
+    #[doc(hidden)]
+    pub fn copy_part_for_measurement(&self, part: &str) -> Box<dyn std::any::Any> {
+        let d = self.shared.data.read();
+        let entries = d.files.iter().flatten();
+        let stubs = || entries.clone().filter_map(|e| e.java.as_deref().cloned());
+        let without = |f: fn(&mut java::JavaStub)| -> Box<dyn std::any::Any> {
+            Box::new(
+                stubs()
+                    .map(|mut s| {
+                        f(&mut s);
+                        s.types.iter_mut().for_each(|t| t.members.shrink_to_fit());
+                        s
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        };
+        match part {
+            "stats" => Box::new(format!("{:?} files {} symbols {}", d.java.stats(), d.files.len(), d.symbol_count)),
+            "java" => Box::new(stubs().collect::<Vec<_>>()),
+            "java-without-sig" => without(|s| {
+                s.types.iter_mut().for_each(|t| {
+                    t.sig = Default::default();
+                    t.members.iter_mut().for_each(|m| m.sig = Default::default());
+                })
+            }),
+            "java-without-annotation-args" => without(|s| {
+                s.types.iter_mut().for_each(|t| {
+                    t.annotation_args = Vec::new().into();
+                    t.members.iter_mut().for_each(|m| {
+                        m.annotation_args = Vec::new().into();
+                        m.param_details.iter_mut().for_each(|p| p.annotation_args = Vec::new().into());
+                    });
+                })
+            }),
+            "java-without-param-details" => without(|s| {
+                s.types.iter_mut().for_each(|t| t.members.iter_mut().for_each(|m| m.param_details = Vec::new().into()))
+            }),
+            "java-without-members" => without(|s| s.types.iter_mut().for_each(|t| t.members = Vec::new())),
+            _ => Box::new(entries.map(|e| (e.path.clone(), e.rel.clone(), e.record().symbols)).collect::<Vec<_>>()),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub mod testing {
+    use crate::data::{FileEntry, FileRecord, IndexData};
+    use crate::java::{JavaView, Overlay};
+    use ide_core::LanguageId;
+    use ide_language::Syntax;
+    use std::path::{Path, PathBuf};
+
+    pub struct JavaSources {
+        data: IndexData,
+        syntax: Syntax,
+    }
+
+    impl JavaSources {
+        /// `files`: (path relative to `/p`, text).
+        pub fn new(files: &[(&str, &str)]) -> Self {
+            let syntax = Syntax::new();
+            let mut data = IndexData::default();
+            for (rel, text) in files {
+                let stub = syntax
+                    .with_parsed(&LanguageId::new("java"), text, &|| false, |p| crate::java::extract(p.tree, p.text))
+                    .expect("java grammar");
+                let record = FileRecord { java: Some(stub), ..Default::default() };
+                data.insert(FileEntry::new(PathBuf::from("/p").join(rel), (*rel).to_owned(), record));
+            }
+            Self { data, syntax }
+        }
+
+        /// The view with no edited file.
+        pub fn with_view<R>(&self, f: impl FnOnce(&JavaView) -> R) -> R {
+            f(&JavaView::new(&self.data, None))
+        }
+
+        /// The view with `rel` edited to `text`.
+        pub fn with_edit<R>(&self, rel: &str, text: &str, f: impl FnOnce(&JavaView) -> R) -> R {
+            let stub = self
+                .syntax
+                .with_parsed(&LanguageId::new("java"), text, &|| false, |p| crate::java::extract(p.tree, p.text))
+                .expect("java grammar");
+            let path = PathBuf::from("/p").join(rel);
+            let view = JavaView::new(&self.data, Some(Overlay { file: self.data.slot(&path), stub: &stub }));
+            f(&view)
+        }
+
+        /// The slot of `rel`.
+        pub fn file(&self, rel: &str) -> Option<u32> {
+            self.data.slot(&Path::new("/p").join(rel))
+        }
+    }
+}
 
 /// Synthetic in-memory index for benchmarks (`benches/index.rs`); not a stable API.
 #[doc(hidden)]

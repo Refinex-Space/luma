@@ -368,7 +368,7 @@ pub(super) fn file(
                             name: names.remove(0),
                             aliases: names,
                             type_names: type_names(view, &ty),
-                            ty: TypeRef { ty, args: m.ty_args.clone() },
+                            ty: TypeRef { ty, args: m.ty_args.clone().into() },
                             owner: Some(owner),
                             method: Some(member),
                             origin: BeanOrigin::Factory { is_static: m.is(STATIC) },

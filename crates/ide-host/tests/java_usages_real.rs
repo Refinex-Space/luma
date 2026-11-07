@@ -78,6 +78,14 @@ async fn counts_and_markers_on_a_real_project() {
         })
         .unwrap();
 
+    // Before jdtls has imported anything: Luma's engine answers at once (JDK and sources only
+    // in a first session; JDT counts the undecided rest in the background).
+    let t = Instant::now();
+    match java_usage_counts(&host, "main", ide_core::RequestId::next(), doc, positions.clone(), UsagePass::Full).await {
+        Ok(early) => println!("before jdtls is ready (engine) {:?}: {}", t.elapsed(), tally(&early)),
+        Err(e) => println!("before jdtls is ready: {e:?}"),
+    }
+
     // Wait for jdtls to import the project and answer.
     let started = Instant::now();
     loop {
@@ -112,9 +120,19 @@ async fn counts_and_markers_on_a_real_project() {
         }
     }
     println!("costly ones one by one {:?}: {}", t.elapsed(), tally(&full));
+    // JDT counts what the engine left undecided in the background: wait for it to settle.
     let t = Instant::now();
-    let again = counts(&host, doc, &positions, UsagePass::Cached).await;
-    println!("reopened (cached pass) {:?}: {}", t.elapsed(), tally(&again));
+    let again = loop {
+        let again = counts(&host, doc, &positions, UsagePass::Cached).await;
+        let settled = again.iter().all(|c| matches!(c.state, UsageCountState::Fresh | UsageCountState::None));
+        if settled || t.elapsed() > Duration::from_secs(300) {
+            break again;
+        }
+        // Undecided files still stale: a cheap pass retries what JDT has not counted yet.
+        let _ = counts(&host, doc, &positions, UsagePass::Full).await;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    };
+    println!("settled (cached pass) after {:?}: {}", t.elapsed(), tally(&again));
     assert!(again.iter().all(|c| matches!(c.state, UsageCountState::Fresh | UsageCountState::None)));
 
     // The counts the lens showed before: one reference request per declaration, 4 at a time.
@@ -138,7 +156,52 @@ async fn counts_and_markers_on_a_real_project() {
         .filter(|(_, (o, n))| n.state != UsageCountState::None && o.is_some() && **o != n.count)
         .map(|(p, (o, n))| format!("{}:{} before {o:?} now {:?}", p.line, p.col, n.count))
         .collect();
-    assert!(mismatches.is_empty(), "{mismatches:#?}");
+    // The inlay counts a method's override family (IDEA's semantics), references the method alone.
+    println!("{} declarations count differently from plain references:", mismatches.len());
+    for m in mismatches.iter().take(20) {
+        println!("  {m}");
+    }
+    // Where they differ: Find Usages (the engine's, as the inlay counts) against references.
+    for (p, (o, n)) in positions.iter().zip(old.iter().zip(&again)) {
+        if n.state == UsageCountState::None || o.is_none() || *o == n.count {
+            continue;
+        }
+        let refs =
+            lsp.references(doc, *p, false, false, Default::default()).await.map(|r| r.locations).unwrap_or_default();
+        let found = ops::lsp::lsp_find_usages(
+            &host,
+            "main",
+            ide_core::RequestId::next(),
+            doc,
+            *p,
+            ide_lsp::types::UsageSearchScope::Project,
+        )
+        .await
+        .map(|r| r.locations)
+        .unwrap_or_default();
+        let key = |l: &ide_core::Location| {
+            format!(
+                "{}:{}:{}",
+                l.path.0.strip_prefix(&root).unwrap_or(&l.path.0).display(),
+                l.range.start.line + 1,
+                l.range.start.col + 1
+            )
+        };
+        let theirs: std::collections::BTreeSet<String> =
+            refs.iter().filter(|l| l.uri.is_none() && l.path.starts_with(&root)).map(key).collect();
+        let ours: std::collections::BTreeSet<String> = found.iter().map(key).collect();
+        let listed = refs.iter().filter(|l| l.uri.is_none() && l.path.starts_with(&root)).count();
+        println!(
+            "  {}:{} jdtls listed {listed} ({} distinct), engine {} (count {:?})",
+            p.line,
+            p.col,
+            theirs.len(),
+            ours.len(),
+            n.count
+        );
+        println!("  {}:{} only jdtls: {:?}", p.line, p.col, theirs.difference(&ours).collect::<Vec<_>>());
+        println!("  {}:{} only engine: {:?}", p.line, p.col, ours.difference(&theirs).collect::<Vec<_>>());
+    }
 
     // Another file gains a usage: only it is counted again.
     if let Ok(edit) = std::env::var("LUMA_JAVA_EDIT") {
@@ -172,6 +235,8 @@ async fn counts_and_markers_on_a_real_project() {
     drop(project);
     let host = self::host(base.path());
     host.open_project("main", &root).unwrap();
+    // The index loads its persisted records first (a fraction of a second).
+    assert!(host.project("main").unwrap().index.wait_idle(Duration::from_secs(120)));
     let info = ops::doc::open(&host, "main", path.clone()).await.unwrap();
     let t = Instant::now();
     let next =

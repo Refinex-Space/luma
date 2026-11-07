@@ -17,6 +17,7 @@ ide-vfs.workspace = true
 ide-workspace.workspace = true
 ide-language.workspace = true
 ide-index.workspace = true
+ide-java.workspace = true
 ide-syntax.workspace = true
 ide-search.workspace = true
 ide-lsp.workspace = true
@@ -46,6 +47,7 @@ tokio = { workspace = true, features = ["io-std"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 parking_lot.workspace = true
+rayon.workspace = true
 futures.workspace = true
 blake3.workspace = true
 dunce.workspace = true
@@ -54,6 +56,7 @@ uuid.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
+ignore.workspace = true
 ide-ssh = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util", "test-util"] }
 

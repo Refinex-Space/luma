@@ -4,8 +4,10 @@
 //! runs one on a remote machine and serves it over JSON-RPC ([`rpc`]).
 
 pub mod data_dirs;
+pub mod diagnostics_grave;
 pub mod environment;
 mod formatter;
+pub mod java_engine;
 mod java_runtime;
 mod kotlin_bridge;
 pub mod notebook;
@@ -177,6 +179,10 @@ impl Host {
                 bridge.stop();
             }
             project.documents.clear_workspace_edit_history();
+            // Keep the open files' problems before the language servers withdraw them on shutdown.
+            if !project.light {
+                project.diagnostics.bury_open();
+            }
             project.agents.shutdown();
             project.notebooks.stop_admission();
             // What the closing window started goes with it — the builds and searches it

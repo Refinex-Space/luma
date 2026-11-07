@@ -586,6 +586,16 @@ impl LspManager {
         Ok(parse_vm_location(&v))
     }
 
+    /// The Java compliance level (`17`, `1.8`) jdtls compiles the project containing `path` at.
+    pub async fn java_compliance(&self, path: &Path, cancel: &CancellationToken) -> IdeResult<Option<String>> {
+        const COMPLIANCE: &str = "org.eclipse.jdt.core.compiler.compliance";
+        let uri = crate::uri::path_to_uri_string(path);
+        let v = self
+            .jdtls_project_command(path, "java.project.getSettings", vec![json!(uri), json!([COMPLIANCE])], cancel)
+            .await?;
+        Ok(v.get(COMPLIANCE).and_then(serde_json::Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned))
+    }
+
     /// Builds (when asked), then resolves the classpath and JDK of the module at `module`.
     /// The classpath queries take the module's workspace scheduling rule like the build
     /// commands do, so they run under the build lock; pass `build_lock_held` when the caller

@@ -36,12 +36,39 @@ pub async fn lsp_completion(
     pos: Pos,
     trigger: Option<String>,
 ) -> IdeResult<CompletionList> {
-    let lsp = host.project(window)?.lsp.clone();
+    let project = host.project(window)?;
+    let lsp = project.lsp.clone();
     let cancel = host.begin_request(request);
-    let result = lsp.completion(doc, pos, trigger, cancel).await;
+    let result = match java_source(&project, doc) {
+        // Java: Luma's engine completes members while jdtls cannot (starting, importing) or is
+        // slow; jdtls's answer, richer, wins whenever it comes in time.
+        Some((path, text)) => {
+            let p = project.clone();
+            let engine = tokio::task::spawn_blocking(move || {
+                crate::ops::java::complete::engine_completion(&p, &path, &text, pos)
+            });
+            let server = lsp.completion(doc, pos, trigger, cancel);
+            tokio::pin!(server);
+            match tokio::time::timeout(JAVA_COMPLETION_GRACE, &mut server).await {
+                Ok(Ok(list)) if !list.items.is_empty() => Ok(list),
+                Ok(other) => match engine.await.ok().flatten() {
+                    Some(list) => Ok(list),
+                    None => other,
+                },
+                Err(_) => match engine.await.ok().flatten() {
+                    Some(list) => Ok(list),
+                    None => server.await,
+                },
+            }
+        }
+        None => lsp.completion(doc, pos, trigger, cancel).await,
+    };
     host.end_request(request);
     result
 }
+
+/// How long Java completion waits for jdtls before showing the engine's members.
+const JAVA_COMPLETION_GRACE: std::time::Duration = std::time::Duration::from_millis(1000);
 
 /// Inline (ghost text) suggestions at `pos`; `automatic` when triggered by typing.
 pub async fn lsp_inline_completion(
@@ -93,6 +120,26 @@ pub async fn lsp_goto(host: &Host, window: &str, doc: DocId, pos: Pos, kind: Got
         && let Some(locations) = super::java::navigation::implementations(&project, doc, pos).await
     {
         return Ok(locations);
+    }
+    // Java definitions: the server's when it answers promptly (it also navigates to libraries
+    // and Spring configuration); while it starts or imports, Luma's engine for source targets.
+    if kind == GotoKind::Definition
+        && let Ok(info) = project.documents.snapshot(doc)
+        && info.language.as_str() == "java"
+        && !info.large
+    {
+        let server = project.lsp.goto(doc, pos, kind);
+        tokio::pin!(server);
+        if let Ok(answer) = tokio::time::timeout(std::time::Duration::from_millis(300), &mut server).await {
+            return answer;
+        }
+        let (p, path, text) = (project.clone(), info.path.0.clone(), info.text.clone());
+        if let Ok(Some(location)) =
+            blocking(move || Ok(crate::ops::java::find::engine_definition(&p, &path, &text, pos))).await
+        {
+            return Ok(vec![location]);
+        }
+        return server.await;
     }
     project.lsp.goto(doc, pos, kind).await
 }
@@ -155,7 +202,22 @@ pub async fn lsp_find_usages(
     pos: Pos,
     scope: UsageSearchScope,
 ) -> IdeResult<References> {
-    let lsp = host.project(window)?.lsp.clone();
+    let project = host.project(window)?;
+    // Java: Luma's engine answers at once when it decides every occurrence; else JDT searches.
+    if let Ok(info) = project.documents.snapshot(doc)
+        && info.language.as_str() == "java"
+        && !info.large
+    {
+        let (p, path, text) = (project.clone(), info.path.0.clone(), info.text.clone());
+        let libraries_too = matches!(scope, UsageSearchScope::All);
+        let found =
+            blocking(move || Ok(crate::ops::java::find::engine_find_usages(&p, &path, &text, pos, libraries_too)))
+                .await;
+        if let Ok(Some(references)) = found {
+            return Ok(references);
+        }
+    }
+    let lsp = project.lsp.clone();
     let cancel = host.begin_request(request);
     let result = lsp.find_usages(doc, pos, scope, cancel).await;
     host.end_request(request);
@@ -252,8 +314,23 @@ pub async fn lsp_apply_code_action(host: &Host, window: &str, doc: DocId, action
     Ok(())
 }
 
+/// A Java document's path and text, for Luma's engine (`None` for other or large files).
+fn java_source(project: &crate::Project, doc: DocId) -> Option<(std::path::PathBuf, String)> {
+    let info = project.documents.snapshot(doc).ok()?;
+    (info.language.as_str() == "java" && !info.large).then_some((info.path.0, info.text))
+}
+
 pub async fn lsp_prepare_rename(host: &Host, window: &str, doc: DocId, pos: Pos) -> IdeResult<Option<Range>> {
-    host.project(window)?.lsp.prepare_rename(doc, pos).await
+    let project = host.project(window)?;
+    // Java: what Luma's engine renames needs no language server (it may still be importing).
+    if let Some((path, text)) = java_source(&project, doc) {
+        let p = project.clone();
+        let range = blocking(move || Ok(crate::ops::java::rename::engine_prepare_rename(&p, &path, &text, pos))).await;
+        if let Ok(Some(range)) = range {
+            return Ok(Some(range));
+        }
+    }
+    project.lsp.prepare_rename(doc, pos).await
 }
 
 /// Computes the rename edit without applying it, so the UI can preview conflicts.
@@ -268,10 +345,27 @@ pub async fn lsp_rename(
     let project = host.project(window)?;
     let documents = project.documents.clone();
     let version = blocking(move || documents.version(doc)).await?;
-    let cancel = host.begin_request(request);
-    let result = project.lsp.rename(doc, pos, new_name, cancel).await;
-    host.end_request(request);
-    let mut renamed = result?;
+    // Java: Luma's engine renames locals, fields and methods when it decides every occurrence
+    // and the renamed code binds as before; else JDT renames.
+    let by_engine = match java_source(&project, doc) {
+        Some((path, text)) => {
+            let (p, name) = (project.clone(), new_name.clone());
+            blocking(move || Ok(crate::ops::java::rename::engine_rename(&p, &path, &text, pos, &name)))
+                .await
+                .ok()
+                .flatten()
+        }
+        None => None,
+    };
+    let mut renamed = match by_engine {
+        Some(edit) => Renamed { edit, incomplete: None },
+        None => {
+            let cancel = host.begin_request(request);
+            let result = project.lsp.rename(doc, pos, new_name, cancel).await;
+            host.end_request(request);
+            result?
+        }
+    };
     blocking(move || {
         if project.documents.version(doc)? != version {
             return Err(ide_core::IdeError::new(

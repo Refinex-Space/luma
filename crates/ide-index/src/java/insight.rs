@@ -266,12 +266,13 @@ pub fn usage_scope(view: &JavaView, pos: Pos) -> Option<UsageScope> {
     if !local {
         let mut seen = HashSet::new();
         for w in &words {
-            for &f in view.data.java.files_with_word(w) {
+            // Other files with unsaved edits by their editor text.
+            for f in view.files_mentioning(w) {
                 if f == file || !seen.insert(f) {
                     continue;
                 }
                 let Some(entry) = view.data.files.get(f as usize).and_then(Option::as_ref) else { continue };
-                if package_only && entry.java.as_ref().is_none_or(|j| j.package != stub.package) {
+                if package_only && view.stub(f).is_none_or(|j| j.package != stub.package) {
                     continue;
                 }
                 files.push((entry.path.clone(), entry.hash));

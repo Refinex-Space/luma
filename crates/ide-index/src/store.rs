@@ -3,14 +3,19 @@
 use crate::data::FileRecord;
 use parking_lot::RwLock;
 use redb::{Database, Durability, ReadableDatabase, ReadableTable, TableDefinition, TableError};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 const FILES: TableDefinition<&str, &[u8]> = TableDefinition::new("files");
 const META: TableDefinition<&str, &[u8]> = TableDefinition::new("meta");
-/// Bump when [`FileRecord`] or its encoding changes.
-const SCHEMA: &str = "luma-index-5";
+/// Bump when [`FileRecord`] or its encoding changes (every record is dropped). What the
+/// extractors produce is versioned per index instead (see [`Store::versions`]).
+const SCHEMA: &str = "luma-index-9";
 
 type Result<T> = std::result::Result<T, String>;
+
+/// Page cache of the database (see [`Store::open`]).
+const CACHE_BYTES: usize = 8 << 20;
 
 fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
@@ -23,16 +28,19 @@ pub(crate) struct Store {
 
 impl Store {
     /// Opens (or creates) `cache_dir/index.redb`. Records written by another
-    /// schema / extractor version or for another root are discarded. Returns
-    /// `None` when the database cannot be used (e.g. locked by another window);
-    /// the index then runs in memory only.
-    pub(crate) fn open(cache_dir: &Path, root: &Path, fingerprint: &str) -> Option<Self> {
+    /// schema or for another root are discarded. Returns `None` when the database
+    /// cannot be used (e.g. locked by another window); the index then runs in memory only.
+    pub(crate) fn open(cache_dir: &Path, root: &Path) -> Option<Self> {
         if let Err(e) = std::fs::create_dir_all(cache_dir) {
             tracing::warn!("index cache {}: {e}", cache_dir.display());
             return None;
         }
         let file = cache_dir.join("index.redb");
-        let db = match Database::create(&file) {
+        // redb caches up to 1 GiB of pages by default: after loading every record at startup the
+        // whole file would stay resident next to the decoded index. Records are read once and
+        // written in batches, so a small cache is enough.
+        let create = |f: &Path| redb::Builder::new().set_cache_size(CACHE_BYTES).create(f);
+        let db = match create(&file) {
             Ok(db) => db,
             Err(redb::DatabaseError::DatabaseAlreadyOpen) => {
                 tracing::warn!("index cache {} is in use; indexing in memory only", file.display());
@@ -41,11 +49,11 @@ impl Store {
             Err(e) => {
                 tracing::warn!("index cache {} unreadable ({e}); rebuilding", file.display());
                 let _ = std::fs::remove_file(&file);
-                Database::create(&file).map_err(|e| tracing::warn!("index cache: {e}")).ok()?
+                create(&file).map_err(|e| tracing::warn!("index cache: {e}")).ok()?
             }
         };
         let store = Self { db: RwLock::new(db) };
-        let stamp = format!("{SCHEMA}\n{fingerprint}\n{}", root.display());
+        let stamp = format!("{SCHEMA}\n{}", root.display());
         match store.meta("stamp") {
             Ok(Some(v)) if v == stamp.as_bytes() => {}
             _ => {
@@ -128,6 +136,17 @@ impl Store {
         self.db.write().compact().map_err(err)
     }
 
+    /// The version of each index the records were extracted with (`symbols/<language>`,
+    /// `java`), as [`Store::save_versions`] left them.
+    pub(crate) fn versions(&self) -> BTreeMap<String, String> {
+        self.meta("versions").ok().flatten().and_then(|v| postcard::from_bytes(&v).ok()).unwrap_or_default()
+    }
+
+    pub(crate) fn save_versions(&self, versions: &BTreeMap<String, String>) -> Result<()> {
+        let bytes = postcard::to_allocvec(versions).map_err(err)?;
+        self.set_meta("versions", &bytes)
+    }
+
     pub(crate) fn load_recent(&self) -> Vec<String> {
         self.meta("recent").ok().flatten().and_then(|v| postcard::from_bytes(&v).ok()).unwrap_or_default()
     }
@@ -149,24 +168,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roundtrip_and_reset_on_new_fingerprint() {
+    fn roundtrip_and_reset_on_another_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = Path::new("/proj");
         {
-            let s = Store::open(dir.path(), root, "fp1").unwrap();
+            let s = Store::open(dir.path(), root).unwrap();
             let rec = FileRecord { mtime: 7, size: 3, ..Default::default() };
             s.apply(&[("a.rs".into(), rec.clone()), ("b.rs".into(), rec)], &[], false).unwrap();
             s.apply(&[], &["b.rs".into()], true).unwrap();
             s.save_recent(&["a.rs".into()]).unwrap();
         }
         {
-            let s = Store::open(dir.path(), root, "fp1").unwrap();
+            let s = Store::open(dir.path(), root).unwrap();
             let all = s.load().unwrap();
             assert_eq!(all.len(), 1);
             assert_eq!((all[0].0.as_str(), all[0].1.mtime), ("a.rs", 7));
             assert_eq!(s.load_recent(), vec!["a.rs".to_owned()]);
+            let versions = BTreeMap::from([("java".to_owned(), "2".to_owned())]);
+            s.save_versions(&versions).unwrap();
+            assert_eq!(s.versions(), versions);
         }
-        let s = Store::open(dir.path(), root, "fp2").unwrap();
+        let s = Store::open(dir.path(), Path::new("/elsewhere")).unwrap();
         assert!(s.load().unwrap().is_empty());
         let recs: Vec<(String, FileRecord)> = (0..500).map(|i| (format!("f{i}.rs"), FileRecord::default())).collect();
         s.apply(&recs, &[], true).unwrap();
@@ -180,7 +202,7 @@ mod tests {
     fn corrupt_file_is_rebuilt() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("index.redb"), b"garbage, not a database").unwrap();
-        let s = Store::open(dir.path(), Path::new("/p"), "fp").unwrap();
+        let s = Store::open(dir.path(), Path::new("/p")).unwrap();
         assert!(s.load().unwrap().is_empty());
     }
 }

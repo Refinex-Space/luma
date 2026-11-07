@@ -4237,6 +4237,7 @@ dependencies = [
  "ide-db",
  "ide-http",
  "ide-index",
+ "ide-java",
  "ide-jsonrpc",
  "ide-language",
  "ide-lsp",
@@ -4254,7 +4255,9 @@ dependencies = [
  "ide-vcs",
  "ide-vfs",
  "ide-workspace",
+ "ignore",
  "parking_lot",
+ "rayon",
  "rustix",
  "serde",
  "serde_json",
@@ -4309,6 +4312,24 @@ dependencies = [
  "tempfile",
  "tracing",
  "tree-sitter",
+]
+
+[[package]]
+name = "ide-java"
+version = "0.1.34"
+dependencies = [
+ "flate2",
+ "ide-core",
+ "ide-index",
+ "ignore",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "tempfile",
+ "tracing",
+ "tree-sitter",
+ "tree-sitter-java",
+ "zip",
 ]
 
 [[package]]

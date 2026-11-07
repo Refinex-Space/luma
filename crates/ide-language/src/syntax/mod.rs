@@ -150,6 +150,25 @@ impl Syntax {
         .clone()
     }
 
+    /// The version of [`Syntax::tags`]' output for files of `lang`: its grammar (ABI and
+    /// queries) and the extraction code's version. A persistent index re-extracts the files of
+    /// a language whose version changed, and only those (IDEA versions each index the same way).
+    pub fn symbols_fingerprint(&self, lang: &LanguageId) -> String {
+        // Bump when the extraction code changes what `tags` returns (or web definitions).
+        const TAGS_VERSION: &[u8] = b"tags-1/web-definitions-1";
+        let mut h = blake3::Hasher::new();
+        h.update(TAGS_VERSION);
+        for (i, g) in [self.grammar(lang), self.web_grammar(lang)].into_iter().enumerate() {
+            h.update(&[i as u8]);
+            if let Some(g) = g {
+                h.update(g.spec.name.as_bytes());
+                h.update(&Language::new(g.spec.language).abi_version().to_le_bytes());
+                h.update(g.spec.outline.as_bytes());
+            }
+        }
+        h.finalize().to_hex()[..16].to_owned()
+    }
+
     /// Whether a tree-sitter grammar is bundled for this language.
     pub fn supports(&self, lang: &LanguageId) -> bool {
         self.by_lang.contains_key(lang.as_str())

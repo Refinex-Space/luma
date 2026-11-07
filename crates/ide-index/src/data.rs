@@ -40,6 +40,8 @@ pub(crate) struct FileRecord {
     pub mtime: u64,
     pub size: u64,
     pub hash: [u8; 32],
+    /// The language the file was indexed as (`""` when it was not read: binary, too large).
+    pub lang: String,
     pub symbols: Vec<StoredSymbol>,
     /// Java files: declarations and identifiers.
     pub java: Option<JavaStub>,
@@ -74,6 +76,7 @@ pub(crate) struct FileEntry {
     pub mtime: u64,
     pub size: u64,
     pub hash: [u8; 32],
+    pub lang: Box<str>,
     pub symbols: Box<[Sym]>,
     /// Java files: declarations (its words moved to [`IndexData::java`]).
     pub java: Option<Box<JavaStub>>,
@@ -106,6 +109,7 @@ impl FileEntry {
             mtime: record.mtime,
             size: record.size,
             hash: record.hash,
+            lang: record.lang.into_boxed_str(),
             symbols,
             java: record.java.map(Box::new),
             java_words: Box::default(),
@@ -125,6 +129,7 @@ impl FileEntry {
             mtime: self.mtime,
             size: self.size,
             hash: self.hash,
+            lang: self.lang.to_string(),
             symbols: self
                 .symbols
                 .iter()
