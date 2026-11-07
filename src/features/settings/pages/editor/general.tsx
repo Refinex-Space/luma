@@ -618,6 +618,12 @@ const GUTTER = editorPage({
               keywords: ["super method", "overrides", "implements"],
               component: () => <GutterGroup id="supers" label="Implementing and overriding methods" />,
             },
+            {
+              t: "custom",
+              label: "Spring beans",
+              keywords: ["spring", "bean", "autowired", "inject", "injection"],
+              component: () => <GutterGroup id="spring" label="Spring beans and injection points" />,
+            },
           ],
         },
       ],

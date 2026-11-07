@@ -36,6 +36,23 @@ describe("javaLineMarker", () => {
       "Choose Super Method of area (1 found)",
     ]);
     expect(javaLineMarker({ ...iface, method: true }).tooltip).toBe("Is implemented in Circle, Square");
-    expect([markerGroup("overridden"), markerGroup("implementing")]).toEqual(["inheritors", "supers"]);
+    expect([markerGroup("overridden"), markerGroup("implementing"), markerGroup("injection")]).toEqual([
+      "inheritors",
+      "supers",
+      "spring",
+    ]);
+    const bean = javaLineMarker({
+      ...iface,
+      name: "orderService",
+      kind: "bean",
+      targets: [target("Checkout.orders", 4)],
+    });
+    expect([bean.tooltip, bean.chooserTitle]).toEqual([
+      "Spring bean injected into Checkout.orders",
+      "Choose Injection Point of orderService (1 found)",
+    ]);
+    const one = javaLineMarker({ ...iface, kind: "injection", targets: [target("WechatGateway", 2)] });
+    expect(one.tooltip).toBe("Autowired: WechatGateway");
+    expect(javaLineMarker({ ...iface, kind: "injection" }).tooltip).toBe("Autowired candidates: Circle, Square");
   });
 });

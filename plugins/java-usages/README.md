@@ -12,6 +12,15 @@ The Rust bridge logs the failure once per project session. Cancelled requests an
 changed source documents remain cancelled and do not start a fallback search.
 No global `includeAccessors` preference is changed.
 
+## Search scope
+
+An optional fifth argument of `luma.java.usages` selects the scope: `"project"` searches the
+same targets in source folders only (Find Usages in Project Files), and only in the projects that
+can reference the declaration: its own and those requiring it on their resolved classpath
+(a library declaration: every project); anything else (or no argument, as older clients send) keeps JDT LS's own scope, libraries
+included (All Places). Matches are taken as `ReferencesHandler` takes them: accurate, in
+compilation units.
+
 ## Usage counts (`luma.java.usageCounts`)
 
 Backs the "N usages" inlay. Arguments: the declaring file's URI and the targets

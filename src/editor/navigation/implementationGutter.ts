@@ -62,7 +62,7 @@ const gutterBackoff = featureBackoff();
 /** Settings › Editor › General › Gutter Icons groups that are on. */
 export function enabledGroups(prefs: Pick<EditorExtras, "showGutterIcons" | "gutterIconsDisabled">): Set<MarkerGroup> {
   if (!prefs.showGutterIcons) return new Set();
-  return new Set((["inheritors", "supers"] as const).filter((g) => !prefs.gutterIconsDisabled.includes(g)));
+  return new Set((["inheritors", "supers", "spring"] as const).filter((g) => !prefs.gutterIconsDisabled.includes(g)));
 }
 
 export interface MarkerDeps {

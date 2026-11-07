@@ -413,6 +413,11 @@ export const commands = {
 	 *  leave it off. Cancel with `cancel_request(request)`.
 	 */
 	lspReferences: (request: RequestId, doc: DocId, pos: Pos, includeDeclaration: boolean, projectWide: boolean) => typedError<References, IdeError>(__TAURI_INVOKE("lsp_references", { request, doc, pos, includeDeclaration, projectWide })),
+	/**
+	 *  Find Usages of the symbol at `pos` in `scope` (project files, or libraries too).
+	 *  Cancel with `cancel_request(request)`.
+	 */
+	lspFindUsages: (request: RequestId, doc: DocId, pos: Pos, scope: UsageSearchScope) => typedError<References, IdeError>(__TAURI_INVOKE("lsp_find_usages", { request, doc, pos, scope })),
 	lspDocumentHighlights: (doc: DocId, pos: Pos) => typedError<Highlight[], IdeError>(__TAURI_INVOKE("lsp_document_highlights", { doc, pos })),
 	lspWorkspaceSymbols: (request: RequestId, query: string) => typedError<WorkspaceSymbol[], IdeError>(__TAURI_INVOKE("lsp_workspace_symbols", { request, query })),
 	lspCodeActions: (doc: DocId, range: Range, only: string[]) => typedError<CodeAction[], IdeError>(__TAURI_INVOKE("lsp_code_actions", { doc, range, only })),
@@ -4362,7 +4367,11 @@ export type JavaMarkerKind =
 /**  ↑ on a method implementing an abstract one. */
 "implementing" | 
 /**  ↑ on a method overriding a concrete one. */
-"overriding";
+"overriding" | 
+/**  On a Spring bean: where it is injected. */
+"bean" | 
+/**  On an injection point: the Spring beans it receives. */
+"injection";
 
 export type JavaMarkerTarget = {
 	location: Location,
@@ -7218,6 +7227,13 @@ export type UsagePass =
 "cheap" | 
 /**  Counts every one. */
 "full";
+
+/**  Where Find Usages looks (IDEA's search scopes of the usages popup and tool window). */
+export type UsageSearchScope = 
+/**  The project's files: its sources and content roots, not libraries. */
+"project" | 
+/**  Libraries (their sources, decompiled classes) too. */
+"all";
 
 export type Variable = {
 	name: string,

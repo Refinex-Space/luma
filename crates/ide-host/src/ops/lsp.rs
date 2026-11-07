@@ -87,7 +87,14 @@ pub async fn lsp_signature_help(host: &Host, window: &str, doc: DocId, pos: Pos)
 }
 
 pub async fn lsp_goto(host: &Host, window: &str, doc: DocId, pos: Pos, kind: GotoKind) -> IdeResult<Vec<Location>> {
-    host.project(window)?.lsp.goto(doc, pos, kind).await
+    let project = host.project(window)?;
+    // Java implementations come from the structure index (instant), the server for the rest.
+    if kind == GotoKind::Implementation
+        && let Some(locations) = super::java::navigation::implementations(&project, doc, pos).await
+    {
+        return Ok(locations);
+    }
+    project.lsp.goto(doc, pos, kind).await
 }
 
 /// Implementations of the symbols at `positions`, one list per position (the
@@ -134,6 +141,23 @@ pub async fn lsp_references(
     let lsp = host.project(window)?.lsp.clone();
     let cancel = host.begin_request(request);
     let result = lsp.references(doc, pos, include_declaration, project_wide, cancel).await;
+    host.end_request(request);
+    result
+}
+
+/// Find Usages (⌥F7, ⌥⌘F7) of the symbol at `pos` in `scope` (project files, or libraries too).
+/// Cancel with `cancel_request(request)`.
+pub async fn lsp_find_usages(
+    host: &Host,
+    window: &str,
+    request: RequestId,
+    doc: DocId,
+    pos: Pos,
+    scope: UsageSearchScope,
+) -> IdeResult<References> {
+    let lsp = host.project(window)?.lsp.clone();
+    let cancel = host.begin_request(request);
+    let result = lsp.find_usages(doc, pos, scope, cancel).await;
     host.end_request(request);
     result
 }
@@ -310,7 +334,12 @@ pub async fn lsp_type_hierarchy(
     pos: Pos,
     direction: HierarchyDirection,
 ) -> IdeResult<Vec<HierarchyItem>> {
-    host.project(window)?.lsp.type_hierarchy(doc, pos, direction).await
+    let project = host.project(window)?;
+    // Java subtypes (and source supertypes) come from the structure index.
+    if let Some(items) = super::java::navigation::type_hierarchy(&project, doc, pos, direction).await {
+        return Ok(items);
+    }
+    project.lsp.type_hierarchy(doc, pos, direction).await
 }
 
 pub fn lsp_servers(host: &Host, window: &str) -> IdeResult<Vec<ServerInfo>> {
@@ -471,6 +500,9 @@ pub(crate) fn register(d: &mut Dispatcher) {
             c.arg("projectWide")?,
         )
         .await
+    });
+    d.add("lsp_find_usages", |c| async move {
+        lsp_find_usages(&c.host, &c.window, c.arg("request")?, c.arg("doc")?, c.arg("pos")?, c.arg("scope")?).await
     });
     d.add("lsp_document_highlights", |c| async move {
         lsp_document_highlights(&c.host, &c.window, c.arg("doc")?, c.arg("pos")?).await

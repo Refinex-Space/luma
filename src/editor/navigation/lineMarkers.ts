@@ -9,16 +9,18 @@ import { tx } from "@/platform/i18n";
 import { targetLabel } from "@/editor/lsp/files";
 import { baseName, type SuperMethod } from "./structureNav";
 
-export type MarkerKind = "implemented" | "overridden" | "implementing" | "overriding";
+export type MarkerKind = "implemented" | "overridden" | "implementing" | "overriding" | "bean" | "injection";
 
-/** Settings › Gutter Icons groups: ↓ markers and ↑ markers. */
-export type MarkerGroup = "inheritors" | "supers";
+/** Settings › Gutter Icons groups: ↓ markers, ↑ markers, Spring beans and injection points. */
+export type MarkerGroup = "inheritors" | "supers" | "spring";
 
 export const MARKER_ICONS: Record<MarkerKind, string> = {
   implemented: "gutter-implemented",
   overridden: "gutter-overridden",
   implementing: "gutter-implementing",
   overriding: "gutter-overriding",
+  bean: "gutter-spring-bean",
+  injection: "gutter-spring-injection",
 };
 
 export interface MarkerCandidate {
@@ -239,6 +241,18 @@ export function javaLineMarker(m: JavaMarker): LineMarker {
           ? tx`Choose Overriding Method of ${m.name} (${n} found)`
           : tx`Choose Subclass of ${m.name} (${n} found)`,
       };
+    case "bean":
+      return {
+        ...base,
+        tooltip: tx`Spring bean injected into ${names}`,
+        chooserTitle: tx`Choose Injection Point of ${m.name} (${n} found)`,
+      };
+    case "injection":
+      return {
+        ...base,
+        tooltip: n === 1 ? tx`Autowired: ${names}` : tx`Autowired candidates: ${names}`,
+        chooserTitle: tx`Choose Autowired Candidate (${n} found)`,
+      };
     case "implementing":
     case "overriding":
       return {
@@ -251,4 +265,8 @@ export function javaLineMarker(m: JavaMarker): LineMarker {
 
 /** Settings group of a marker kind. */
 export const markerGroup = (kind: MarkerKind): MarkerGroup =>
-  kind === "implemented" || kind === "overridden" ? "inheritors" : "supers";
+  kind === "implemented" || kind === "overridden"
+    ? "inheritors"
+    : kind === "bean" || kind === "injection"
+      ? "spring"
+      : "supers";

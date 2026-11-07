@@ -155,3 +155,28 @@
   flex: 1;
   min-height: 0;
 }
+
+/* "Usages of foo in Project Files ▾", then the read / write filters. */
+.scopeBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-ui);
+  white-space: nowrap;
+}
+.body > .scopeBar {
+  flex: none;
+}
+.scopeTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-muted);
+}
+.scopeGrow {
+  flex: 1;
+}

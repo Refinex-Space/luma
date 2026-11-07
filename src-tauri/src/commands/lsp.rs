@@ -117,6 +117,21 @@ pub async fn lsp_resolve_class_file(
     ide_host::ops::lsp::lsp_resolve_class_file(&state.host, window.label(), path).await
 }
 
+/// Find Usages of the symbol at `pos` in `scope` (project files, or libraries too).
+/// Cancel with `cancel_request(request)`.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_find_usages(
+    window: Window,
+    state: State<'_, AppState>,
+    request: RequestId,
+    doc: DocId,
+    pos: Pos,
+    scope: ide_lsp::types::UsageSearchScope,
+) -> IdeResult<References> {
+    ide_host::ops::lsp::lsp_find_usages(&state.host, window.label(), request, doc, pos, scope).await
+}
+
 /// References of the symbol at `pos`. `project_wide` also searches project files
 /// outside the language server's analysis scope; bulk scans over many symbols
 /// leave it off. Cancel with `cancel_request(request)`.

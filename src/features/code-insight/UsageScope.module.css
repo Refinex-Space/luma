@@ -1,0 +1,21 @@
+.switch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 4px;
+  border: none;
+  border-radius: var(--radius-control, 4px);
+  background: none;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+}
+.switch:hover {
+  background: var(--bg-hover);
+}
+.switch:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: -1px;
+}

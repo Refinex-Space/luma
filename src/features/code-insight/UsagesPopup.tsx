@@ -11,10 +11,12 @@ import { Decoration, EditorView } from "@codemirror/view";
 import { codePreviewExtensions } from "@/editor/api";
 import { basename } from "@/platform/project";
 import { shortcutLabel } from "@/platform/keymap";
-import { Icon, IconButton, List, Popup, fileIconName, listNavigate } from "@/ui";
+import { Icon, IconButton, List, Popup, Spinner, fileIconName, listNavigate } from "@/ui";
+import { UsageScopeSwitch } from "./UsageScope";
 import { openLocation, readFileLines } from "./ipc";
 import {
   dismissUsagesPopup,
+  rescopeUsagesPopup,
   showUsageResults,
   usageCount,
   useUsagesPopup,
@@ -79,7 +81,7 @@ export function UsagesPopup() {
 const ROW = 24;
 
 function UsagesPopupInner() {
-  const { anchor, symbol, groups, note } = useUsagesPopup();
+  const { anchor, symbol, groups, note, scope, loading } = useUsagesPopup();
   const preview = useUsagesPopupPreview((s) => s.preview);
   const all = useMemo<Usage[]>(() => groups.flatMap((g) => g.usages), [groups]);
   const [filter, setFilter] = useState("");
@@ -147,9 +149,16 @@ function UsagesPopupInner() {
       <div className={styles.focus} tabIndex={0} data-autofocus onKeyDown={onKeyDown}>
         <div className={styles.header}>
           <span className={styles.title}>
-            {symbol ? tx`Usages of ${symbol}` : tx("Usages")}{" "}
+            {symbol ? tx`Usages of ${symbol}` : tx("Usages")} <span className={styles.in}>{tx("in")}</span>
+            <UsageScopeSwitch scope={scope} onChange={(s) => void rescopeUsagesPopup(s)} />{" "}
             <span className={styles.count}>
-              {filter || items.length !== total ? tx`${items.length} of ${total} found` : tx`${total} found`}
+              {loading ? (
+                <Spinner size={10} />
+              ) : filter || items.length !== total ? (
+                tx`${items.length} of ${total} found`
+              ) : (
+                tx`${total} found`
+              )}
             </span>
           </span>
           {filter && (

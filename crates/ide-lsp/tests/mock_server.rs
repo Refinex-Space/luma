@@ -3124,3 +3124,49 @@ async fn java_usage_counts_need_the_extension() {
     let e = h.mgr.java_usage_counts(doc, &[(Pos::new(0, 6), None)], Default::default()).await.unwrap_err();
     assert_eq!(e.kind, ide_core::error::ErrorKind::Unavailable);
 }
+
+/// Find Usages in Project Files: Java asks the extension for the project's sources only; any
+/// other server's answer is narrowed to the project's files.
+#[tokio::test(flavor = "multi_thread")]
+async fn find_usages_scopes() {
+    let mut caps = incremental_caps();
+    caps["executeCommandProvider"] = json!({"commands": ["luma.java.usages"]});
+    let h = harness_for("java", "java", &[("jdtls", caps)], &[]);
+    let s = h.launcher.state("jdtls");
+    *s.responder.lock() = Some(Arc::new(|s, method, _| {
+        (method == "workspace/executeCommand").then(|| {
+            let docs = s.docs.lock();
+            Value::Array(
+                docs.iter()
+                    .flat_map(|(uri, text)| occurrences(uri, text))
+                    .map(|location| json!({"location": location, "kind": "unknown"}))
+                    .collect(),
+            )
+        })
+    }));
+    let (doc, _) = h.open("A.java", "int target;");
+    h.wait_status("jdtls", ServerStatus::Ready).await;
+    for (scope, arg) in [(UsageSearchScope::Project, "project"), (UsageSearchScope::All, "all")] {
+        h.mgr.find_usages(doc, Pos::new(0, 5), scope, Default::default()).await.unwrap();
+        let sent = s.requested("workspace/executeCommand");
+        assert_eq!(sent.last().unwrap()["arguments"][4], arg);
+    }
+
+    let h = harness_for("rust", "rs", &[("mock", incremental_caps())], &[]);
+    let s = h.launcher.state("mock");
+    let outside = "file:///elsewhere/lib.rs".to_owned();
+    *s.responder.lock() = Some(Arc::new(move |s, method, _| {
+        (method == "textDocument/references").then(|| {
+            let mut locations: Vec<Value> =
+                s.docs.lock().iter().flat_map(|(uri, text)| occurrences(uri, text)).collect();
+            locations.push(json!({"uri": outside, "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 1}}}));
+            Value::Array(locations)
+        })
+    }));
+    let (doc, path) = h.open("a.rs", "fn target() {}");
+    h.wait_status("mock", ServerStatus::Ready).await;
+    let all = h.mgr.find_usages(doc, Pos::new(0, 4), UsageSearchScope::All, Default::default()).await.unwrap();
+    assert_eq!(all.locations.len(), 2);
+    let project = h.mgr.find_usages(doc, Pos::new(0, 4), UsageSearchScope::Project, Default::default()).await.unwrap();
+    assert_eq!(project.locations.iter().map(|l| l.path.0.clone()).collect::<Vec<_>>(), [path]);
+}

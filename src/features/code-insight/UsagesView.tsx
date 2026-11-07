@@ -42,6 +42,7 @@ import {
 import styles from "./UsagesView.module.css";
 
 import { UsageAccessFilter, filterUsageAccess, supportsUsageAccess, useUsageAccessOptions } from "./UsageAccessFilter";
+import { UsageScopeSwitch, setUsageScope } from "./UsageScope";
 
 type Node =
   | { kind: "summary"; key: string }
@@ -267,7 +268,26 @@ export function UsagesView() {
         <IconButton icon="collapse-all" title="Collapse All" size="small" iconSize={16} onClick={() => setAll(true)} />
       </div>
       <div className={styles.body} onKeyDown={onKeyDown}>
-        <UsageAccessFilter items={allUsages} />
+        {search.scope || supportsUsageAccess(allUsages) ? (
+          <div className={styles.scopeBar} role="toolbar" aria-label={tx("Usages scope and filters")}>
+            {search.scope && (
+              <>
+                <span className={styles.scopeTitle}>
+                  {search.symbol ? tx`Usages of ${search.symbol} in` : tx("Usages in")}
+                </span>
+                <UsageScopeSwitch
+                  scope={search.scope}
+                  onChange={(scope) => {
+                    setUsageScope(scope);
+                    search.rerun?.();
+                  }}
+                />
+              </>
+            )}
+            <span className={styles.scopeGrow} />
+            <UsageAccessFilter items={allUsages} />
+          </div>
+        ) : null}
         {(search.loading || search.error) && (
           <div className={styles.summary} role="status" aria-live="polite">
             {search.loading ? (

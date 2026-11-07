@@ -9,7 +9,7 @@ const err = (kind: IdeError["kind"]) =>
   Promise.resolve({ status: "error" as const, error: { kind, message: kind } as IdeError });
 
 const cmd = {
-  lspReferences: vi.fn((): R<unknown> => err("unavailable")),
+  lspFindUsages: vi.fn((): R<unknown> => err("unavailable")),
   syntaxSupport: vi.fn(() => ok({ tree: true, locals: true })),
   syntaxLocals: vi.fn((): R<Locals> => ok({ status: "noIdentifier" })),
   syntaxIdentifiers: vi.fn((): R<unknown> => ok([])),
@@ -41,16 +41,16 @@ beforeEach(() => {
 
 describe("Find Usages fallback", () => {
   it("uses the server when it answers, even with nothing", async () => {
-    cmd.lspReferences.mockReturnValueOnce(ok({ locations: [], incomplete: null }));
+    cmd.lspFindUsages.mockReturnValueOnce(ok({ locations: [], incomplete: null }));
     expect(await fetchUsages(caret)).toEqual({ groups: [], note: null });
     expect(cmd.syntaxLocals).not.toHaveBeenCalled();
   });
 
   it("searches project-wide under the given request and says when results may be incomplete", async () => {
     const usage = { path: "/p/a.ts", range: r(1, 0, 1) };
-    cmd.lspReferences.mockReturnValueOnce(ok({ locations: [usage], incomplete: "indexing" }));
+    cmd.lspFindUsages.mockReturnValueOnce(ok({ locations: [usage], incomplete: "indexing" }));
     const res = await fetchUsages(caret, 42 as never);
-    expect(cmd.lspReferences).toHaveBeenCalledWith(42, 3, { line: 1, col: 0 }, false, true);
+    expect(cmd.lspFindUsages).toHaveBeenCalledWith(42, 3, { line: 1, col: 0 }, "project");
     expect(res.groups[0]!.usages.length).toBe(1);
     expect(res.note).toBe(incompleteNote("indexing", "x"));
     expect(incompleteNote("tooManyFiles", "x")).toBe(
@@ -85,7 +85,7 @@ describe("Find Usages fallback", () => {
   });
 
   it("searches the project for identifier occurrences of non-locals", async () => {
-    cmd.lspReferences.mockReturnValueOnce(err("internal"));
+    cmd.lspFindUsages.mockReturnValueOnce(err("internal"));
     cmd.syntaxLocals.mockReturnValueOnce(
       ok({ status: "notLocal", name: "y", range: r(1, 4, 5), reason: "unresolved" }),
     );

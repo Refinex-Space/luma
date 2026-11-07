@@ -432,6 +432,7 @@ export const GUTTER_ICON_GROUPS = [
   { id: "bookmarks", gutterClass: "cm-luma-bookmarks" },
   { id: "inheritors", gutterClass: "cm-luma-gutter-lineMarkers" },
   { id: "supers", gutterClass: "cm-luma-gutter-lineMarkers" },
+  { id: "spring", gutterClass: "cm-luma-gutter-lineMarkers" },
 ] as const;
 
 export interface PrefsOptions {

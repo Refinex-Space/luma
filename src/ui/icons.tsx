@@ -445,6 +445,8 @@ const ICONS = {
   "gutter-implementing": "gutter/implementingMethod",
   "gutter-overridden": "gutter/overridenMethod",
   "gutter-overriding": "gutter/overridingMethod",
+  "gutter-spring-bean": "luma/gutter/springBean",
+  "gutter-spring-injection": "luma/gutter/springInjection",
   stop: "run/stop",
   rerun: "run/rerun",
   "rerun-filled": "run/rerun_stroke",

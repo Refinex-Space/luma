@@ -1,6 +1,13 @@
 /** Find Usages (⌥F7 → "usages" tool window) and Show Usages (⌥⌘F7 → popup). */
 import { create } from "zustand";
-import type { ClassifiedReference, ReferenceAccess, ReferenceKind, Location, RequestId } from "@/bindings";
+import type {
+  ClassifiedReference,
+  ReferenceAccess,
+  ReferenceKind,
+  Location,
+  RequestId,
+  UsageSearchScope,
+} from "@/bindings";
 import { clearLineTokens } from "@/editor/lineTokens";
 import { incompleteNote } from "@/editor/lsp/lsp";
 import { commands, isCancelled, nextRequestId } from "@/platform/ipc";
@@ -16,6 +23,8 @@ import {
   type CaretContext,
 } from "./ipc";
 import { syntaxUsages } from "./syntaxUsages";
+import { scopeLabel, useUsageScope } from "./UsageScope";
+import { tx } from "@/platform/i18n";
 
 export interface Usage {
   kind?: ReferenceKind;
@@ -97,6 +106,8 @@ export interface UsageSearch {
   note: string | null;
   /** Re-runs the same query (rerun button). */
   rerun: (() => void) | null;
+  /** Where the search looked (not set for results shown from elsewhere). */
+  scope?: UsageSearchScope;
   /** Kept when a new search runs (Pin Tab). */
   pinned?: boolean;
 }
@@ -163,6 +174,9 @@ interface UsagesPopupState {
   symbol: string | null;
   groups: UsageGroup[];
   note: string | null;
+  scope: UsageSearchScope;
+  /** Searching again (another scope) with the popup open. */
+  loading: boolean;
 }
 
 export const useUsagesPopup = create<UsagesPopupState>(() => ({
@@ -171,6 +185,8 @@ export const useUsagesPopup = create<UsagesPopupState>(() => ({
   symbol: null,
   groups: [],
   note: null,
+  scope: "project",
+  loading: false,
 }));
 
 interface FetchedUsages {
@@ -184,16 +200,18 @@ interface FetchedUsages {
  * answer is respected). Without a fallback the server error stands.
  * Cancel with `commands.cancelRequest(request)`.
  */
-export async function fetchUsages(c: CaretContext, request: RequestId = nextRequestId()): Promise<FetchedUsages> {
+export async function fetchUsages(
+  c: CaretContext,
+  request: RequestId = nextRequestId(),
+  scope: UsageSearchScope = useUsageScope.getState().scope,
+): Promise<FetchedUsages> {
   // Usage lines are read afresh: so are the files their syntax colours come from.
   clearLineTokens();
   let locs: Location[];
   let classified: ClassifiedReference[] = [];
   let note: string | null = null;
   try {
-    const refs = await lspRequest(() =>
-      commands.lspReferences(request, c.doc, { line: c.line, col: c.col }, false, true),
-    );
+    const refs = await lspRequest(() => commands.lspFindUsages(request, c.doc, { line: c.line, col: c.col }, scope));
     locs = refs.locations;
     classified = refs.classified ?? [];
     if (refs.incomplete) note = incompleteNote(refs.incomplete, c.word);
@@ -242,7 +260,8 @@ export async function findUsages() {
   }
   const run = async (prev: number | null) => {
     const id = ++searchSeq;
-    const base = { id, symbol: c.word, rerun: () => void run(id) };
+    const scope = useUsageScope.getState().scope;
+    const base = { id, symbol: c.word, rerun: () => void run(id), scope };
     const loading = { ...base, loading: true, groups: [], error: null, note: null };
     if (prev !== null) cancelSearch(prev);
     if (prev === null || !replaceUsageTab(prev, loading)) openUsageTab(loading);
@@ -250,7 +269,7 @@ export async function findUsages() {
     const request = nextRequestId();
     inflight.set(id, request);
     try {
-      const { groups, note } = await fetchUsages(c, request);
+      const { groups, note } = await fetchUsages(c, request, scope);
       replaceUsageTab(id, { ...base, loading: false, groups, error: null, note });
     } catch (e) {
       // Cancelled here (closed tab, rerun): a newer state already replaced it.
@@ -300,34 +319,67 @@ export function dismissUsagesPopup() {
   useUsagesPopup.setState({ open: false });
 }
 
+/** The caret the popup's usages are of, to search them again in another scope. */
+let popupContext: CaretContext | null = null;
+
+/**
+ * ⌥⌘F7: usages at the caret in a popup. Invoked again while it is open, the search widens to
+ * All Places (as IDEA's popup does).
+ */
 export async function showUsagesPopup() {
+  const open = useUsagesPopup.getState();
+  if (open.open && popupContext && open.scope === "project") {
+    await rescopeUsagesPopup("all");
+    return;
+  }
   const c = caretContext();
   if (!c) {
     hint("Open a file to show usages");
     return;
   }
+  await searchPopup(c, useUsageScope.getState().scope, false);
+}
+
+/** Searches the open popup's symbol again in `scope`. */
+export async function rescopeUsagesPopup(scope: UsageSearchScope) {
+  if (!popupContext) return;
+  await searchPopup(popupContext, scope, true);
+}
+
+async function searchPopup(c: CaretContext, scope: UsageSearchScope, reopen: boolean) {
   if (popupRequest !== null) void commands.cancelRequest(popupRequest).catch(() => {});
   const request = nextRequestId();
   popupRequest = request;
+  popupContext = c;
+  if (reopen) useUsagesPopup.setState({ scope, loading: true });
   try {
-    const { groups, note } = await fetchUsages(c, request);
+    const { groups, note } = await fetchUsages(c, request, scope);
     if (popupRequest !== request) return;
     const total = usageCount(groups);
-    if (!total) {
+    if (!total && !reopen) {
       const none = c.word ? `No usages of '${c.word}' found` : "No usages found";
       hint(note ? `${none}. ${note}` : none);
       return;
     }
-    if (total === 1) {
+    if (total === 1 && !reopen) {
       // IDEA jumps to the only usage and says so in the target editor.
       const u = groups[0]!.usages[0]!;
       await openLocation(u.path, u.line, u.col);
-      hint("Only one usage in Project Files");
+      hint(tx`Only one usage in ${scopeLabel(scope)}`);
       return;
     }
-    useUsagesPopup.setState({ open: true, anchor: caretPoint(), symbol: c.word, groups, note });
+    useUsagesPopup.setState({
+      open: true,
+      anchor: reopen ? useUsagesPopup.getState().anchor : caretPoint(),
+      symbol: c.word,
+      groups,
+      note,
+      scope,
+      loading: false,
+    });
   } catch (e) {
     if (popupRequest !== request || isCancelled(e)) return;
+    useUsagesPopup.setState({ loading: false });
     reportError(e);
   } finally {
     if (popupRequest === request) popupRequest = null;

@@ -301,8 +301,12 @@ describe("markers from server answers", () => {
 
 describe("settings", () => {
   it("follows Settings › Gutter Icons", () => {
-    expect([...enabledGroups({ showGutterIcons: true, gutterIconsDisabled: [] })]).toEqual(["inheritors", "supers"]);
-    expect([...enabledGroups({ showGutterIcons: true, gutterIconsDisabled: ["supers", "run"] })]).toEqual([
+    expect([...enabledGroups({ showGutterIcons: true, gutterIconsDisabled: [] })]).toEqual([
+      "inheritors",
+      "supers",
+      "spring",
+    ]);
+    expect([...enabledGroups({ showGutterIcons: true, gutterIconsDisabled: ["supers", "run", "spring"] })]).toEqual([
       "inheritors",
     ]);
     expect(enabledGroups({ showGutterIcons: false, gutterIconsDisabled: [] }).size).toBe(0);

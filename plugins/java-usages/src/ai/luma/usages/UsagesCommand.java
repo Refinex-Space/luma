@@ -17,10 +17,22 @@ import org.eclipse.lsp4j.*;
 public final class UsagesCommand implements IDelegateCommandHandler {
     @Override
     public Object executeCommand(String command, List<Object> arguments, IProgressMonitor monitor) throws Exception {
+        try {
+            return usages(arguments, monitor);
+        } catch (org.eclipse.core.runtime.OperationCanceledException e) {
+            // The client cancelled (a newer search, a closed popup) and drops the answer; thrown,
+            // JDT LS would log the cancellation as a command failure.
+            return List.of();
+        }
+    }
+
+    private Object usages(List<Object> arguments, IProgressMonitor monitor) throws Exception {
         String uri = (String) arguments.get(0);
         int line = ((Number) arguments.get(1)).intValue();
         int column = ((Number) arguments.get(2)).intValue();
         boolean declarations = Boolean.TRUE.equals(arguments.get(3));
+        // "project": project sources only (IDEA's Project Files); otherwise every place JDT searches.
+        boolean projectOnly = arguments.size() > 4 && "project".equals(arguments.get(4));
         var preferences = JavaLanguageServerPlugin.getPreferencesManager();
         var handler = new ReferencesHandler(preferences);
         var params = new ReferenceParams(new TextDocumentIdentifier(uri), new Position(line, column), new ReferenceContext(declarations));
@@ -31,6 +43,33 @@ public final class UsagesCommand implements IDelegateCommandHandler {
         if (monitor.isCanceled()) throw new org.eclipse.core.runtime.OperationCanceledException();
         boolean accessors = preferences.getPreferences().isIncludeAccessors();
         SearchPlan plan = new SearchPlan();
+        boolean searched = false;
+        if (projectOnly && selected != null) {
+            // The same targets as the native search, searched in the sources only.
+            if (selected instanceof IField field) {
+                plan.add(field, "field", declarations);
+                if (accessors) {
+                    plan.add(GetterSetterUtil.getGetter(field), "getter", false);
+                    plan.add(GetterSetterUtil.getSetter(field), "setter", false);
+                    try {
+                        addNativeBuilderTargets(handler, field, plan);
+                    } catch (ReflectiveOperationException e) {
+                        // Another server version: builder setters are not searched.
+                    }
+                    addConfiguredAccessors(field, plan);
+                }
+            } else {
+                plan.add(selected, "unknown", declarations);
+            }
+            var scope = UsageCountsCommand.sourcesScope(selected);
+            for (var target : plan.targets.values()) {
+                if (monitor.isCanceled()) throw new org.eclipse.core.runtime.OperationCanceledException();
+                List<Location> locations = new ArrayList<>();
+                UsageCountsCommand.locations(target.element, target.declarations, scope, monitor, locations);
+                merge(target.kind(), locations, results);
+            }
+            searched = true;
+        } else
         // Only replace native target discovery for the exact implementation verified by
         // integration tests. New server implementations retain their full native behavior.
         if (selected instanceof IField field && root instanceof ICompilationUnit &&
@@ -54,7 +93,7 @@ public final class UsagesCommand implements IDelegateCommandHandler {
                 }
             }
         }
-        for (var target : plan.targets.values()) {
+        if (!searched) for (var target : plan.targets.values()) {
             if (monitor.isCanceled()) throw new org.eclipse.core.runtime.OperationCanceledException();
             add(handler, target.element, target.kind(), target.declarations, results, monitor);
         }
@@ -196,6 +235,10 @@ public final class UsagesCommand implements IDelegateCommandHandler {
         if (element == null) return;
         List<Location> locations = new ArrayList<>();
         handler.search(element, locations, monitor, declarations);
+        merge(kind, locations, results);
+    }
+
+    private static void merge(String kind, List<Location> locations, Map<Location, String> results) {
         for (var location : locations) {
             if (kind.equals("unknown")) { results.putIfAbsent(location, kind); continue; }
             String previous = results.get(location);

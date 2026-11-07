@@ -104,6 +104,16 @@ pub struct Signature {
     pub parameters: Vec<(u32, u32)>,
 }
 
+/// Where Find Usages looks (IDEA's search scopes of the usages popup and tool window).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum UsageSearchScope {
+    /// The project's files: its sources and content roots, not libraries.
+    Project,
+    /// Libraries (their sources, decompiled classes) too.
+    All,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum GotoKind {

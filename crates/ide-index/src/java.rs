@@ -78,6 +78,8 @@ pub struct JavaType {
     pub at: Pos,
     pub end_line: u32,
     pub members: Vec<JavaMember>,
+    /// String values of annotations: `@Service("orders")` → `("Service", "orders")`.
+    pub values: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -93,6 +95,25 @@ pub struct JavaMember {
     pub annotations: Vec<String>,
     pub at: Pos,
     pub end_line: u32,
+    /// Erased type arguments of a field's type: `List<Order>` → `[Order]`.
+    pub ty_args: Vec<String>,
+    /// String values of annotations (see [`JavaType::values`]).
+    pub values: Vec<(String, String)>,
+    /// Parameters of methods and constructors, in detail.
+    pub param_details: Vec<JavaParam>,
+}
+
+/// A parameter of a method or constructor.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JavaParam {
+    pub name: String,
+    /// Erased type as written.
+    pub ty: String,
+    /// Erased type arguments.
+    pub ty_args: Vec<String>,
+    pub annotations: Vec<String>,
+    pub values: Vec<(String, String)>,
+    pub at: Pos,
 }
 
 impl JavaType {
@@ -350,6 +371,107 @@ fn modifiers(decl: Node, text: &str) -> (u16, Vec<String>) {
     (flags, annotations)
 }
 
+/// The first string literal of an annotation's arguments: its value (`@Qualifier("a")`,
+/// `@Bean(name = "a")`, `@Bean({"a", "b"})`).
+fn annotation_value(annotation: Node, text: &str) -> Option<String> {
+    let args = annotation.child_by_field_name("arguments")?;
+    let mut stack = vec![args];
+    while let Some(n) = stack.pop() {
+        if n.kind() == "string_literal" {
+            let s = node_text(n, text);
+            return Some(s.trim_matches('"').to_owned());
+        }
+        if n.kind() == "element_value_pair"
+            && let Some(key) = n.child_by_field_name("key")
+            && !matches!(node_text(key, text), "value" | "name")
+        {
+            continue;
+        }
+        let mut c = n.walk();
+        let children: Vec<Node> = n.named_children(&mut c).collect();
+        stack.extend(children.into_iter().rev());
+    }
+    None
+}
+
+/// String values of the annotations of a declaration (or parameter).
+fn annotation_values(decl: Node, text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut c = decl.walk();
+    for child in decl.children(&mut c) {
+        let annotations: Vec<Node> = if child.kind() == "modifiers" {
+            let mut m = child.walk();
+            child.children(&mut m).collect()
+        } else {
+            vec![child]
+        };
+        for n in annotations.into_iter().filter(|n| n.kind() == "annotation") {
+            if let (Some(name), Some(value)) = (n.child_by_field_name("name"), annotation_value(n, text)) {
+                out.push((simple(&compact(node_text(name, text))).to_owned(), value));
+            }
+        }
+    }
+    out
+}
+
+/// Erased type arguments of a type node: `Map<String, List<Order>>` → `[String, List]`.
+fn type_args(n: Node, text: &str) -> Vec<String> {
+    let generic = match n.kind() {
+        "generic_type" => Some(n),
+        "annotated_type" => {
+            let mut c = n.walk();
+            n.named_children(&mut c).find(|c| c.kind() == "generic_type")
+        }
+        _ => None,
+    };
+    let Some(generic) = generic else { return Vec::new() };
+    let mut c = generic.walk();
+    let Some(args) = generic.named_children(&mut c).find(|c| c.kind() == "type_arguments") else { return Vec::new() };
+    let mut a = args.walk();
+    args.named_children(&mut a)
+        .map(|t| if t.kind() == "wildcard" { wildcard_bound(t, text) } else { erased(t, text) })
+        .collect()
+}
+
+/// `? extends Foo` → `Foo`; `?` → `Object`.
+fn wildcard_bound(n: Node, text: &str) -> String {
+    let mut c = n.walk();
+    let bound = n.named_children(&mut c).filter(|c| !matches!(c.kind(), "annotation" | "marker_annotation")).last();
+    bound.map(|b| erased(b, text)).unwrap_or_else(|| "Object".into())
+}
+
+fn param_details(params: Option<Node>, text: &str) -> Vec<JavaParam> {
+    let Some(params) = params else { return Vec::new() };
+    let mut out = Vec::new();
+    let mut c = params.walk();
+    for p in params.named_children(&mut c) {
+        let (ty, name) = match p.kind() {
+            "formal_parameter" => (p.child_by_field_name("type"), p.child_by_field_name("name")),
+            "spread_parameter" => {
+                let mut pc = p.walk();
+                let ty = p.named_children(&mut pc).find(|n| {
+                    !matches!(n.kind(), "modifiers" | "annotation" | "marker_annotation" | "variable_declarator")
+                });
+                let mut pc = p.walk();
+                let decl = p.named_children(&mut pc).find(|n| n.kind() == "variable_declarator");
+                (ty, decl.and_then(|d| d.child_by_field_name("name")))
+            }
+            _ => continue,
+        };
+        let (Some(ty), Some(name)) = (ty, name) else { continue };
+        let (_, annotations) = modifiers(p, text);
+        out.push(JavaParam {
+            name: node_text(name, text).to_owned(),
+            ty: erased(ty, text),
+            ty_args: type_args(ty, text),
+            annotations,
+            values: annotation_values(p, text),
+            at: pos(name, text),
+        });
+    }
+    out
+}
+
 /// The erased type a type node names, as written: `Map<K, V>` → `Map`, `a.b.C<T>[]` → `a.b.C[]`.
 fn erased(n: Node, text: &str) -> String {
     match n.kind() {
@@ -485,6 +607,7 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
         at: pos(name, text),
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
+        values: annotation_values(decl, text),
     });
     if kind == JavaTypeKind::Record
         && let Some(params) = decl.child_by_field_name("parameters")
@@ -504,6 +627,9 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
                 annotations: Vec::new(),
                 at,
                 end_line,
+                ty_args: Vec::new(),
+                values: Vec::new(),
+                param_details: Vec::new(),
             };
             // The component's field and its accessor, both at the component.
             let members = &mut stub.types[index as usize].members;
@@ -561,6 +687,9 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                     annotations,
                     at: pos(name, text),
                     end_line: child.end_position().row as u32,
+                    ty_args: Vec::new(),
+                    values: annotation_values(child, text),
+                    param_details: param_details(child.child_by_field_name("parameters"), text),
                 });
                 if let Some(body) = child.child_by_field_name("body") {
                     local_types(body, owner, text, stub);
@@ -571,7 +700,10 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                 if interface || kind == "constant_declaration" {
                     flags |= PUBLIC | STATIC | FINAL;
                 }
-                let ty = child.child_by_field_name("type").map(|t| erased(t, text)).unwrap_or_default();
+                let ty_node = child.child_by_field_name("type");
+                let ty = ty_node.map(|t| erased(t, text)).unwrap_or_default();
+                let ty_args = ty_node.map(|t| type_args(t, text)).unwrap_or_default();
+                let values = annotation_values(child, text);
                 let mut dc = child.walk();
                 for d in child.children_by_field_name("declarator", &mut dc) {
                     let Some(name) = d.child_by_field_name("name") else { continue };
@@ -585,6 +717,9 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                         annotations: annotations.clone(),
                         at: pos(name, text),
                         end_line: d.end_position().row as u32,
+                        ty_args: ty_args.clone(),
+                        values: values.clone(),
+                        param_details: Vec::new(),
                     });
                     if let Some(value) = d.child_by_field_name("value") {
                         local_types(value, owner, text, stub);
@@ -605,6 +740,9 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                     annotations,
                     at: pos(name, text),
                     end_line: child.end_position().row as u32,
+                    ty_args: Vec::new(),
+                    values: Vec::new(),
+                    param_details: Vec::new(),
                 });
                 if let Some(args) = child.child_by_field_name("arguments") {
                     local_types(args, owner, text, stub);
@@ -668,6 +806,7 @@ fn anonymous_type(body: Node, base: String, at: Pos, decl: Node, owner: u32, tex
         at,
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
+        values: Vec::new(),
     });
     declare_members(body, index, JavaTypeKind::Class, text, stub);
 }
@@ -1129,7 +1268,11 @@ impl<'a> JavaView<'a> {
 }
 
 mod insight;
-pub use insight::{JavaMarker, JavaMarkerKind, JavaMarkerTarget, JavaMarkers, UsageScope, markers, usage_scope};
+mod spring;
+pub use insight::{
+    JavaMarker, JavaMarkerKind, JavaMarkerTarget, JavaMarkers, JavaTypeItem, UsageScope, declaration_named_at,
+    implementations, implementations_may_be_generated, markers, subtype_items, supertype_items, usage_scope,
+};
 
 #[cfg(test)]
 mod tests;

@@ -1341,7 +1341,6 @@
   "Occurrences of selected text": "所选文本的匹配项",
   "Older output is discarded": "较早的输出将被丢弃",
   "Only in comments": "仅在注释中",
-  "Only one usage in Project Files": "项目文件中只有一个用法",
   "Open": "打开",
   "Open Diff": "打开差异",
   "Open File": "打开文件",
@@ -6611,5 +6610,18 @@
   "Open the HTML, XML or SVG file in the default browser through the built-in server": "通过内置服务器在默认浏览器中打开 HTML、XML 或 SVG 文件",
   "On Save": "保存时",
   "On Change": "更改时",
-  "Firefox profile": "Firefox 配置文件"
+  "Firefox profile": "Firefox 配置文件",
+  "Spring bean injected into {names}": "Spring Bean，注入到 {names}",
+  "Choose Injection Point of {name} ({count} found)": "选择 {name} 的注入点（找到 {count} 个）",
+  "Autowired: {names}": "自动装配：{names}",
+  "Autowired candidates: {names}": "自动装配候选：{names}",
+  "Choose Autowired Candidate ({count} found)": "选择自动装配候选（找到 {count} 个）",
+  "Spring beans": "Spring Bean",
+  "Spring beans and injection points": "Spring Bean 与注入点",
+  "Scope: {scope}": "范围：{scope}",
+  "in": "位于",
+  "Usages of {symbol} in": "{symbol} 的用法，范围",
+  "Usages in": "用法范围",
+  "Usages scope and filters": "用法范围与筛选",
+  "Only one usage in {scope}": "{scope}中只有一个用法"
 }

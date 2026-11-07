@@ -1225,6 +1225,40 @@ impl LspManager {
         project_wide: bool,
         cancel: CancellationToken,
     ) -> IdeResult<References> {
+        self.scoped_references(doc, pos, include_declaration, project_wide, false, cancel).await
+    }
+
+    /// Find Usages of the symbol at `pos` across the project, in `scope`. Java searches only the
+    /// project's sources for [`UsageSearchScope::Project`] (much faster for common names); other
+    /// servers' answers are narrowed to the project's files.
+    pub async fn find_usages(
+        &self,
+        doc: DocId,
+        pos: Pos,
+        scope: UsageSearchScope,
+        cancel: CancellationToken,
+    ) -> IdeResult<References> {
+        let project = scope == UsageSearchScope::Project;
+        let mut result = self.scoped_references(doc, pos, false, true, project, cancel).await?;
+        if project {
+            let roots: Vec<PathBuf> =
+                std::iter::once(self.project_root.clone()).chain(self.content_roots.read().iter().cloned()).collect();
+            let inside = |l: &Location| l.uri.is_none() && roots.iter().any(|r| l.path.starts_with(r));
+            result.locations.retain(inside);
+            result.classified.retain(|r| inside(&r.location));
+        }
+        Ok(result)
+    }
+
+    async fn scoped_references(
+        &self,
+        doc: DocId,
+        pos: Pos,
+        include_declaration: bool,
+        project_wide: bool,
+        project_only: bool,
+        cancel: CancellationToken,
+    ) -> IdeResult<References> {
         let snap = self.snapshot(doc)?;
         // Scoped probes back code lenses and bulk analysis. Keep their native cost;
         // configuration indexing is reserved for explicit, project-wide usages.
@@ -1238,7 +1272,8 @@ impl LspManager {
         {
             return Ok(result);
         }
-        let mut result = self.native_references(doc, pos, include_declaration, project_wide, cancel).await?;
+        let mut result =
+            self.native_references(doc, pos, include_declaration, project_wide, project_only, cancel).await?;
         if let Some(configuration) = configuration {
             result.locations.extend(configuration.locations);
             result.incomplete = result.incomplete.or(configuration.incomplete);
@@ -1253,6 +1288,7 @@ impl LspManager {
         pos: Pos,
         include_declaration: bool,
         project_wide: bool,
+        project_only: bool,
         cancel: CancellationToken,
     ) -> IdeResult<References> {
         let (snap, targets) = self.doc_targets(doc, "find references", |c| c.has("referencesProvider")).await?;
@@ -1284,7 +1320,8 @@ impl LspManager {
                             json!({
                                 "command": "luma.java.usages",
                                 "arguments": [params["textDocument"]["uri"], params["position"]["line"],
-                                    params["position"]["character"], include_declaration]
+                                    params["position"]["character"], include_declaration,
+                                    if project_only { "project" } else { "all" }]
                             }),
                             Some(&cancel),
                             LONG_TIMEOUT,

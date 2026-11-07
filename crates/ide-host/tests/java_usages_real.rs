@@ -182,3 +182,101 @@ async fn counts_and_markers_on_a_real_project() {
         Err(e) => println!("next session: {e:?}"),
     }
 }
+
+/// Go to Implementation, Type Hierarchy and Find Usages scopes against the server's answers:
+/// `LUMA_JAVA_PROJECT=… LUMA_JAVA_NAV_FILE=path/of/AbstractType.java cargo test -p ide-host --release
+///  --test java_usages_real navigation -- --ignored --nocapture`
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires jdtls, a JDK and LUMA_JAVA_PROJECT"]
+async fn navigation_on_a_real_project() {
+    use ide_lsp::types::{GotoKind, HierarchyDirection, UsageSearchScope};
+    let (Ok(root), Ok(file)) = (std::env::var("LUMA_JAVA_PROJECT"), std::env::var("LUMA_JAVA_NAV_FILE")) else {
+        return;
+    };
+    let root = dunce::canonicalize(PathBuf::from(root)).unwrap();
+    let path = root.join(file);
+    let base = tempfile::tempdir().unwrap();
+    ide_host::trust::TrustStore::load(&base.path().join("config"), &base.path().join("data"))
+        .decide(&root, true, false)
+        .unwrap();
+    let host = host(base.path());
+    host.open_project("main", &root).unwrap();
+    let project = host.project("main").unwrap();
+    assert!(project.index.wait_idle(Duration::from_secs(600)));
+    let info = ops::doc::open(&host, "main", path.clone()).await.unwrap();
+    let doc = info.id;
+    // The type, and a method with implementations or overriders.
+    let markers = project.index.java_markers(&path, &info.text);
+    let class =
+        project.index.with_java(&path, &info.text, |v| v.stub(v.overlay_file().unwrap()).unwrap().types[0].at).unwrap();
+    let method = markers
+        .markers
+        .iter()
+        .find(|m| {
+            m.method
+                && matches!(
+                    m.kind,
+                    ide_index::java::JavaMarkerKind::Implemented | ide_index::java::JavaMarkerKind::Overridden
+                )
+        })
+        .map(|m| Pos::new(m.line, m.col));
+    let started = Instant::now();
+    loop {
+        match project.lsp.goto(doc, class, GotoKind::Definition).await {
+            Ok(_) => break,
+            Err(e) if started.elapsed() < Duration::from_secs(900) => {
+                let _ = e;
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+            Err(e) => panic!("{e:?}"),
+        }
+    }
+    ops::java::java_build_workspace(&host, "main", root.clone()).await.ok();
+    println!("jdtls ready after {:?}", started.elapsed());
+    let key = |l: &ide_core::Location| (l.path.0.clone(), l.range.start.line);
+    for (what, pos) in std::iter::once(("type", class)).chain(method.map(|m| ("method", m))) {
+        let t = Instant::now();
+        let index = ops::lsp::lsp_goto(&host, "main", doc, pos, GotoKind::Implementation).await.unwrap_or_default();
+        let index_time = t.elapsed();
+        let t = Instant::now();
+        let server = project.lsp.goto(doc, pos, GotoKind::Implementation).await.unwrap_or_default();
+        let server_time = t.elapsed();
+        let mut a: Vec<_> = index.iter().map(key).collect();
+        let mut b: Vec<_> = server.iter().filter(|l| l.uri.is_none()).map(key).collect();
+        a.sort();
+        b.sort();
+        b.dedup();
+        let missing: Vec<_> = b.iter().filter(|x| !a.contains(x)).collect();
+        let extra: Vec<_> = a.iter().filter(|x| !b.contains(x)).collect();
+        println!(
+            "⌥⌘B on the {what}: index {index_time:?} ({} targets), server {server_time:?} ({} in sources); missing {missing:?}, extra {extra:?}",
+            a.len(),
+            b.len()
+        );
+    }
+    let t = Instant::now();
+    let index = ops::lsp::lsp_type_hierarchy(&host, "main", doc, class, HierarchyDirection::Outgoing).await.unwrap();
+    let index_time = t.elapsed();
+    let t = Instant::now();
+    let server = project.lsp.type_hierarchy(doc, class, HierarchyDirection::Outgoing).await.unwrap_or_default();
+    let mut a: Vec<String> = index.iter().map(|i| i.name.clone()).collect();
+    let mut b: Vec<String> = server.iter().filter(|i| i.uri.is_none()).map(|i| i.name.clone()).collect();
+    a.sort();
+    b.sort();
+    println!("subtypes: index {index_time:?} {a:?}; server {:?} {b:?}", t.elapsed());
+    // Alternating, so neither scope pays for a cold start alone.
+    for (what, pos) in std::iter::once(("type", class)).chain(method.map(|m| ("method", m))) {
+        for scope in
+            [UsageSearchScope::All, UsageSearchScope::Project, UsageSearchScope::All, UsageSearchScope::Project]
+        {
+            let t = Instant::now();
+            let refs = project.lsp.find_usages(doc, pos, scope, Default::default()).await.unwrap();
+            let outside = refs.locations.iter().filter(|l| l.uri.is_some() || !l.path.starts_with(&root)).count();
+            println!(
+                "Find Usages of the {what} in {scope:?}: {:?}, {} usages, {outside} outside the project",
+                t.elapsed(),
+                refs.locations.len()
+            );
+        }
+    }
+}

@@ -580,6 +580,23 @@ fn java_index_on_a_real_project() {
         let m = idx.java_markers(&path, &text);
         let markers = started.elapsed();
         let targets: usize = m.markers.iter().map(|m| m.targets.len()).sum();
+        let spring: Vec<String> = m
+            .markers
+            .iter()
+            .filter(|m| matches!(m.kind, java::JavaMarkerKind::Bean | java::JavaMarkerKind::Injection))
+            .map(|m| {
+                format!(
+                    "{}:{} {:?} → {}",
+                    m.line + 1,
+                    m.name,
+                    m.kind,
+                    m.targets.iter().map(|t| t.owner.as_str()).collect::<Vec<_>>().join(", ")
+                )
+            })
+            .collect();
+        if !spring.is_empty() {
+            println!("  spring markers:\n    {}", spring.join("\n    "));
+        }
         let started = std::time::Instant::now();
         let stub = idx.with_java(&path, &text, |v| v.stub(v.overlay_file().unwrap()).unwrap().clone()).unwrap();
         let positions: Vec<_> =

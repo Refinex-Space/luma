@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -75,6 +76,15 @@ public final class UsageCountsCommand implements IDelegateCommandHandler {
 
     @Override
     public Object executeCommand(String command, List<Object> arguments, IProgressMonitor monitor) throws Exception {
+        try {
+            return counts(arguments, monitor);
+        } catch (OperationCanceledException e) {
+            // Cancelled by the client (an edit, a scroll), which drops the answer: not a failure to log.
+            return List.of();
+        }
+    }
+
+    private Object counts(List<Object> arguments, IProgressMonitor monitor) throws Exception {
         String uri = (String) arguments.get(0);
         List<?> requests = (List<?>) arguments.get(1);
         var preferences = JavaLanguageServerPlugin.getPreferencesManager();
@@ -170,9 +180,46 @@ public final class UsageCountsCommand implements IDelegateCommandHandler {
     }
 
     /** Source folders of every Java project: what project code can be referenced from. */
-    private static IJavaSearchScope sourcesScope() throws CoreException {
+    static IJavaSearchScope sourcesScope() throws CoreException {
         IJavaProject[] projects = JavaCore.create(ResourcesPlugin.getWorkspace().getRoot()).getJavaProjects();
         return SearchEngine.createJavaSearchScope(projects, IJavaSearchScope.SOURCES);
+    }
+
+    /**
+     * Source folders of the projects that can reference `focus`: its own and those requiring it
+     * (Maven and Gradle resolve module dependencies, transitive ones too, to project entries).
+     * IDEA's `GlobalSearchScope.projectScope` narrowed by the module dependents; a large
+     * multi-module build searches a fraction of its indexes. A library element: every project.
+     */
+    static IJavaSearchScope sourcesScope(IJavaElement focus) throws CoreException {
+        IJavaProject owner = focus.getJavaProject();
+        if (!(focus.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT) instanceof IPackageFragmentRoot root)
+                || root.getKind() != IPackageFragmentRoot.K_SOURCE || owner == null) {
+            return sourcesScope();
+        }
+        String name = owner.getElementName();
+        List<IJavaProject> dependents = new ArrayList<>();
+        for (IJavaProject project : JavaCore.create(ResourcesPlugin.getWorkspace().getRoot()).getJavaProjects()) {
+            if (project.equals(owner) || List.of(project.getRequiredProjectNames()).contains(name)) dependents.add(project);
+        }
+        return SearchEngine.createJavaSearchScope(dependents.toArray(new IJavaProject[0]), IJavaSearchScope.SOURCES);
+    }
+
+    /** Locations of the accurate source matches of `element` (its declaration too, if asked). */
+    static void locations(IJavaElement element, boolean declarations, IJavaSearchScope scope, IProgressMonitor monitor,
+            List<org.eclipse.lsp4j.Location> out) throws CoreException {
+        SearchPattern pattern = SearchPattern.createPattern(element, IJavaSearchConstants.REFERENCES);
+        if (declarations && pattern != null) {
+            pattern = SearchPattern.createOrPattern(pattern, SearchPattern.createPattern(element, IJavaSearchConstants.DECLARATIONS));
+        }
+        search(pattern, scope, monitor, (match, unit) -> {
+            try {
+                var location = JDTUtils.toLocation(unit, match.getOffset(), match.getLength());
+                if (location != null) out.add(location);
+            } catch (CoreException e) {
+                // A file that cannot be read any more: no location.
+            }
+        });
     }
 
     /**
