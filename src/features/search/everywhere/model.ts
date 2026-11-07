@@ -17,6 +17,7 @@ export type SectionId =
   | "files"
   | "symbols"
   | "endpoints"
+  | "beans"
   | "database"
   | "actions"
   | "text";
@@ -36,6 +37,7 @@ export const SECTION_ORDER: readonly SectionId[] = [
   "classes",
   "files",
   "symbols",
+  "beans",
   "endpoints",
   "database",
   "actions",
@@ -49,6 +51,7 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   files: "Files",
   symbols: "Symbols",
   endpoints: "Endpoints",
+  beans: "Spring Beans",
   database: "Database",
   actions: "Actions",
   text: "Text",
@@ -68,9 +71,9 @@ export function sectionsFor(tab: SeTab, emptyQuery: boolean): SectionId[] {
         return [];
     }
   }
-  // Database objects are symbols (IDEA's database contributor answers Go to Symbol too).
-  if (tab === "symbols") return ["symbols", "database"];
-  return tab === "all" ? ["classes", "files", "symbols", "endpoints", "database", "actions", "text"] : [tab];
+  // Database objects and beans are symbols (IDEA's database and Spring contributors answer Go to Symbol too).
+  if (tab === "symbols") return ["symbols", "beans", "database"];
+  return tab === "all" ? ["classes", "files", "symbols", "beans", "endpoints", "database", "actions", "text"] : [tab];
 }
 
 export const ALL_TAB_LIMIT = 6;
@@ -398,7 +401,16 @@ export function textItems(path: string, rel: string, matches: readonly LineMatch
 // Rows
 
 /** Sections the All tab mixes into one relevance-ordered list. */
-const MIXED: readonly SectionId[] = ["classes", "files", "symbols", "endpoints", "database", "actions", "text"];
+const MIXED: readonly SectionId[] = [
+  "classes",
+  "files",
+  "symbols",
+  "beans",
+  "endpoints",
+  "database",
+  "actions",
+  "text",
+];
 
 /**
  * Weight of a text hit: a literal substring in a line ranks below name

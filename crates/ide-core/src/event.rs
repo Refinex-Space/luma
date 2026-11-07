@@ -81,6 +81,9 @@ pub enum IdeEvent {
         files: u32,
         symbols: u32,
     },
+    /// The Spring model of the window's project knows more (a library model arrived): Spring
+    /// gutter markers and views should be asked again.
+    SpringModelChanged,
     /// Git status / branch information should be refreshed.
     VcsChanged {
         root: crate::IpcPath,

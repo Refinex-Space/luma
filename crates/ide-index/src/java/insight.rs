@@ -19,10 +19,6 @@ pub enum JavaMarkerKind {
     Implementing,
     /// ↑ on a method overriding a concrete one.
     Overriding,
-    /// On a Spring bean: where it is injected.
-    Bean,
-    /// On an injection point: the Spring beans it receives.
-    Injection,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -159,7 +155,6 @@ pub fn markers(view: &JavaView, path: &Path) -> JavaMarkers {
             });
         }
     }
-    out.markers.extend(super::spring::spring_markers(view, path));
     out.markers
         .sort_by_key(|m| (m.line, m.col, !matches!(m.kind, JavaMarkerKind::Implemented | JavaMarkerKind::Overridden)));
     out

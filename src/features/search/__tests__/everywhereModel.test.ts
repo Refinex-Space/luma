@@ -254,13 +254,14 @@ describe("items and rows", () => {
       "classes",
       "files",
       "symbols",
+      "beans",
       "endpoints",
       "database",
       "actions",
       "text",
     ]);
-    // Database objects are symbols too (IDEA's Go to Symbol finds tables).
-    expect(sectionsFor("symbols", false)).toEqual(["symbols", "database"]);
+    // Beans and database objects are symbols too (IDEA's Go to Symbol finds them).
+    expect(sectionsFor("symbols", false)).toEqual(["symbols", "beans", "database"]);
     expect(sectionsFor("text", false)).toEqual(["text"]);
   });
 });

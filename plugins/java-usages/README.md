@@ -106,6 +106,17 @@ JDT LS 1.62.0 (Homebrew), so its hash is not a reproducible-build reference.
 Version 1.2.1 keeps the configuration snapshot across editor open/close, saves of
 unrelated content and non-Java resource changes; its reproducible SHA-256 is
 `cbae3e3a0bcf2818b4cc9d98998bd9b81f92e1ae7803dc757134485f9776a4e1`.
+Rebuilding the 1.3.0 sources against JDT LS 1.63.0 reproduces the committed 1.3.0 jar
+(`51bf637409125964743d58a7d0fd41854608b07cc1b8ff88e31aa16c03f71970`).
+Version 1.4.0 adds `luma.spring.library` and `luma.spring.locate` (see below); its
+reproducible SHA-256 (JDT LS 1.63.0, built twice) is
+`ef6b616cd8f4105a9f54391a3de6cb7b34e65be136dc7ed2e136c7839204eed3`.
+Version 1.5.0 adds `luma.spring.events` (see below); its reproducible SHA-256 (JDT LS
+1.63.0, built twice) is
+`b530630915b915e63cb5ab6bfc8c7f5f61d13ffccf13c2ed90b09d49dbc95a03`.
+Version 1.6.0 adds `luma.spring.members` (see below); its reproducible SHA-256 (JDT LS
+1.63.0, built twice) is
+`99466cca1251c1f410b804aebaf402aa7959a168649c00105f1495d5b1782743`.
 
 ```sh
 export PATH=/path/to/jdk25/bin:$PATH
@@ -180,3 +191,72 @@ with Lombok 1.18.48 and Java 25. It is not certified for every milestone.
 - Internal JDT APIs still require compatibility testing on updates; guarded native
   planning is intentionally limited to a verified implementation.
 - Packaged desktop/macOS WebKit and the user's own project require separate testing.
+
+## Spring library beans (`luma.spring.library`, `luma.spring.locate`)
+
+Backs the library side of the Spring model (`crates/ide-index/src/java/spring/library.rs`).
+`luma.spring.library [uri]` answers, for the Java project of `uri`:
+
+- the auto-configurations its classpath registers (`META-INF/spring/…AutoConfiguration.imports`,
+  the `EnableAutoConfiguration` key of `META-INF/spring.factories`), with the configurations
+  they `@Import` and their nested `@Configuration` classes, which inherit the conditions of
+  the class importing or enclosing them;
+- each configuration's `@Bean` methods (names, erased return type and type arguments,
+  `@Primary`, `autowireCandidate`, `defaultCandidate`, JDT handle) and the
+  `@EnableConfigurationProperties` beans (named `prefix-FQN`, as Spring names them);
+- `types`: the supertypes (FQNs) of every bean type;
+- `web`: Boot's `WebApplicationType.deduceFromClasspath` (`servlet`, `reactive`, `none`).
+
+Decided here, from JDT's classpath: `@ConditionalOnClass`, `@ConditionalOnMissingClass`,
+`@ConditionalOnWebApplication`, `@ConditionalOnNotWebApplication`, and Boot's
+`PooledDataSourceCondition` / `EmbeddedDatabaseCondition`. Other conditions are returned
+(`kind` = simple annotation name, `attrs` = string values) for the client, which knows the
+project's own beans. Answers are cached per project by the archive paths, sizes and
+modification times of its classpath. `luma.spring.locate [handle]` returns the location of
+a library element (class file contents, from the source attachment or decompiled).
+
+`tests/spring-library.py` runs both against a real JDT LS with Spring Boot 4.1.2 and Spring
+Framework 7.0.10 jars from the local Maven repository and prints cold and warm timings
+(about 3 s cold, under 10 ms warm, for 47 configurations / 62 beans):
+
+```sh
+PATH=/path/to/jdk25/bin:$PATH python3 plugins/java-usages/tests/spring-library.py /path/to/jdtls
+```
+
+## Spring event publishers (`luma.spring.events`)
+
+Backs the event markers of the Spring model (`crates/ide-index/src/java/spring/features.rs`):
+`luma.spring.events [uri]` lists every `publishEvent(…)` call in the workspace's source
+folders made on an `org.springframework.context.ApplicationEventPublisher` (an
+`ApplicationContext` is one), found with the search engine's index. Each call has its
+`uri`, 0-based `line` / `col` and `len` of `publishEvent`, the published object's erased
+type (`event`), its supertypes (`supertypes`, `Object` aside) and the enclosing method
+(`method`, `Outer.Inner.run()`). A file is parsed with bindings only when its contents
+changed since the previous answer; unsaved editor contents (working copies) are what is read.
+Calls whose argument does not resolve are left out.
+
+`tests/spring-events.py` checks a call on a publisher and one on an `ApplicationContext`
+inside a lambda of a nested class, their types and supertypes, and that an unsaved edit
+adds a call (about 2.5 s cold, 15 ms warm):
+
+```sh
+PATH=/path/to/jdk25/bin:$PATH python3 plugins/java-usages/tests/spring-events.py /path/to/jdtls
+```
+
+## Type members for SpEL (`luma.spring.members`)
+
+Backs completion and navigation in Spring Expression Language (`src/features/spring/spel`):
+`luma.spring.members [uri, fqn]` answers, in the Java project of `uri`, the type `fqn` (source
+or library, JDK included) with its JDT handle and the public methods and fields it declares
+or inherits (overridden ones once, interfaces' members included): name, `static`, parameter
+types (simple) and names, the erased qualified return or field type (resolved for source
+types), the declaring type and the member's handle (opened with `luma.spring.locate`).
+`null` when the type is unknown.
+
+`tests/spring-members.py` checks a JDK type's static and instance members, a Spring
+interface's, a source type's with inherited ones and an unknown type (about 3 s cold, under
+10 ms warm):
+
+```sh
+PATH=/path/to/jdk25/bin:$PATH python3 plugins/java-usages/tests/spring-members.py /path/to/jdtls
+```

@@ -78,7 +78,7 @@ describe("SeController", () => {
     // The Symbols tab lists them after code symbols.
     c.run({ query: "orders", tab: "symbols", includeNonProject: false, extra: {} });
     await flush();
-    expect([...last().sections.keys()]).toEqual(["symbols", "database"]);
+    expect([...last().sections.keys()]).toEqual(["symbols", "beans", "database"]);
   });
 
   it("streams each section independently", async () => {

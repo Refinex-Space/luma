@@ -433,6 +433,10 @@ export const GUTTER_ICON_GROUPS = [
   { id: "inheritors", gutterClass: "cm-luma-gutter-lineMarkers" },
   { id: "supers", gutterClass: "cm-luma-gutter-lineMarkers" },
   { id: "spring", gutterClass: "cm-luma-gutter-lineMarkers" },
+  { id: "springEvents", gutterClass: "cm-luma-gutter-lineMarkers" },
+  { id: "springScheduled", gutterClass: "cm-luma-gutter-lineMarkers" },
+  { id: "springCache", gutterClass: "cm-luma-gutter-lineMarkers" },
+  { id: "springTest", gutterClass: "cm-luma-gutter-lineMarkers" },
 ] as const;
 
 export interface PrefsOptions {

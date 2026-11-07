@@ -2,7 +2,7 @@ import { allActions, type Action } from "@/platform/actions";
 import { evaluateWhen, type ContextKeys } from "@/platform/context";
 import { call, commands, nextRequestId, type LanguageInfo } from "@/platform/ipc";
 import { inFileSet } from "@/platform/projectRoots";
-import { databaseSearch, searchEndpoints, searchableSettings } from "@/workbench/contributions";
+import { beanSearch, databaseSearch, searchEndpoints, searchableSettings } from "@/workbench/contributions";
 import { projectRoot } from "../common/open";
 import { cancelRequest, streamSearch } from "../common/textSearch";
 import type { SeDeps } from "./controller";
@@ -36,6 +36,9 @@ export function ipcDeps(ctx: ContextKeys): SeDeps {
     routes: () => searchEndpoints(projectRoot()),
     databaseObjects: async (query, limit, emit) => {
       await databaseSearch()?.search(query, limit, emit);
+    },
+    beans: async (query, limit, emit) => {
+      await beanSearch()?.search(query, limit, emit);
     },
   };
 }

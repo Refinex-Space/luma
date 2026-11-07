@@ -17,3 +17,14 @@
 .marker:hover {
   background: var(--bg-hover);
 }
+/* Points at something that may not exist (a bean behind a condition or profile). */
+.uncertain {
+  opacity: 0.55;
+}
+/* Informs only (a scheduled task without a scheduler bean to open). */
+.passive {
+  cursor: default;
+}
+.passive:hover {
+  background: none;
+}

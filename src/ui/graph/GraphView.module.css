@@ -1,0 +1,94 @@
+/* Graph view: nodes as rounded boxes on the island background, edges as thin polylines. */
+.host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.host:active {
+  cursor: grabbing;
+}
+.host:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+.svg {
+  display: block;
+}
+
+.edge path {
+  fill: none;
+  stroke: var(--fg-faint);
+  stroke-width: 1;
+  transition: stroke 120ms ease;
+}
+.edge.strong path {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.edge.cycle path {
+  stroke: var(--danger);
+}
+.edgeLabel {
+  font: 10.5px var(--font-ui);
+  fill: var(--fg-muted);
+  paint-order: stroke;
+  stroke: var(--bg-island);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.edge.strong .edgeLabel {
+  fill: var(--fg);
+}
+.arrow {
+  fill: var(--fg-faint);
+}
+.arrowStrong {
+  fill: var(--accent);
+}
+.arrowCycle {
+  fill: var(--danger);
+}
+
+.node {
+  cursor: pointer;
+}
+.node rect {
+  fill: var(--bg-elev);
+  stroke: var(--border);
+  stroke-width: 1;
+  transition:
+    stroke 120ms ease,
+    fill 120ms ease;
+}
+.node:hover rect {
+  stroke: var(--fg-faint);
+}
+.node.selected rect {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  fill: var(--accent-soft);
+}
+.node.library rect {
+  fill: color-mix(in srgb, var(--warning) 12%, var(--bg-elev));
+}
+.node.test rect {
+  fill: color-mix(in srgb, var(--success) 12%, var(--bg-elev));
+}
+.node.muted .label {
+  fill: var(--fg-muted);
+}
+.node.uncertain rect {
+  stroke-dasharray: 3 2;
+}
+.label {
+  font: 12px var(--font-ui);
+  fill: var(--fg);
+}
+.detail {
+  font: 12px var(--font-ui);
+  fill: var(--fg-muted);
+}

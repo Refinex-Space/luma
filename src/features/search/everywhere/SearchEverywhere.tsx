@@ -330,7 +330,7 @@ function SearchEverywhereDialog() {
         anchor,
         placement: "right-start",
         items: [
-          { label: "Select in Database View", run: () => activate(row) },
+          { label: row.openLabel ?? "Select in Database View", run: () => activate(row) },
           ...row.actions.map((a) => ({ label: a.label, run: () => closeThen(a.run) })),
           { kind: "separator" },
           { label: "Copy Name", run: () => copy(row.name) },
@@ -660,7 +660,7 @@ function describe(row: SeRow | undefined): string {
     case "text":
       return `${row.rel}:${row.line + 1}`;
     case "db":
-      return `${row.qualifiedName}  [${row.source}]  ·  ${translate("⌥↵ for Edit Data, DDL and more")}`;
+      return `${row.qualifiedName}  [${row.source}]  ·  ${translate(row.hint ?? "⌥↵ for Edit Data, DDL and more")}`;
   }
 }
 

@@ -317,9 +317,163 @@ const DOTENV_INSPECTION_LIST: readonly BuiltinInspection[] = (
   ] satisfies Array<Omit<BuiltinInspection, "id" | "group">>
 ).map((i): BuiltinInspection => ({ ...i, id: `builtin:${i.producer}`, group: "DotEnv" }));
 
+/**
+ * Producers of the Spring plugin's checks, by the Spring model's inspection id (IDEA's
+ * Spring › Spring Core › Code inspections).
+ */
+export const SPRING_PRODUCERS = {
+  autowiring: "spring-autowiring",
+  fieldInjection: "spring-field-injection",
+  staticInjection: "spring-static-injection",
+  dependsOn: "spring-depends-on",
+  lookup: "spring-lookup",
+  scheduledBean: "spring-scheduled-bean",
+  profileExpression: "spring-profile-expression",
+  beanMethods: "spring-bean-methods",
+  asyncSignature: "spring-async-signature",
+  scheduledSignature: "spring-scheduled-signature",
+  eventListener: "spring-event-listener",
+  cacheOnInterface: "spring-cache-on-interface",
+  cacheableAndCachePut: "spring-cacheable-and-cache-put",
+  cacheNames: "spring-cache-names",
+  cacheAnnotations: "spring-cache-annotations",
+  transactionalEventListener: "spring-transactional-event-listener",
+  transactionLifecycle: "spring-transaction-lifecycle",
+  dirtiesContext: "spring-dirties-context",
+  spelSyntax: "spring-spel-syntax",
+  spelReferences: "spring-spel-references",
+  spelStatic: "spring-spel-static-field",
+  spelCacheVariable: "spring-spel-cache-variable",
+} as const;
+
+const SPRING_INSPECTION_LIST: readonly BuiltinInspection[] = (
+  [
+    {
+      producer: SPRING_PRODUCERS.autowiring,
+      name: "Incorrect autowiring in Spring bean components",
+      description:
+        "Reports injection points of Spring beans that no bean, or more than one bean, of the application context can satisfy. Fix: add a qualifier.",
+    },
+    {
+      producer: SPRING_PRODUCERS.fieldInjection,
+      name: "Non-recommended field injections",
+      description:
+        "Reports injected or autowired fields in Spring components. Fix: constructor-based dependency injection.",
+      defaultLevel: "weakWarning",
+    },
+    {
+      producer: SPRING_PRODUCERS.staticInjection,
+      name: "Incorrect Spring component autowiring or injection on a static class member",
+      description: "Reports autowired and injected static methods and fields of Spring components.",
+    },
+    {
+      producer: SPRING_PRODUCERS.dependsOn,
+      name: "Incorrectly referenced bean in @DependsOn annotation",
+      description: "Reports bean names in @DependsOn that no bean of the application context has.",
+    },
+    {
+      producer: SPRING_PRODUCERS.lookup,
+      name: "Incorrectly referenced bean in @Lookup annotation of a Spring component",
+      description: "Reports bean names in @Lookup that no bean of the application context has.",
+    },
+    {
+      producer: SPRING_PRODUCERS.scheduledBean,
+      name: "Incorrectly referenced bean in @Scheduled annotation",
+      description: "Reports scheduler names in @Scheduled that no bean of the application context has.",
+    },
+    {
+      producer: SPRING_PRODUCERS.profileExpression,
+      name: "Incorrectly configured @Profile expression",
+      description: "Reports empty @Profile expressions and '&' and '|' mixed without parentheses.",
+    },
+    {
+      producer: SPRING_PRODUCERS.beanMethods,
+      name: "Unknown init/destroy method in the @Bean annotation",
+      description: "Reports initMethod and destroyMethod names of @Bean that the bean's class does not declare.",
+    },
+    {
+      producer: SPRING_PRODUCERS.asyncSignature,
+      name: "Incorrect @Async method signature",
+      description: "Reports @Async methods returning neither void nor a Future. Fix: return a CompletableFuture.",
+    },
+    {
+      producer: SPRING_PRODUCERS.scheduledSignature,
+      name: "Incorrect @Scheduled method signature",
+      description: "Reports @Scheduled methods with parameters or a return value. Fix: remove the parameters.",
+    },
+    {
+      producer: SPRING_PRODUCERS.eventListener,
+      name: "Incorrectly configured @EventListener methods",
+      description: "Reports @EventListener methods that are static, or take no event or more than one parameter.",
+    },
+    {
+      producer: SPRING_PRODUCERS.cacheOnInterface,
+      name: "Cache* annotations defined on interfaces/interface methods",
+      description: "Reports @Cache* annotations on interfaces: class-based proxies do not see them.",
+    },
+    {
+      producer: SPRING_PRODUCERS.cacheableAndCachePut,
+      name: "Incorrect usage of @CachePut and @Cacheable on the same method",
+      description: "Reports methods annotated with both @CachePut and @Cacheable.",
+    },
+    {
+      producer: SPRING_PRODUCERS.cacheNames,
+      name: "Incorrect required cache names definition",
+      description: "Reports cache operations naming no cache, neither themselves nor through @CacheConfig.",
+    },
+    {
+      producer: SPRING_PRODUCERS.cacheAnnotations,
+      name: "Incorrectly configured 'caching' annotation",
+      description:
+        "Reports caching annotations on private methods, mutually exclusive attributes set together and unknown cache manager, resolver or key generator beans.",
+    },
+    {
+      producer: SPRING_PRODUCERS.transactionalEventListener,
+      name: "Incorrect @Transactional propagation on a @TransactionalEventListener method",
+      description:
+        "Reports @Transactional on @TransactionalEventListener methods without REQUIRES_NEW or NOT_SUPPORTED propagation, which Spring rejects.",
+    },
+    {
+      producer: SPRING_PRODUCERS.transactionLifecycle,
+      name: "Invalid transactional lifecycle method declaration",
+      description: "Reports @BeforeTransaction and @AfterTransaction methods with arguments or a return type.",
+    },
+    {
+      producer: SPRING_PRODUCERS.dirtiesContext,
+      name: "Invalid @DirtiesContext 'mode' configuration",
+      description: "Reports methodMode on test classes and classMode on test methods.",
+    },
+    {
+      producer: SPRING_PRODUCERS.spelSyntax,
+      name: "Incorrect Spring Expression Language (SpEl) syntax",
+      description:
+        "Reports SpEL syntax errors in @Value templates and in the expressions of @Cacheable, @EventListener, @ConditionalOnExpression and similar attributes.",
+    },
+    {
+      producer: SPRING_PRODUCERS.spelReferences,
+      name: "Unresolved bean references in SpEL",
+      description:
+        "Reports @bean references in SpEL that no bean of the project has (only when every application context is fully known).",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_PRODUCERS.spelStatic,
+      name: "Incorrect injecting of SpEL in a static field",
+      description: "Reports @Value on static fields: Spring does not inject them.",
+    },
+    {
+      producer: SPRING_PRODUCERS.spelCacheVariable,
+      name: "Unprefixed cache SpEL variable",
+      description:
+        "Reports cache key and condition expressions naming a parameter, #p0 / #a0 or #result without its '#'.",
+    },
+  ] satisfies Array<Omit<BuiltinInspection, "id" | "group">>
+).map((i): BuiltinInspection => ({ ...i, id: `builtin:${i.producer}`, group: "Spring" }));
+
 /** Checks the IDE runs itself (not a language server). */
 export const BUILTIN_INSPECTIONS: readonly BuiltinInspection[] = [
   ...DOTENV_INSPECTION_LIST,
+  ...SPRING_INSPECTION_LIST,
   {
     id: "builtin:lombok-getter",
     producer: LOMBOK_PRODUCERS.getter,

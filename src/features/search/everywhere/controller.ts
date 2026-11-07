@@ -61,6 +61,8 @@ export interface SeDeps {
   routes?(): Promise<EndpointEntry[]>;
   /** Objects of the data sources (tables, columns, Redis keys…), emitted as their catalogs load. */
   databaseObjects?(query: string, limit: number, emit: (r: DatabaseSearchResult) => void): Promise<void>;
+  /** Beans (Spring), in the database objects' shape. */
+  beans?(query: string, limit: number, emit: (r: DatabaseSearchResult) => void): Promise<void>;
 }
 
 export interface SeRequest {
@@ -265,10 +267,12 @@ export class SeController {
         case "endpoints":
           await this.startEndpoints(id, gen, text, limit, req);
           break;
+        case "beans":
         case "database": {
           let last: DatabaseSearchResult = { items: [], hasMore: false };
           const toItems = (r: DatabaseSearchResult) => r.items.map((i) => ({ ...i, kind: "db" as const }));
-          await this.deps.databaseObjects?.(text, limit, (r) => {
+          const source = id === "beans" ? this.deps.beans : this.deps.databaseObjects;
+          await source?.(text, limit, (r) => {
             last = r;
             this.set(id, gen, toItems(r), r.hasMore, true);
           });

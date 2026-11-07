@@ -1555,6 +1555,10 @@ export interface DatabaseSearchItem {
   open(): void;
   /** More of ⌥↵: Edit Data, Go to DDL… */
   actions: ReadonlyArray<{ label: string; run: () => void }>;
+  /** The ⌥↵ menu's first entry (`open`); default "Select in Database View". */
+  openLabel?: string;
+  /** The footer's hint; default "⌥↵ for Edit Data, DDL and more". */
+  hint?: string;
 }
 
 export interface DatabaseSearchResult {
@@ -1578,6 +1582,20 @@ export function registerDatabaseSearch(p: DatabaseSearchProvider): () => void {
 
 export function databaseSearch(): DatabaseSearchProvider | null {
   return databaseSearchProvider;
+}
+
+// Beans (Spring…) for Search Everywhere's Symbols, in the same shape as database objects.
+let beanSearchProvider: DatabaseSearchProvider | null = null;
+
+export function registerBeanSearch(p: DatabaseSearchProvider): () => void {
+  beanSearchProvider = p;
+  return () => {
+    if (beanSearchProvider === p) beanSearchProvider = null;
+  };
+}
+
+export function beanSearch(): DatabaseSearchProvider | null {
+  return beanSearchProvider;
 }
 
 // ---------------------------------------------------------------------------

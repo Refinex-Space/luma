@@ -580,10 +580,16 @@ fn java_index_on_a_real_project() {
         let m = idx.java_markers(&path, &text);
         let markers = started.elapsed();
         let targets: usize = m.markers.iter().map(|m| m.targets.len()).sum();
-        let spring: Vec<String> = m
+        let options = java::spring::SpringOptions::default();
+        let started = std::time::Instant::now();
+        let s = idx.spring_markers(&path, &text, &options, &[]);
+        let spring_first = started.elapsed();
+        let started = std::time::Instant::now();
+        let _ = idx.spring_markers(&path, &text, &options, &[]);
+        let spring_warm = started.elapsed();
+        let spring: Vec<String> = s
             .markers
             .iter()
-            .filter(|m| matches!(m.kind, java::JavaMarkerKind::Bean | java::JavaMarkerKind::Injection))
             .map(|m| {
                 format!(
                     "{}:{} {:?} → {}",
@@ -594,8 +600,9 @@ fn java_index_on_a_real_project() {
                 )
             })
             .collect();
+        println!("  spring markers: first {spring_first:?}, warm {spring_warm:?}");
         if !spring.is_empty() {
-            println!("  spring markers:\n    {}", spring.join("\n    "));
+            println!("    {}", spring.join("\n    "));
         }
         let started = std::time::Instant::now();
         let stub = idx.with_java(&path, &text, |v| v.stub(v.overlay_file().unwrap()).unwrap().clone()).unwrap();

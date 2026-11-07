@@ -305,10 +305,17 @@ describe("settings", () => {
       "inheritors",
       "supers",
       "spring",
+      "springEvents",
+      "springScheduled",
+      "springCache",
+      "springTest",
     ]);
-    expect([...enabledGroups({ showGutterIcons: true, gutterIconsDisabled: ["supers", "run", "spring"] })]).toEqual([
-      "inheritors",
-    ]);
+    expect([
+      ...enabledGroups({
+        showGutterIcons: true,
+        gutterIconsDisabled: ["supers", "run", "spring", "springEvents", "springScheduled", "springCache"],
+      }),
+    ]).toEqual(["inheritors", "springTest"]);
     expect(enabledGroups({ showGutterIcons: false, gutterIconsDisabled: [] }).size).toBe(0);
   });
 });

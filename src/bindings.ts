@@ -467,6 +467,66 @@ export const commands = {
 	 *  included), `docker-compose.yml` and Dockerfiles.
 	 */
 	dotenvFiles: () => typedError<DotEnvSource[], IdeError>(__TAURI_INVOKE("dotenv_files")),
+	/**  Whether the project uses Spring, from its build model (else its sources). */
+	springStatus: () => typedError<SpringStatus, IdeError>(__TAURI_INVOKE("spring_status")),
+	/**  Spring gutter markers of an open Java file (structure index; no language server). */
+	springMarkers: (doc: DocId) => typedError<SpringMarkers, IdeError>(__TAURI_INVOKE("spring_markers", { doc })),
+	/**  Spring inspection problems of an open Java file, with their quick fixes as text edits. */
+	springProblems: (doc: DocId) => typedError<SpringProblem[], IdeError>(__TAURI_INVOKE("spring_problems", { doc })),
+	/**  The project's Spring application contexts (the Spring tool window). */
+	springContexts: () => typedError<SpringContextInfo[], IdeError>(__TAURI_INVOKE("spring_contexts")),
+	/**  The beans of an application context (all beans without one). */
+	springBeans: (context: string | null) => typedError<SpringBeanInfo[], IdeError>(__TAURI_INVOKE("spring_beans", { context })),
+	/**  A bean with its dependencies and dependents. */
+	springBeanDetail: (context: string | null, bean: string) => typedError<{
+	bean: SpringBeanInfo,
+	dependencies: SpringDependency[],
+	dependents: SpringDependent[],
+} | null, IdeError>(__TAURI_INVOKE("spring_bean_detail", { context, bean })),
+	/**  The Bean dependency graph of a context, around `roots` up to `depth` steps (whole when empty). */
+	springGraph: (context: string | null, roots: string[], depth: number, libraries: boolean) => typedError<SpringGraph, IdeError>(__TAURI_INVOKE("spring_graph", { context, roots, depth, libraries })),
+	/**
+	 *  Opens a library bean (its JDT handle) from the tool window or the graph; `path` is a Java
+	 *  file of the project choosing the language server.
+	 */
+	springLocateAt: (path: IpcPath, handle: string) => typedError<{
+	/**
+	 *  File path; for virtual targets the URI itself (equal to `uri`), which
+	 *  the UI opens as a read-only virtual document.
+	 */
+	path: IpcPath,
+	range: Range,
+	/**  Set for non-`file:` targets, e.g. `jdt://contents/…`. */
+	uri?: string | null,
+} | null, IdeError>(__TAURI_INVOKE("spring_locate_at", { path, handle })),
+	/**  The public members of a type (SpEL completion and navigation), from an open file's project. */
+	springMembers: (doc: DocId, fqn: string) => typedError<{
+	fqn: string,
+	handle: string,
+	interface?: boolean,
+	members: SpringTypeMember[],
+} | null, IdeError>(__TAURI_INVOKE("spring_members", { doc, fqn })),
+	/**  The injection point at `pos` of an open Java file and the beans it can receive. */
+	springCandidates: (doc: DocId, pos: Pos) => typedError<{
+	name: string,
+	/**  The type looked for, as written. */
+	wanted: string,
+	resolution: SpringResolution,
+	/**  Beans may come from where the model cannot see (auto-configuration, `@Enable…`). */
+	unknownSources: boolean,
+	candidates: SpringTarget[],
+} | null, IdeError>(__TAURI_INVOKE("spring_candidates", { doc, pos })),
+	/**  Opens a library bean (a JDT handle from a gutter target): its class file location. */
+	springLocate: (doc: DocId, handle: string) => typedError<{
+	/**
+	 *  File path; for virtual targets the URI itself (equal to `uri`), which
+	 *  the UI opens as a read-only virtual document.
+	 */
+	path: IpcPath,
+	range: Range,
+	/**  Set for non-`file:` targets, e.g. `jdt://contents/…`. */
+	uri?: string | null,
+} | null, IdeError>(__TAURI_INVOKE("spring_locate", { doc, handle })),
 	/**
 	 *  Runs Lombok's `delombok` on `files` (editor text) with the module's `classpath`.
 	 *  Cancel with `cancel_request(request)`.
@@ -1681,6 +1741,15 @@ export type AutoUpload = "never" |
 /**  Every save, including autosave and external changes. */
 "always";
 
+/**  Grouping and icon of a bean (IDEA's bean stereotypes). */
+export type BeanKind = "configuration" | "controller" | "service" | "repository" | "component" | 
+/**  A `@Bean` method. */
+"factory" | 
+/**  A Spring Data repository, MyBatis mapper, Feign client…. */
+"provided" | "framework" | 
+/**  From a library's auto-configuration. */
+"library";
+
 /**  A step run before a configuration launches; a failing step aborts the launch. */
 export type BeforeLaunchTask = {
 	/**
@@ -2250,6 +2319,14 @@ export type ConsoleSettings = {
 };
 
 export type ContainerOp = "start" | "stop" | "restart" | "pause" | "unpause" | "kill";
+
+export type ContextKind = 
+/**  A `@SpringBootApplication` / `@SpringBootConfiguration` class: scanning + auto-configuration. */
+"boot" | 
+/**  A `@Configuration` class with `@ComponentScan` that nothing else registers. */
+"config" | 
+/**  No application class: the beans of the build module (and the others). */
+"module";
 
 export type CoveragePrepared = CoveragePrepared_Serialize | CoveragePrepared_Deserialize;
 
@@ -4099,6 +4176,11 @@ uiMode: string | null } |
 cancellable: boolean } | 
 /**  Project indexing state changed (dumb mode on/off). */
 { type: "indexState"; indexing: boolean; files: number; symbols: number } | 
+/**
+ *  The Spring model of the window's project knows more (a library model arrived): Spring
+ *  gutter markers and views should be asked again.
+ */
+{ type: "springModelChanged" } | 
 /**  Git status / branch information should be refreshed. */
 { type: "vcsChanged"; root: IpcPath } | { type: "languageServer"; server: ServerId; name: string; status: ServerStatus; message: string | null } | 
 /**  A running server lacks a capability; the UI offers the managed tool as a replacement. */
@@ -4390,11 +4472,7 @@ export type JavaMarkerKind =
 /**  ↑ on a method implementing an abstract one. */
 "implementing" | 
 /**  ↑ on a method overriding a concrete one. */
-"overriding" | 
-/**  On a Spring bean: where it is injected. */
-"bean" | 
-/**  On an injection point: the Spring beans it receives. */
-"injection";
+"overriding";
 
 export type JavaMarkerTarget = {
 	location: Location,
@@ -6439,6 +6517,8 @@ export type Settings_Deserialize = {
 	lombok?: LombokSettings,
 	/**  Languages & Frameworks › .env files (bundled plugin). */
 	dotenv?: DotEnvSettings,
+	/**  Languages & Frameworks › Spring (bundled plugin). */
+	spring?: SpringSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6507,6 +6587,8 @@ export type Settings_Serialize = {
 	lombok: LombokSettings,
 	/**  Languages & Frameworks › .env files (bundled plugin). */
 	dotenv: DotEnvSettings,
+	/**  Languages & Frameworks › Spring (bundled plugin). */
+	spring: SpringSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6707,6 +6789,308 @@ export type SpellingSettings = {
 	projectWords?: string[],
 	/**  Custom dictionaries: plain word lists or Hunspell `.dic` files. */
 	customDictionaries?: string[],
+};
+
+/**  Why the Spring support is (not) active for the project. */
+export type SpringActivation = 
+/**  The build declares Spring (`spring-context`, `spring-beans` or `spring-core`). */
+"dependency" | 
+/**  No build model, but the sources import Spring. */
+"sources" | 
+/**  Neither. */
+"none";
+
+export type SpringBeanDetail = {
+	bean: SpringBeanInfo,
+	dependencies: SpringDependency[],
+	dependents: SpringDependent[],
+};
+
+export type SpringBeanInfo = {
+	/**  Stable: its declaration and name. */
+	id: string,
+	name: string,
+	aliases: string[],
+	/**  The bean's type: simple and qualified. */
+	typeName: string,
+	typeFqn: string,
+	kind: BeanKind,
+	source: SpringBeanSource,
+	/**  Its declaration (empty for library and framework beans). */
+	location: Location | null,
+	/**  A library bean's JDT handle (`spring_locate`). */
+	handle: string | null,
+	/**  `OrderService`, `Cfg.dataSource()`, `DataSourceConfiguration.Hikari.dataSource()`. */
+	declaration: string,
+	/**  The build module (project beans of a multi-module project) or the jar (library beans). */
+	module: string | null,
+	primary: boolean,
+	fallback: boolean,
+	presence: SpringPresence,
+	test: boolean,
+	scope: string | null,
+	lazy: boolean,
+	profiles: string[],
+	/**  Condition annotations (simple names). */
+	conditions: string[],
+	/**  `@Qualifier` values and custom qualifier annotations (simple names). */
+	qualifiers: string[],
+};
+
+/**  Where a bean comes from, for grouping and colours (IDEA: libraries yellow, tests green). */
+export type SpringBeanSource = "project" | "library" | 
+/**  The framework's own (`applicationContext`, `environment`…): IDEA's implicit beans. */
+"framework";
+
+/**  The injection point at a position and the beans it can receive. */
+export type SpringCandidates = {
+	name: string,
+	/**  The type looked for, as written. */
+	wanted: string,
+	resolution: SpringResolution,
+	/**  Beans may come from where the model cannot see (auto-configuration, `@Enable…`). */
+	unknownSources: boolean,
+	candidates: SpringTarget[],
+};
+
+export type SpringContextInfo = {
+	id: string,
+	label: string,
+	kind: ContextKind,
+	/**  The application / configuration class. */
+	root: Location | null,
+	/**  The build module's folder name, when the project has several. */
+	module: string | null,
+	test: boolean,
+	beans: number,
+	/**  Beans may come from where the model cannot see. */
+	unknownSources: boolean,
+};
+
+/**  One injection point of a bean and what it receives. */
+export type SpringDependency = {
+	/**  `orderService`, `OrderController(orders)`. */
+	label: string,
+	location: Location | null,
+	kind: SpringEdgeKind,
+	/**  The type looked for, as written (simple). */
+	wanted: string,
+	resolution: SpringResolution,
+	/**  Bean ids: the injected one first. */
+	beans: string[],
+};
+
+/**  A bean injecting this one. */
+export type SpringDependent = {
+	bean: string,
+	label: string,
+	location: Location | null,
+	kind: SpringEdgeKind,
+};
+
+export type SpringEdge = {
+	from: string,
+	to: string,
+	kind: SpringEdgeKind,
+	/**  The candidates are not decided (several beans, or conditional ones). */
+	uncertain: boolean,
+	/**  Part of a dependency cycle. */
+	cycle: boolean,
+};
+
+/**  How a dependency is declared (IDEA's diagram edge labels). */
+export type SpringEdgeKind = "autowired" | "resource" | "inject" | 
+/**  A `@Bean` method's parameter. */
+"beanParam" | 
+/**  A configuration class creates its `@Bean`s. */
+"creates" | 
+/**  `@DependsOn`. */
+"dependsOn";
+
+export type SpringEdit = {
+	range: Range,
+	text: string,
+};
+
+export type SpringFix = {
+	/**  IDEA's fix text (English; the frontend translates it). */
+	label: string,
+	/**  Fixes sharing a label are one action choosing between these (`Add qualifier` → a bean). */
+	choice: string | null,
+	edits: SpringEdit[],
+};
+
+export type SpringGraph = {
+	nodes: SpringBeanInfo[],
+	edges: SpringEdge[],
+	/**  More nodes than `limit`: the rest are left out. */
+	truncated: boolean,
+};
+
+/**  The inspections (producer `spring-<kebab name>` on the frontend). */
+export type SpringInspection = 
+/**  Incorrect autowiring in Spring bean components. */
+"autowiring" | 
+/**  Non-recommended field injections. */
+"fieldInjection" | 
+/**  Incorrect Spring component autowiring or injection on a static class member. */
+"staticInjection" | 
+/**  Incorrectly referenced bean in @DependsOn annotation. */
+"dependsOn" | 
+/**  Incorrectly referenced bean in @Lookup annotation of a Spring component. */
+"lookup" | 
+/**  Incorrectly referenced bean in @Scheduled annotation. */
+"scheduledBean" | 
+/**  Incorrectly configured @Profile expression. */
+"profileExpression" | 
+/**  Unknown init/destroy method in the @Bean annotation. */
+"beanMethods" | 
+/**  Incorrect @Async method signature. */
+"asyncSignature" | 
+/**  Incorrect @Scheduled method signature. */
+"scheduledSignature" | 
+/**  Incorrectly configured @EventListener methods. */
+"eventListener" | 
+/**  Cache* annotations defined on interfaces/interface methods. */
+"cacheOnInterface" | 
+/**  Incorrect usage of @CachePut and @Cacheable on the same method. */
+"cacheableAndCachePut" | 
+/**  Incorrect required cache names definition. */
+"cacheNames" | 
+/**  Incorrectly configured 'caching' annotation. */
+"cacheAnnotations" | 
+/**  Incorrect @Transactional propagation on a @TransactionalEventListener method. */
+"transactionalEventListener" | 
+/**  Invalid transactional lifecycle method declaration. */
+"transactionLifecycle" | 
+/**  Invalid @DirtiesContext 'mode' configuration. */
+"dirtiesContext";
+
+export type SpringMarker = {
+	/**  The declaration's name, 0-based line / UTF-16 column. */
+	line: number,
+	col: number,
+	name: string,
+	kind: SpringMarkerKind,
+	/**  Injection markers: how the candidates resolve. */
+	resolution: SpringResolution | null,
+	targets: SpringTarget[],
+	/**  Events heard or published, the schedule, the cache names; a bean's name. */
+	detail: string | null,
+	/**  Bean markers: the bean (its id) and a context holding it, for the tool window and graph. */
+	bean: string | null,
+	context: string | null,
+};
+
+export type SpringMarkerKind = 
+/**  On a bean (class or `@Bean` method): where it is injected. */
+"bean" | 
+/**  On an injection point: the beans it receives. */
+"injection" | 
+/**  On an `@EventListener` method / `ApplicationListener`: the calls publishing its events. */
+"eventListener" | 
+/**  On a `publishEvent` call: the listeners of its event. */
+"eventPublisher" | 
+/**  On a `@Scheduled` method (`detail`: its schedule): the scheduler bean it names, if any. */
+"scheduled" | 
+/**  On a cache operation: the others sharing one of its cache names. */
+"cacheable" | 
+/**  On a Spring test class: its application context's configuration classes. */
+"testContext";
+
+export type SpringMarkers = {
+	markers: SpringMarker[],
+};
+
+export type SpringPresence = "certain" | 
+/**  Depends on a condition or profile not evaluated. */
+"conditional" | 
+/**  Its profile is not active. */
+"inactive";
+
+export type SpringProblem = {
+	inspection: SpringInspection,
+	range: Range,
+	severity: SpringProblemSeverity,
+	/**  IDEA's message (English; the frontend translates it). */
+	message: string,
+	fixes: SpringFix[],
+};
+
+export type SpringProblemSeverity = "error" | "warning" | "weakWarning";
+
+export type SpringResolution = 
+/**  One bean is injected (the first target). */
+"unique" | 
+/**  Every target is injected (a collection). */
+"many" | 
+/**  Several candidates, nothing decides. */
+"ambiguous" | 
+/**  Only candidates that depend on a condition or profile. */
+"conditional" | 
+/**  No candidate among the beans the model knows. */
+"none";
+
+export type SpringSettings = {
+	/**  Off: no Spring model, gutter icons or checks. */
+	enabled?: boolean,
+	/**
+	 *  Profiles the IDE analyses with (IDEA's "Change Active Spring Profiles"); empty: every
+	 *  profile may be active. Affects analysis only, not runs.
+	 */
+	activeProfiles?: string[],
+	/**
+	 *  Beans of the libraries (auto-configuration), read from the classpath by the Java
+	 *  language server's Luma extension.
+	 */
+	libraryBeans?: boolean,
+};
+
+export type SpringStatus = {
+	active: boolean,
+	activation: SpringActivation,
+	/**  `org.springframework:spring-context`'s version, when the build says. */
+	springVersion: string | null,
+	bootVersion: string | null,
+};
+
+/**  A bean or an injection point a marker navigates to. */
+export type SpringTarget = {
+	location: Location,
+	/**  The bean name, or the injection point (`OrderController(orders)`). */
+	label: string,
+	/**  The type it is in (`Outer.Inner`). */
+	owner: string,
+	/**  The build module's folder name, when the project has several. */
+	module: string | null,
+	kind: BeanKind | null,
+	primary: boolean,
+	fallback: boolean,
+	presence: SpringPresence,
+	/**  A library bean: the JDT handle to open it with (`spring_locate`); `location` is empty. */
+	handle: string | null,
+};
+
+export type SpringTypeMember = {
+	name: string,
+	/**  `method` or `field`. */
+	kind: string,
+	static: boolean,
+	/**  Parameter types, simple. */
+	params: string[],
+	paramNames?: string[],
+	/**  The erased, qualified return / field type. */
+	returns: string,
+	declaring: string,
+	/**  JDT handle (`spring_locate`). */
+	handle: string,
+};
+
+export type SpringTypeMembers = {
+	fqn: string,
+	handle: string,
+	interface?: boolean,
+	members: SpringTypeMember[],
 };
 
 export type SqlStatement = {

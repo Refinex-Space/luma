@@ -45,6 +45,7 @@ pub mod sdk;
 pub mod search;
 pub mod sonar;
 pub mod spell;
+pub mod spring;
 pub mod ssh;
 pub mod syntax;
 pub mod term;
@@ -244,6 +245,17 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         hot_reload::hot_reload_install,
         lombok::lombok_status,
         dotenv::dotenv_files,
+        spring::spring_status,
+        spring::spring_markers,
+        spring::spring_problems,
+        spring::spring_contexts,
+        spring::spring_beans,
+        spring::spring_bean_detail,
+        spring::spring_graph,
+        spring::spring_locate_at,
+        spring::spring_members,
+        spring::spring_candidates,
+        spring::spring_locate,
         lombok::lombok_delombok,
         hot_reload::hot_reload_launch,
         sonar::sonar_status,

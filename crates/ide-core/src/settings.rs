@@ -13,6 +13,7 @@ pub use crate::lombok::LombokSettings;
 pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
 pub use crate::sonar::{SonarLintSettings, SonarRuleSetting};
+pub use crate::spring::SpringSettings;
 pub use crate::web_browsers::{
     BrowserFamily, BrowserSpecificSettings, BuiltInServerSettings, ConfiguredBrowser, ReloadMode, WebBrowserSettings,
 };
@@ -65,6 +66,8 @@ pub struct Settings {
     pub lombok: LombokSettings,
     /// Languages & Frameworks › .env files (bundled plugin).
     pub dotenv: DotEnvSettings,
+    /// Languages & Frameworks › Spring (bundled plugin).
+    pub spring: SpringSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -210,6 +213,7 @@ impl Default for Settings {
             hot_reload: HotReloadSettings::default(),
             lombok: LombokSettings::default(),
             dotenv: DotEnvSettings::default(),
+            spring: SpringSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),

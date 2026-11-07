@@ -1,0 +1,220 @@
+/* Spring tool window: toolbar, bean tree, detail tabs; and the Bean dependency graph. */
+.view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.context {
+  min-width: 120px;
+  max-width: 50%;
+}
+.filter {
+  flex: 1 1 auto;
+  min-width: 80px;
+}
+.sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--border);
+}
+.note {
+  margin-left: 6px;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+.progress {
+  flex: none;
+}
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.icon {
+  flex: none;
+}
+/* The bean's name keeps its width; its type gives way first. */
+.name {
+  flex: 0 0 auto;
+  max-width: 75%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.count {
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.mark {
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+/* IDEA's file colours: library beans yellow, test beans green. */
+.library .name {
+  color: color-mix(in srgb, var(--warning) 70%, var(--fg));
+}
+.test .name {
+  color: color-mix(in srgb, var(--success) 75%, var(--fg));
+}
+.uncertain {
+  opacity: 0.6;
+}
+
+.detailPane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+/* The selected tab lines up with the content below. */
+.detailTabs {
+  padding: 0 12px;
+}
+.detailBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.doc {
+  padding: 8px 12px 12px;
+  font-size: 12px;
+  animation: fadeIn 120ms ease;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doc {
+    animation: none;
+  }
+}
+.docTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.docName {
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.key {
+  color: var(--fg-muted);
+}
+.value {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.section + .section {
+  margin-top: 12px;
+}
+.sectionTitle {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dep {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.via {
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.arrow {
+  color: var(--fg-faint);
+}
+.missing {
+  color: var(--danger);
+}
+.none {
+  margin: 0;
+  color: var(--fg-faint);
+}
+
+.graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-island);
+}
+.compactGraph {
+  min-height: 160px;
+}
+.canvas {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.graphEditor {
+  height: 100%;
+}

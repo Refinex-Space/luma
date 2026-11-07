@@ -60,13 +60,10 @@ public abstract class Shape<T extends Comparable<T>> extends Base<T> implements 
     );
     assert_eq!(s.package, "a.b");
     assert_eq!(
-        s.imports,
-        vec![
-            JavaImport { path: "java.util.List".into(), is_static: false, on_demand: false },
-            JavaImport { path: "java.util.Map.entry".into(), is_static: true, on_demand: false },
-            JavaImport { path: "a.c".into(), is_static: false, on_demand: true },
-        ]
+        s.imports.iter().map(|i| (i.path.as_str(), i.is_static, i.on_demand)).collect::<Vec<_>>(),
+        vec![("java.util.List", false, false), ("java.util.Map.entry", true, false), ("a.c", false, true)]
     );
+    assert_eq!(s.imports[0].at.col, 7, "import position: the imported name");
     let shape = &s.types[0];
     assert_eq!((shape.name.as_str(), shape.kind), ("Shape", JavaTypeKind::Class));
     assert!(shape.is(PUBLIC) && shape.is(ABSTRACT));
@@ -417,139 +414,67 @@ fn implementations_and_hierarchy_levels() {
     assert!(supertype_items(&v, Path::new("/p/model/AbstractShape.java"), id).1, "Comparable is a library type");
 }
 
-mod spring {
-    use super::*;
+#[test]
+fn annotation_arguments_are_kept() {
+    let s = stub(
+        r##"@ApplicationModule(allowedDependencies = {"orders", "shared::api"})
+package shop.billing;
 
-    const FILES: &[(&str, &str)] = &[
-        ("shop/Order.java", "package shop;\npublic class Order {}\n"),
-        (
-            "shop/OrderRepository.java",
-            "package shop;\nimport org.springframework.data.jpa.repository.JpaRepository;\npublic interface OrderRepository extends JpaRepository<Order, Long> {}\n",
-        ),
-        ("shop/pay/PaymentGateway.java", "package shop.pay;\npublic interface PaymentGateway { void pay(); }\n"),
-        (
-            "shop/pay/AlipayGateway.java",
-            "package shop.pay;\nimport org.springframework.stereotype.Service;\n@Service\npublic class AlipayGateway implements PaymentGateway { public void pay() {} }\n",
-        ),
-        (
-            "shop/pay/WechatGateway.java",
-            "package shop.pay;\n@org.springframework.stereotype.Service @org.springframework.context.annotation.Primary\npublic class WechatGateway implements PaymentGateway { public void pay() {} }\n",
-        ),
-        (
-            "shop/OrderService.java",
-            "package shop;\nimport java.util.List;\nimport lombok.RequiredArgsConstructor;\nimport org.springframework.stereotype.Service;\nimport shop.pay.PaymentGateway;\n@Service\n@RequiredArgsConstructor\npublic class OrderService {\n    private final OrderRepository repo;\n    private final PaymentGateway gateway;\n    private final List<PaymentGateway> gateways;\n    private final String name = \"x\";\n}\n",
-        ),
-        (
-            "shop/NotifyService.java",
-            "package shop;\nimport shop.pay.*;\n@org.springframework.stereotype.Component\nclass NotifyService {\n    @Autowired @Qualifier(\"alipayGateway\") private PaymentGateway gateway;\n    @Autowired private PricingService pricing;\n}\n",
-        ),
-        (
-            "shop/AppConfig.java",
-            "package shop;\nimport org.springframework.web.client.RestTemplate;\n@Configuration\nclass AppConfig {\n    @Bean RestTemplate restTemplate() { return new RestTemplate(); }\n    @Bean(\"clock\") java.time.Clock systemClock(OrderService orders) { return null; }\n}\n",
-        ),
-        (
-            "shop/ReportController.java",
-            "package shop;\nimport org.springframework.web.client.RestTemplate;\n@RestController\nclass ReportController {\n    ReportController(RestTemplate rest, java.time.Clock clock) {}\n}\n",
-        ),
-        (
-            "shop/DomainService.java",
-            "package shop;\n@org.springframework.stereotype.Service\npublic @interface DomainService {}\n",
-        ),
-        ("shop/PricingService.java", "package shop;\n@DomainService\nclass PricingService {}\n"),
-    ];
+import org.springframework.context.annotation.*;
 
-    fn spring_of(rel: &str) -> Vec<String> {
-        let d = index(FILES);
-        let text = FILES.iter().find(|(r, _)| *r == rel).unwrap().1;
-        let s = stub(text);
-        let path = format!("/p/{rel}");
-        let m = markers(&view(&d, &path, &s), Path::new(&path));
-        m.markers
-            .iter()
-            .filter(|m| matches!(m.kind, JavaMarkerKind::Bean | JavaMarkerKind::Injection))
-            .map(|m| {
-                let mut owners: Vec<&str> = m.targets.iter().map(|t| t.owner.as_str()).collect();
-                owners.sort();
-                format!("{}:{} {:?} {}", m.line, m.name, m.kind, owners.join(","))
-            })
-            .collect()
-    }
+@Profile({"dev", "!prod"})
+@ConditionalOnProperty(prefix = "app.billing", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ComponentScan(basePackageClasses = {Billing.class, shop.Shared.class}, lazyInit = true)
+@Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
+@RequestMapping(Paths.BASE + "/bills")
+class Billing<T> extends Base<T> implements Repository<Bill, Long> {
+    @Value("${billing.limit:10}") int limit;
+    @Bean(name = {"clock", "systemClock"}, autowireCandidate = false)
+    java.util.Optional<java.time.Clock> clock(@Qualifier("utc") Zone z) { return null; }
+    @Cacheable(cacheNames = "bills", key = "#id + '-' " + "+ #p1")
+    void cached() {}
+    @Order(-1) @Nested(@Inner(x = 1)) void nested() {}
+}
+"##,
+    );
+    let pkg = &s.package_annotations[0];
+    assert_eq!(pkg.name, "ApplicationModule");
+    assert_eq!(pkg.arg("allowedDependencies").unwrap().strings(), ["orders", "shared::api"]);
+    let AnnotationValue::Str { at, end, .. } = &pkg.arg("allowedDependencies").unwrap().items()[1] else { panic!() };
+    assert_eq!((at, end), (&Pos::new(0, 53), &Pos::new(0, 64)), "string contents, without the quotes");
 
-    #[test]
-    fn injection_points_find_their_beans() {
-        assert_eq!(
-            spring_of("shop/OrderService.java"),
-            [
-                // Injected into AppConfig.systemClock's parameter.
-                "7:OrderService Bean AppConfig.systemClock(orders)",
-                "8:repo Injection OrderRepository",
-                // Two implementations: the @Primary one.
-                "9:gateway Injection WechatGateway",
-                // A list receives every implementation.
-                "10:gateways Injection AlipayGateway,WechatGateway",
-            ]
-        );
-        assert_eq!(
-            spring_of("shop/NotifyService.java"),
-            ["4:gateway Injection AlipayGateway", "5:pricing Injection PricingService"],
-            "@Qualifier picks by name; a meta-annotated stereotype makes a bean"
-        );
-        assert_eq!(
-            spring_of("shop/ReportController.java"),
-            ["4:rest Injection AppConfig.restTemplate(),AppConfig.systemClock()"],
-            "constructor parameters on one line share one marker; @Bean methods of library types"
-        );
-    }
+    let t = &s.types[0];
+    assert_eq!(t.super_args, vec![vec!["T".to_owned()], vec!["Bill".to_owned(), "Long".to_owned()]]);
+    let a = |name: &str| t.annotation_args.iter().find(|a| a.name == name).unwrap();
+    assert_eq!(a("Profile").arg("value").unwrap().strings(), ["dev", "!prod"]);
+    let cond = a("ConditionalOnProperty");
+    assert_eq!(cond.arg("prefix").unwrap().as_str(), Some("app.billing"));
+    assert_eq!(cond.arg("matchIfMissing").unwrap().as_bool(), Some(true));
+    assert_eq!(a("ComponentScan").arg("basePackageClasses").unwrap().classes(), ["Billing", "shop.Shared"]);
+    assert_eq!(a("Scope").arg("proxyMode").unwrap().name_segment(), Some("TARGET_CLASS"));
+    assert_eq!(
+        a("RequestMapping").arg("value"),
+        Some(&AnnotationValue::Concat(vec![
+            AnnotationValue::Name("Paths.BASE".into()),
+            AnnotationValue::Str { text: "/bills".into(), at: Pos::new(9, 30), end: Pos::new(9, 36) },
+        ]))
+    );
+    assert_eq!(a("Profile").at, Pos::new(5, 0));
 
-    #[test]
-    fn beans_of_the_own_module_come_first() {
-        let config = |pkg: &str| {
-            format!(
-                "package {pkg};\n@Configuration\nclass StoreConfig {{ @Bean io.minio.MinioClient minio() {{ return null; }} }}\n"
-            )
-        };
-        let user = "package a;\n@Service\nclass Upload { @Autowired io.minio.MinioClient minio; }\n";
-        let (a_config, b_config) = (config("a"), config("b"));
-        let mut d = index(&[
-            ("a/src/a/StoreConfig.java", &a_config),
-            ("b/src/b/StoreConfig.java", &b_config),
-            ("a/src/a/Upload.java", user),
-        ]);
-        let s = stub(user);
-        let owners = |d: &IndexData| {
-            let m = markers(&view(d, "/p/a/src/a/Upload.java", &s), Path::new("/p/a/src/a/Upload.java"));
-            m.markers
-                .iter()
-                .flat_map(|m| m.targets.iter().map(|t| t.location.path.0.display().to_string()))
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(owners(&d).len(), 2, "no build files: every module");
-        for pom in ["a/pom.xml", "b/pom.xml"] {
-            d.insert(FileEntry::new(PathBuf::from("/p").join(pom), pom.into(), FileRecord::default()));
-        }
-        assert_eq!(owners(&d), ["/p/a/src/a/StoreConfig.java"]);
-    }
-
-    #[test]
-    fn beans_find_where_they_are_injected() {
-        assert_eq!(
-            spring_of("shop/pay/WechatGateway.java"),
-            ["2:WechatGateway Bean OrderService.gateway,OrderService.gateways"]
-        );
-        assert_eq!(
-            spring_of("shop/pay/AlipayGateway.java"),
-            ["3:AlipayGateway Bean NotifyService.gateway,OrderService.gateways"]
-        );
-        assert_eq!(
-            spring_of("shop/AppConfig.java"),
-            [
-                "4:restTemplate Bean ReportController(rest)",
-                "5:systemClock Bean ReportController(clock)",
-                "5:orders Injection OrderService",
-            ]
-        );
-        assert_eq!(spring_of("shop/OrderRepository.java"), ["2:OrderRepository Bean OrderService.repo"]);
-        // Not Spring code: nothing.
-        assert!(spring_of("shop/Order.java").is_empty());
-    }
+    let m = |name: &str| t.members.iter().find(|m| m.name == name).unwrap();
+    assert_eq!(m("limit").annotation_args[0].arg("value").unwrap().as_str(), Some("${billing.limit:10}"));
+    let bean = &m("clock").annotation_args[0];
+    assert_eq!(bean.arg("name").unwrap().strings(), ["clock", "systemClock"]);
+    assert_eq!(bean.arg("autowireCandidate").unwrap().as_bool(), Some(false));
+    assert_eq!(m("clock").ty_args, ["java.time.Clock"], "type arguments of a return type");
+    assert_eq!(m("clock").param_details[0].annotation_args[0].arg("value").unwrap().as_str(), Some("utc"));
+    assert_eq!(
+        m("cached").annotation_args[0].arg("key").unwrap().as_str(),
+        Some("#id + '-' + #p1"),
+        "concatenated literals join"
+    );
+    let nested = &m("nested").annotation_args;
+    assert_eq!(nested[0].arg("value"), Some(&AnnotationValue::Num("-1".into())));
+    let AnnotationValue::Annotation(inner) = nested[1].arg("value").unwrap() else { panic!() };
+    assert_eq!((inner.name.as_str(), inner.arg("x")), ("Inner", Some(&AnnotationValue::Num("1".into()))));
 }

@@ -31,6 +31,7 @@ pub mod sdk;
 pub mod search;
 pub mod sonar;
 pub mod spell;
+pub mod spring;
 pub mod syntax;
 pub mod term;
 pub mod tools;
@@ -84,6 +85,7 @@ pub fn register_all(d: &mut crate::rpc::Dispatcher) {
     hot_reload::register(d);
     lombok::register(d);
     dotenv::register(d);
+    spring::register(d);
     sdk::register(d);
     java::register(d);
     debug::register(d);

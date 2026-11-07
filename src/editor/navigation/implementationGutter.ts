@@ -36,6 +36,7 @@ import { editorPrefs, type EditorExtras } from "@/platform/editorSettings";
 import { useProject } from "@/platform/project";
 import { gutterIconMarkup } from "@/ui";
 import {
+  MARKER_GROUPS,
   MARKER_ICONS,
   candidateKey,
   inheritorsMarker,
@@ -62,7 +63,7 @@ const gutterBackoff = featureBackoff();
 /** Settings › Editor › General › Gutter Icons groups that are on. */
 export function enabledGroups(prefs: Pick<EditorExtras, "showGutterIcons" | "gutterIconsDisabled">): Set<MarkerGroup> {
   if (!prefs.showGutterIcons) return new Set();
-  return new Set((["inheritors", "supers", "spring"] as const).filter((g) => !prefs.gutterIconsDisabled.includes(g)));
+  return new Set(MARKER_GROUPS.filter((g) => !prefs.gutterIconsDisabled.includes(g)));
 }
 
 export interface MarkerDeps {
@@ -151,8 +152,61 @@ export function cachedMarkers(
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Markers other features compute (Spring beans and injection points)
+
+/**
+ * A feature's own gutter markers for a document, shown with the inheritance markers (one
+ * gutter, as IDEA's line marker providers share one). `markers` rejects with a cancelled
+ * error when superseded; `onChange` asks open editors to refresh.
+ */
+export interface LineMarkerSource {
+  id: string;
+  /** Settings › Editor › General › Gutter Icons groups its markers belong to (each marker's own by its kind). */
+  groups: readonly MarkerGroup[];
+  applies(ctx: EditorDocContext): boolean;
+  markers(ctx: EditorDocContext): Promise<LineMarker[]>;
+  onChange?(listener: () => void): () => void;
+}
+
+const markerSources = new Map<string, LineMarkerSource>();
+const sourceListeners = new Set<() => void>();
+
+export function registerLineMarkerSource(source: LineMarkerSource): () => void {
+  markerSources.set(source.id, source);
+  const off = source.onChange?.(() => sourceListeners.forEach((l) => l()));
+  sourceListeners.forEach((l) => l());
+  return () => {
+    off?.();
+    if (markerSources.get(source.id) === source) markerSources.delete(source.id);
+    sourceListeners.forEach((l) => l());
+  };
+}
+
+/** Markers of the registered sources for `ctx` (a failing source contributes none). */
+async function sourceMarkers(ctx: EditorDocContext, groups: ReadonlySet<MarkerGroup>): Promise<LineMarker[]> {
+  const sources = [...markerSources.values()].filter((s) => s.groups.some((g) => groups.has(g)) && s.applies(ctx));
+  const lists = await Promise.all(
+    sources.map((s) =>
+      s.markers(ctx).catch((e) => {
+        if (!isCancelled(e)) console.debug(`[lineMarkers] ${s.id}`, e);
+        return [] as LineMarker[];
+      }),
+    ),
+  );
+  return lists.flat().filter((m) => groups.has(markerGroup(m.kind)));
+}
+
+const byLine = (a: LineMarker, b: LineMarker) =>
+  a.line - b.line || Number(markerGroup(a.kind) === "supers") - Number(markerGroup(b.kind) === "supers");
+
 /** Opens the single target, or the chooser over several. */
 export async function openMarkerTargets(marker: LineMarker, anchor: { x: number; y: number }) {
+  if (marker.passive) return;
+  if (marker.open) {
+    await marker.open(anchor);
+    return;
+  }
   if (marker.targets.length === 1) {
     await navigateTo(marker.targets[0]!);
     return;
@@ -193,7 +247,12 @@ function place(doc: Text, markers: readonly LineMarker[]): PlacedMarker[] {
 const sameMarkers = (a: readonly PlacedMarker[], b: readonly PlacedMarker[]) =>
   a.length === b.length &&
   a.every(
-    (m, i) => m.pos === b[i]!.pos && m.marker.kind === b[i]!.marker.kind && m.marker.tooltip === b[i]!.marker.tooltip,
+    (m, i) =>
+      m.pos === b[i]!.pos &&
+      m.marker.kind === b[i]!.marker.kind &&
+      m.marker.tooltip === b[i]!.marker.tooltip &&
+      // A source's marker opens what it computed: keep the newest.
+      m.marker.open === b[i]!.marker.open,
   );
 
 class InheritanceMarker extends GutterMarker {
@@ -204,15 +263,18 @@ class InheritanceMarker extends GutterMarker {
     return (
       other instanceof InheritanceMarker &&
       other.marker.kind === this.marker.kind &&
-      other.marker.tooltip === this.marker.tooltip
+      other.marker.tooltip === this.marker.tooltip &&
+      other.marker.uncertain === this.marker.uncertain &&
+      other.marker.passive === this.marker.passive
     );
   }
   override toDOM(): Node {
     const el = document.createElement("div");
-    el.className = `${styles.marker} cm-luma-lineMarker-${this.marker.kind}`;
-    el.dataset.kind = this.marker.kind;
+    const { kind, uncertain, passive } = this.marker;
+    el.className = `${styles.marker} cm-luma-lineMarker-${kind}${uncertain ? ` ${styles.uncertain}` : ""}${passive ? ` ${styles.passive}` : ""}`;
+    el.dataset.kind = kind;
     el.title = this.marker.tooltip;
-    el.setAttribute("role", "button");
+    el.setAttribute("role", passive ? "img" : "button");
     el.setAttribute("aria-label", this.marker.tooltip);
     el.innerHTML = gutterIconMarkup(MARKER_ICONS[this.marker.kind]) ?? "";
     return el;
@@ -245,6 +307,7 @@ class MarkersPlugin {
   private request: RequestId | null = null;
   private offSettings: () => void;
   private offServers: () => void;
+  private offSources: () => void;
 
   constructor(private view: EditorView) {
     this.refreshSoon();
@@ -256,6 +319,9 @@ class MarkersPlugin {
       this.invalidate();
       this.refresh();
     });
+    const onSources = () => this.refreshSoon();
+    sourceListeners.add(onSources);
+    this.offSources = () => sourceListeners.delete(onSources);
   }
 
   update(u: ViewUpdate) {
@@ -320,10 +386,13 @@ class MarkersPlugin {
       const last = text.lineAt(to).number - 1 + MARGIN_LINES;
       const visible = candidates.filter((c) => c.line >= first && c.line <= last).slice(0, MAX_PER_PASS);
       const request = (this.request = nextRequestId());
-      await fillMarkers(ctx.path, visible, groups, markerDeps(ctx, items, request, this.cache), this.cache);
+      const [, extra] = await Promise.all([
+        fillMarkers(ctx.path, visible, groups, markerDeps(ctx, items, request, this.cache), this.cache),
+        sourceMarkers(ctx, groups),
+      ]);
       if (this.request === request) this.request = null;
       if (stale()) return;
-      this.show(place(text, cachedMarkers(candidates, groups, this.cache)));
+      this.show(place(text, [...cachedMarkers(candidates, groups, this.cache), ...extra].sort(byLine)));
     } catch (e) {
       if (isUnavailable(e)) gutterBackoff.mark(ctx.doc);
       else if (!isCancelled(e)) console.debug("[lineMarkers]", e);
@@ -339,15 +408,21 @@ class MarkersPlugin {
     const text = view.state.doc;
     const stale = () => gen !== this.generation || view.state.doc !== text;
     let java: JavaMarkers;
+    let extra: LineMarker[];
     try {
-      java = await lspRequest(() => commands.javaLineMarkers(ctx.doc));
+      [java, extra] = await Promise.all([
+        lspRequest(() => commands.javaLineMarkers(ctx.doc)),
+        sourceMarkers(ctx, groups),
+      ]);
     } catch (e) {
       if (!isUnavailable(e)) throw e;
       this.javaUnsupported = true;
       return false;
     }
     if (stale()) return true;
-    const own = java.markers.map(javaLineMarker).filter((m) => groups.has(markerGroup(m.kind)));
+    const own = [...java.markers.map(javaLineMarker).filter((m) => groups.has(markerGroup(m.kind))), ...extra].sort(
+      byLine,
+    );
     this.show(place(text, own));
     if (!groups.has("supers") || !java.unresolved.length || this.cache.unsupported.has("supers")) return true;
     if (this.outline?.doc !== text) {
@@ -371,9 +446,7 @@ class MarkersPlugin {
     await fillMarkers(ctx.path, asked, supers, markerDeps(ctx, this.outline.items, request, this.cache), this.cache);
     if (this.request === request) this.request = null;
     if (stale()) return true;
-    const all = [...own, ...cachedMarkers(asked, supers, this.cache)].sort(
-      (a, b) => a.line - b.line || Number(markerGroup(a.kind) === "supers") - Number(markerGroup(b.kind) === "supers"),
-    );
+    const all = [...own, ...cachedMarkers(asked, supers, this.cache)].sort(byLine);
     this.show(place(text, all));
     return true;
   }
@@ -384,6 +457,7 @@ class MarkersPlugin {
     this.cancelRequest();
     this.offSettings();
     this.offServers();
+    this.offSources();
     this.generation++;
   }
 }
@@ -442,7 +516,7 @@ export function implementationGutter(ctx: EditorDocContext): Extension {
           if (e.button !== 0) return false;
           const target = e.target instanceof Element ? e.target : null;
           const marker = markerAt(view, block.from, target);
-          if (!marker) return false;
+          if (!marker || marker.passive) return false;
           e.preventDefault();
           const rect = (target?.closest(`.${styles.marker}`) ?? target)?.getBoundingClientRect();
           void openMarkerTargets(marker, rect ? { x: rect.left, y: rect.bottom + 2 } : { x: e.clientX, y: e.clientY });

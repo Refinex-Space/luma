@@ -438,6 +438,72 @@ impl LspManager {
         }
     }
 
+    /// The Spring beans the libraries of `path`'s Java project contribute (Luma's jdtls extension,
+    /// `luma.spring.library`): auto-configurations with their beans, conditions and bean type
+    /// hierarchies, as JSON. `None` when the installed extension predates the command.
+    pub async fn spring_library(&self, path: &Path, cancel: &CancellationToken) -> IdeResult<Option<Value>> {
+        const COMMAND: &str = "luma.spring.library";
+        let (_, run) = self.jdtls(path, cancel).await?;
+        if !run.caps.read().commands().iter().any(|c| c == COMMAND) {
+            return Ok(None);
+        }
+        let uri = crate::uri::path_to_uri_string(path);
+        self.jdtls_project_command(path, COMMAND, vec![json!(uri)], cancel).await.map(Some)
+    }
+
+    /// The workspace's `publishEvent(…)` calls with their event types (Luma's extension command
+    /// `luma.spring.events`), each with a `path` for its `uri`. `None` when the extension lacks it.
+    pub async fn spring_events(&self, path: &Path, cancel: &CancellationToken) -> IdeResult<Option<Value>> {
+        const COMMAND: &str = "luma.spring.events";
+        let (_, run) = self.jdtls(path, cancel).await?;
+        if !run.caps.read().commands().iter().any(|c| c == COMMAND) {
+            return Ok(None);
+        }
+        let uri = crate::uri::path_to_uri_string(path);
+        let mut value = self.jdtls_project_command(path, COMMAND, vec![json!(uri)], cancel).await?;
+        if let Some(list) = value.get_mut("publishers").and_then(Value::as_array_mut) {
+            list.retain_mut(|p| {
+                let Some(path) = p.get("uri").and_then(Value::as_str).and_then(crate::uri::uri_to_path) else {
+                    return false;
+                };
+                p["path"] = json!(path);
+                true
+            });
+        }
+        Ok(Some(value))
+    }
+
+    /// The public members of type `fqn` as `path`'s Java project sees it (Luma's extension
+    /// command `luma.spring.members`; SpEL completion). `None` when the extension lacks it or
+    /// the type is unknown.
+    pub async fn spring_members(&self, path: &Path, fqn: &str) -> IdeResult<Option<Value>> {
+        const COMMAND: &str = "luma.spring.members";
+        let cancel = CancellationToken::new();
+        let (_, run) = self.jdtls(path, &cancel).await?;
+        if !run.caps.read().commands().iter().any(|c| c == COMMAND) {
+            return Ok(None);
+        }
+        let uri = crate::uri::path_to_uri_string(path);
+        let value = self.jdtls_command_cancellable(path, COMMAND, vec![json!(uri), json!(fqn)], &cancel).await?;
+        Ok((!value.is_null()).then_some(value))
+    }
+
+    /// Where a library element of a `luma.spring.library` answer is (its JDT handle): a class
+    /// file, opened as a virtual document.
+    pub async fn spring_locate(&self, path: &Path, handle: &str) -> IdeResult<Option<ide_core::Location>> {
+        const COMMAND: &str = "luma.spring.locate";
+        let cancel = CancellationToken::new();
+        let (server, run) = self.jdtls(path, &cancel).await?;
+        if !run.caps.read().commands().iter().any(|c| c == COMMAND) {
+            return Ok(None);
+        }
+        let value = self.jdtls_command_cancellable(path, COMMAND, vec![json!(handle)], &cancel).await?;
+        let Ok(Some(location)) = serde_json::from_value::<Option<lsp_types::Location>>(value) else { return Ok(None) };
+        let converted = self.conv(crate::text::Encoding::Utf16).location(&location);
+        self.note_virtual(&server, converted.iter().map(|l| l.uri.as_deref()));
+        Ok(converted)
+    }
+
     /// Tells jdtls the build files of `uris` changed (`java/projectConfigurationsUpdate`),
     /// so it re-imports their projects (e.g. after `~/.m2` gained an artifact it could
     /// not resolve). Best-effort: skipped while jdtls is not already running.

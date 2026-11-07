@@ -69,6 +69,8 @@ pub struct ProjectIndex {
     shared: Arc<Shared>,
     worker: Mutex<Option<JoinHandle<()>>>,
     root: PathBuf,
+    /// The Spring model of the indexed state, with its key.
+    spring: Mutex<Option<(u128, Arc<java::spring::SpringModel>)>>,
 }
 
 /// Folders indexed alongside the internal state root.
@@ -129,7 +131,7 @@ impl ProjectIndex {
                 .spawn(move || shared.run(scan))
                 .map_err(|e| ide_core::IdeError::internal(format!("cannot start indexer: {e}")))?
         };
-        Ok(Arc::new(Self { shared, worker: Mutex::new(Some(worker)), root }))
+        Ok(Arc::new(Self { shared, worker: Mutex::new(Some(worker)), root, spring: Mutex::new(None) }))
     }
 
     /// Changes what is indexed besides the root (content roots) and the exclude
@@ -195,6 +197,110 @@ impl ProjectIndex {
         let d = self.shared.data.read();
         let view = java::JavaView { data: &d, overlay: Some(java::Overlay { file: d.slot(&path), stub: &stub }) };
         Some(f(&view))
+    }
+
+    /// Runs `f` over the Spring model with `path`'s unsaved `text`. The model of the indexed
+    /// state is cached; an edit that changes declarations gets a model of its own.
+    pub fn with_spring<R>(
+        &self,
+        path: &Path,
+        text: &str,
+        options: &java::spring::SpringOptions,
+        f: impl FnOnce(&java::JavaView, &java::spring::SpringModel) -> R,
+    ) -> Option<R> {
+        use java::spring::SpringModel;
+        self.with_java(path, text, |view| {
+            if !SpringModel::reusable_for(view) {
+                return f(view, &SpringModel::build(view, path, options));
+            }
+            let base = java::JavaView { data: view.data, overlay: None };
+            let key = SpringModel::key(&base, options);
+            let cached = self.spring.lock().as_ref().filter(|(k, _)| *k == key).map(|(_, m)| m.clone());
+            let model = match cached {
+                Some(m) => m,
+                None => {
+                    let m = Arc::new(SpringModel::build(&base, path, options));
+                    *self.spring.lock() = Some((key, m.clone()));
+                    m
+                }
+            };
+            f(view, &model)
+        })
+    }
+
+    /// Runs `f` over the Spring model of the indexed state (no edited file): the tool window's
+    /// and the dependency graph's view.
+    pub fn with_spring_model<R>(
+        &self,
+        options: &java::spring::SpringOptions,
+        f: impl FnOnce(&java::JavaView, &java::spring::SpringModel) -> R,
+    ) -> R {
+        use java::spring::SpringModel;
+        let d = self.shared.data.read();
+        let view = java::JavaView { data: &d, overlay: None };
+        let key = SpringModel::key(&view, options);
+        let cached = self.spring.lock().as_ref().filter(|(k, _)| *k == key).map(|(_, m)| m.clone());
+        let model = match cached {
+            Some(m) => m,
+            None => {
+                let m = Arc::new(SpringModel::build(&view, Path::new(""), options));
+                *self.spring.lock() = Some((key, m.clone()));
+                m
+            }
+        };
+        f(&view, &model)
+    }
+
+    /// Spring gutter markers of a Java file from its current text (`publishers`: the project's
+    /// `publishEvent` calls, as far as known).
+    pub fn spring_markers(
+        &self,
+        path: &Path,
+        text: &str,
+        options: &java::spring::SpringOptions,
+        publishers: &[java::spring::EventPublisher],
+    ) -> java::spring::SpringMarkers {
+        self.with_spring(path, text, options, |v, m| java::spring::spring_markers(v, m, path, publishers))
+            .unwrap_or_default()
+    }
+
+    /// Spring inspection problems of a Java file from its current text, with their fixes.
+    pub fn spring_problems(
+        &self,
+        path: &Path,
+        text: &str,
+        options: &java::spring::SpringOptions,
+    ) -> Vec<java::spring::SpringProblem> {
+        let lang = ide_core::LanguageId::new("java");
+        self.shared
+            .syntax
+            .with_parsed(&lang, text, &|| false, |p| {
+                self.with_spring(path, text, options, |v, m| java::spring::spring_problems(v, m, p.tree, p.text))
+            })
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    }
+
+    /// The injection point at `pos` of a Java file and the beans it can receive.
+    pub fn spring_candidates(
+        &self,
+        path: &Path,
+        text: &str,
+        options: &java::spring::SpringOptions,
+        pos: ide_core::Pos,
+    ) -> Option<java::spring::SpringCandidates> {
+        self.with_spring(path, text, options, |v, m| java::spring::candidates_at(v, m, path, pos)).flatten()
+    }
+
+    /// Whether the sources use Spring: a file imports from `org.springframework`, or carries one
+    /// of its annotations fully qualified (the activation check without a build model).
+    pub fn uses_spring(&self) -> bool {
+        let d = self.shared.data.read();
+        d.files.iter().flatten().filter_map(|e| e.java.as_deref()).any(|s| {
+            s.imports.iter().any(|i| i.path.starts_with("org.springframework."))
+                || s.types.iter().any(|t| t.annotation_args.iter().any(|a| a.name.starts_with("org.springframework.")))
+        })
     }
 
     /// Inheritance gutter markers of a Java file from its current text (instant: no server).

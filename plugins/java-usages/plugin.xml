@@ -10,5 +10,15 @@
     <delegateCommandHandler class="ai.luma.configuration.ConfigurationCommand">
       <command id="luma.java.configuration"/>
     </delegateCommandHandler>
+    <delegateCommandHandler class="ai.luma.spring.LibraryCommand">
+      <command id="luma.spring.library"/>
+      <command id="luma.spring.locate"/>
+    </delegateCommandHandler>
+    <delegateCommandHandler class="ai.luma.spring.EventsCommand">
+      <command id="luma.spring.events"/>
+    </delegateCommandHandler>
+    <delegateCommandHandler class="ai.luma.spring.MembersCommand">
+      <command id="luma.spring.members"/>
+    </delegateCommandHandler>
   </extension>
 </plugin>

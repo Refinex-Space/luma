@@ -9,10 +9,41 @@ import { tx } from "@/platform/i18n";
 import { targetLabel } from "@/editor/lsp/files";
 import { baseName, type SuperMethod } from "./structureNav";
 
-export type MarkerKind = "implemented" | "overridden" | "implementing" | "overriding" | "bean" | "injection";
+export type MarkerKind =
+  | "implemented"
+  | "overridden"
+  | "implementing"
+  | "overriding"
+  | "bean"
+  | "injection"
+  | "springListener"
+  | "springPublisher"
+  | "springScheduled"
+  | "springCache"
+  | "springTest";
 
-/** Settings › Gutter Icons groups: ↓ markers, ↑ markers, Spring beans and injection points. */
-export type MarkerGroup = "inheritors" | "supers" | "spring";
+/**
+ * Settings › Gutter Icons groups: ↓ markers, ↑ markers, Spring beans and injection points,
+ * application events, scheduled tasks, cache operations, test configurations.
+ */
+export type MarkerGroup =
+  | "inheritors"
+  | "supers"
+  | "spring"
+  | "springEvents"
+  | "springScheduled"
+  | "springCache"
+  | "springTest";
+
+export const MARKER_GROUPS: readonly MarkerGroup[] = [
+  "inheritors",
+  "supers",
+  "spring",
+  "springEvents",
+  "springScheduled",
+  "springCache",
+  "springTest",
+];
 
 export const MARKER_ICONS: Record<MarkerKind, string> = {
   implemented: "gutter-implemented",
@@ -21,6 +52,11 @@ export const MARKER_ICONS: Record<MarkerKind, string> = {
   overriding: "gutter-overriding",
   bean: "gutter-spring-bean",
   injection: "gutter-spring-injection",
+  springListener: "gutter-spring-event-listener",
+  springPublisher: "gutter-spring-event-publisher",
+  springScheduled: "gutter-spring-scheduled",
+  springCache: "gutter-spring-cacheable",
+  springTest: "gutter-spring-test-context",
 };
 
 export interface MarkerCandidate {
@@ -51,6 +87,12 @@ export interface LineMarker {
   tooltip: string;
   /** Title of the targets chooser. */
   chooserTitle: string;
+  /** Opens what a click shows, instead of the targets chooser (markers of a `LineMarkerSource`). */
+  open?: (anchor: { x: number; y: number }) => void | Promise<void>;
+  /** Shown dimmed: what it points to may not exist (a conditional bean). */
+  uncertain?: boolean;
+  /** Informs only (its tooltip): nothing to open. */
+  passive?: boolean;
 }
 
 /** Types whose subtypes / implementations are worth a marker (not structs, enums: they cannot be extended). */
@@ -241,18 +283,6 @@ export function javaLineMarker(m: JavaMarker): LineMarker {
           ? tx`Choose Overriding Method of ${m.name} (${n} found)`
           : tx`Choose Subclass of ${m.name} (${n} found)`,
       };
-    case "bean":
-      return {
-        ...base,
-        tooltip: tx`Spring bean injected into ${names}`,
-        chooserTitle: tx`Choose Injection Point of ${m.name} (${n} found)`,
-      };
-    case "injection":
-      return {
-        ...base,
-        tooltip: n === 1 ? tx`Autowired: ${names}` : tx`Autowired candidates: ${names}`,
-        chooserTitle: tx`Choose Autowired Candidate (${n} found)`,
-      };
     case "implementing":
     case "overriding":
       return {
@@ -263,10 +293,19 @@ export function javaLineMarker(m: JavaMarker): LineMarker {
   }
 }
 
+const GROUP_OF: Record<MarkerKind, MarkerGroup> = {
+  implemented: "inheritors",
+  overridden: "inheritors",
+  implementing: "supers",
+  overriding: "supers",
+  bean: "spring",
+  injection: "spring",
+  springListener: "springEvents",
+  springPublisher: "springEvents",
+  springScheduled: "springScheduled",
+  springCache: "springCache",
+  springTest: "springTest",
+};
+
 /** Settings group of a marker kind. */
-export const markerGroup = (kind: MarkerKind): MarkerGroup =>
-  kind === "implemented" || kind === "overridden"
-    ? "inheritors"
-    : kind === "bean" || kind === "injection"
-      ? "spring"
-      : "supers";
+export const markerGroup = (kind: MarkerKind): MarkerGroup => GROUP_OF[kind];

@@ -4304,6 +4304,7 @@ dependencies = [
  "rayon",
  "redb",
  "serde",
+ "serde_json",
  "specta",
  "tempfile",
  "tracing",

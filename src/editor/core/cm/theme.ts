@@ -108,7 +108,7 @@ export const lumaTheme = EditorView.theme({
     display: "none !important",
   },
   // Inheritance markers share one gutter: each group hides its own icons.
-  "&.cm-luma-hideGutter-inheritors :is(.cm-luma-lineMarker-implemented, .cm-luma-lineMarker-overridden), &.cm-luma-hideGutter-supers :is(.cm-luma-lineMarker-implementing, .cm-luma-lineMarker-overriding), &.cm-luma-hideGutter-spring :is(.cm-luma-lineMarker-bean, .cm-luma-lineMarker-injection)":
+  "&.cm-luma-hideGutter-inheritors :is(.cm-luma-lineMarker-implemented, .cm-luma-lineMarker-overridden), &.cm-luma-hideGutter-supers :is(.cm-luma-lineMarker-implementing, .cm-luma-lineMarker-overriding), &.cm-luma-hideGutter-spring :is(.cm-luma-lineMarker-bean, .cm-luma-lineMarker-injection), &.cm-luma-hideGutter-springEvents :is(.cm-luma-lineMarker-springListener, .cm-luma-lineMarker-springPublisher), &.cm-luma-hideGutter-springScheduled .cm-luma-lineMarker-springScheduled, &.cm-luma-hideGutter-springCache .cm-luma-lineMarker-springCache, &.cm-luma-hideGutter-springTest .cm-luma-lineMarker-springTest":
     { display: "none" },
   // Distraction Free Mode: no gutter; the text column (n chars + line padding) is centred.
   "&.cm-luma-distractionFree": { "--luma-df-width": "calc(var(--luma-df-columns, 80) * 1ch + 22px)" },

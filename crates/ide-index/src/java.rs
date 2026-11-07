@@ -46,6 +46,8 @@ pub enum JavaMemberKind {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct JavaStub {
     pub package: String,
+    /// Annotations of the package declaration (`package-info.java`).
+    pub package_annotations: Vec<JavaAnnotation>,
     pub imports: Vec<JavaImport>,
     /// Every type of the file, outer before inner.
     pub types: Vec<JavaType>,
@@ -59,6 +61,106 @@ pub struct JavaImport {
     pub path: String,
     pub is_static: bool,
     pub on_demand: bool,
+    /// Where the imported name starts.
+    pub at: Pos,
+}
+
+/// An annotation as written, with its arguments:
+/// `@ConditionalOnProperty(prefix = "app", name = "on", havingValue = "true")`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct JavaAnnotation {
+    /// As written, without whitespace: `Qualifier`, `org.springframework.context.annotation.Profile`.
+    pub name: String,
+    /// The `@`.
+    pub at: Pos,
+    /// Arguments in order; a single unnamed argument is `value`.
+    pub args: Vec<(String, AnnotationValue)>,
+}
+
+/// A value of an annotation argument.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AnnotationValue {
+    /// A string literal (or a concatenation of literals), decoded; `at` / `end` bound its
+    /// contents (inside the quotes).
+    Str {
+        text: String,
+        at: Pos,
+        end: Pos,
+    },
+    /// `Foo.class`, the type as written.
+    Class(String),
+    /// A name: an enum constant or a constant (`ScopedProxyMode.TARGET_CLASS`, `Names.ORDERS`).
+    Name(String),
+    Bool(bool),
+    Num(String),
+    /// `{a, b}`.
+    Array(Vec<AnnotationValue>),
+    /// A nested annotation (`@ComponentScan.Filter(...)`).
+    Annotation(Box<JavaAnnotation>),
+    /// A concatenation with non-literal parts: `Paths.BASE + "/orders"`.
+    Concat(Vec<AnnotationValue>),
+    /// Anything else (arithmetic, method calls…).
+    Other,
+}
+
+impl JavaAnnotation {
+    /// The argument named `name` (`value` for a single unnamed one).
+    pub fn arg(&self, name: &str) -> Option<&AnnotationValue> {
+        self.args.iter().find(|(k, _)| k == name).map(|(_, v)| v)
+    }
+
+    /// The simple name: `Profile` for `org.springframework.context.annotation.Profile`.
+    pub fn simple_name(&self) -> &str {
+        simple(&self.name)
+    }
+}
+
+impl AnnotationValue {
+    /// The values of an array, or this single value.
+    pub fn items(&self) -> &[AnnotationValue] {
+        match self {
+            AnnotationValue::Array(items) => items,
+            other => std::slice::from_ref(other),
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            AnnotationValue::Str { text, .. } => Some(text),
+            _ => None,
+        }
+    }
+
+    /// Every string of the value (an array's in order).
+    pub fn strings(&self) -> Vec<&str> {
+        self.items().iter().filter_map(AnnotationValue::as_str).collect()
+    }
+
+    /// Type names of class literals (an array's in order).
+    pub fn classes(&self) -> Vec<&str> {
+        self.items()
+            .iter()
+            .filter_map(|v| match v {
+                AnnotationValue::Class(c) => Some(c.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            AnnotationValue::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// The last segment of a name (`TARGET_CLASS` for `ScopedProxyMode.TARGET_CLASS`).
+    pub fn name_segment(&self) -> Option<&str> {
+        match self {
+            AnnotationValue::Name(n) => Some(simple(n)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -80,6 +182,11 @@ pub struct JavaType {
     pub members: Vec<JavaMember>,
     /// String values of annotations: `@Service("orders")` → `("Service", "orders")`.
     pub values: Vec<(String, String)>,
+    /// The annotations with their arguments.
+    pub annotation_args: Vec<JavaAnnotation>,
+    /// Erased type arguments of each supertype, parallel to [`JavaType::supers`]:
+    /// `implements Repository<User, Long>` → `[User, Long]`.
+    pub super_args: Vec<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -95,12 +202,14 @@ pub struct JavaMember {
     pub annotations: Vec<String>,
     pub at: Pos,
     pub end_line: u32,
-    /// Erased type arguments of a field's type: `List<Order>` → `[Order]`.
+    /// Erased type arguments of a field's type or a method's return type: `List<Order>` → `[Order]`.
     pub ty_args: Vec<String>,
     /// String values of annotations (see [`JavaType::values`]).
     pub values: Vec<(String, String)>,
     /// Parameters of methods and constructors, in detail.
     pub param_details: Vec<JavaParam>,
+    /// The annotations with their arguments.
+    pub annotation_args: Vec<JavaAnnotation>,
 }
 
 /// A parameter of a method or constructor.
@@ -114,6 +223,8 @@ pub struct JavaParam {
     pub annotations: Vec<String>,
     pub values: Vec<(String, String)>,
     pub at: Pos,
+    /// The annotations with their arguments.
+    pub annotation_args: Vec<JavaAnnotation>,
 }
 
 impl JavaType {
@@ -190,6 +301,9 @@ impl JavaStub {
             h.update(&[0]);
         };
         put(&self.package);
+        for a in &self.package_annotations {
+            put(&annotation_key(a));
+        }
         for i in &self.imports {
             put(&i.path);
             put(if i.is_static { "s" } else { "" });
@@ -199,11 +313,19 @@ impl JavaStub {
             put(&t.name);
             put(&format!("{:?}{}{:?}", t.kind, t.flags, t.outer));
             t.supers.iter().chain(&t.type_params).chain(&t.annotations).for_each(|s| put(s));
+            t.super_args.iter().flatten().for_each(|s| put(s));
+            t.annotation_args.iter().for_each(|a| put(&annotation_key(a)));
             for m in &t.members {
                 put(&m.name);
                 put(&format!("{:?}{}", m.kind, m.flags));
                 put(&m.ty);
-                m.params.iter().chain(&m.type_params).chain(&m.annotations).for_each(|s| put(s));
+                m.params.iter().chain(&m.type_params).chain(&m.annotations).chain(&m.ty_args).for_each(|s| put(s));
+                m.annotation_args.iter().for_each(|a| put(&annotation_key(a)));
+                for p in &m.param_details {
+                    put(&p.name);
+                    p.ty_args.iter().for_each(|s| put(s));
+                    p.annotation_args.iter().for_each(|a| put(&annotation_key(a)));
+                }
                 put(";");
             }
             put("}");
@@ -261,6 +383,44 @@ impl Hash {
     }
 }
 
+/// What an annotation contributes to a structure hash: its name and arguments, not positions.
+fn annotation_key(a: &JavaAnnotation) -> String {
+    fn value(v: &AnnotationValue, out: &mut String) {
+        match v {
+            AnnotationValue::Str { text, .. } => {
+                out.push('"');
+                out.push_str(text);
+                out.push('"');
+            }
+            AnnotationValue::Class(c) => {
+                out.push_str(c);
+                out.push_str(".class");
+            }
+            AnnotationValue::Name(n) | AnnotationValue::Num(n) => out.push_str(n),
+            AnnotationValue::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            AnnotationValue::Array(items) | AnnotationValue::Concat(items) => {
+                out.push(if matches!(v, AnnotationValue::Array(_)) { '{' } else { '(' });
+                for i in items {
+                    value(i, out);
+                    out.push(',');
+                }
+                out.push('}');
+            }
+            AnnotationValue::Annotation(a) => out.push_str(&annotation_key(a)),
+            AnnotationValue::Other => out.push('?'),
+        }
+    }
+    let mut out = format!("@{}(", a.name);
+    for (k, v) in &a.args {
+        out.push_str(k);
+        out.push('=');
+        value(v, &mut out);
+        out.push(';');
+    }
+    out.push(')');
+    out
+}
+
 /// Last segment of a dotted name.
 pub fn simple(name: &str) -> &str {
     name.rsplit('.').next().unwrap_or(name)
@@ -277,6 +437,7 @@ pub fn extract(tree: &Tree, text: &str) -> JavaStub {
     for child in root.named_children(&mut cursor) {
         match child.kind() {
             "package_declaration" => {
+                stub.package_annotations = annotation_args(child, text);
                 let mut c = child.walk();
                 if let Some(n) =
                     child.named_children(&mut c).find(|n| matches!(n.kind(), "identifier" | "scoped_identifier"))
@@ -285,13 +446,17 @@ pub fn extract(tree: &Tree, text: &str) -> JavaStub {
                 }
             }
             "import_declaration" => {
-                let mut import = JavaImport { path: String::new(), is_static: false, on_demand: false };
+                let mut import =
+                    JavaImport { path: String::new(), is_static: false, on_demand: false, at: pos(child, text) };
                 let mut c = child.walk();
                 for n in child.children(&mut c) {
                     match n.kind() {
                         "static" => import.is_static = true,
                         "asterisk" => import.on_demand = true,
-                        "identifier" | "scoped_identifier" => import.path = compact(node_text(n, text)),
+                        "identifier" | "scoped_identifier" => {
+                            import.path = compact(node_text(n, text));
+                            import.at = pos(n, text);
+                        }
                         _ => {}
                     }
                 }
@@ -467,6 +632,7 @@ fn param_details(params: Option<Node>, text: &str) -> Vec<JavaParam> {
             annotations,
             values: annotation_values(p, text),
             at: pos(name, text),
+            annotation_args: annotation_args(p, text),
         });
     }
     out
@@ -510,17 +676,164 @@ fn strip_type_arguments(s: &str) -> String {
     out
 }
 
-fn type_list(n: Node, text: &str, out: &mut Vec<String>) {
+fn type_list(n: Node, text: &str, out: &mut Vec<String>, args: &mut Vec<Vec<String>>) {
     let mut c = n.walk();
     for child in n.named_children(&mut c) {
         if child.kind() == "type_list" {
             let mut l = child.walk();
             for t in child.named_children(&mut l) {
                 out.push(erased(t, text));
+                args.push(type_args(t, text));
             }
         } else if !matches!(child.kind(), "annotation" | "marker_annotation") {
             out.push(erased(child, text));
+            args.push(type_args(child, text));
         }
+    }
+}
+
+/// Annotations of a declaration (in its modifiers, or directly among its children), with arguments.
+fn annotation_args(decl: Node, text: &str) -> Vec<JavaAnnotation> {
+    let mut out = Vec::new();
+    let mut c = decl.walk();
+    for child in decl.children(&mut c) {
+        if child.kind() == "modifiers" {
+            let mut m = child.walk();
+            for n in child.children(&mut m) {
+                if matches!(n.kind(), "annotation" | "marker_annotation") {
+                    out.extend(parse_annotation(n, text));
+                }
+            }
+        } else if matches!(child.kind(), "annotation" | "marker_annotation") {
+            out.extend(parse_annotation(child, text));
+        }
+    }
+    out
+}
+
+fn parse_annotation(n: Node, text: &str) -> Option<JavaAnnotation> {
+    let name = compact(node_text(n.child_by_field_name("name")?, text));
+    let mut args = Vec::new();
+    if let Some(list) = n.child_by_field_name("arguments") {
+        let mut c = list.walk();
+        for a in list.named_children(&mut c) {
+            if matches!(a.kind(), "line_comment" | "block_comment") {
+                continue;
+            }
+            if a.kind() == "element_value_pair" {
+                let (Some(k), Some(v)) = (a.child_by_field_name("key"), a.child_by_field_name("value")) else {
+                    continue;
+                };
+                args.push((node_text(k, text).to_owned(), parse_value(v, text)));
+            } else {
+                args.push(("value".to_owned(), parse_value(a, text)));
+            }
+        }
+    }
+    Some(JavaAnnotation { name, at: pos(n, text), args })
+}
+
+/// Position of `byte` inside `n` (0-based line, UTF-16 column), counted from the node's start.
+fn pos_in(n: Node, byte: usize, text: &str) -> Pos {
+    let start = pos(n, text);
+    let Some(between) = text.get(n.start_byte()..byte) else { return start };
+    match between.rfind('\n') {
+        Some(nl) => {
+            Pos::new(start.line + between.matches('\n').count() as u32, between[nl + 1..].encode_utf16().count() as u32)
+        }
+        None => Pos::new(start.line, start.col + between.encode_utf16().count() as u32),
+    }
+}
+
+/// A string literal's decoded text and the bounds of its contents.
+fn string_value(n: Node, text: &str) -> AnnotationValue {
+    let raw = node_text(n, text);
+    let quote = if raw.starts_with("\"\"\"") { 3 } else { 1 };
+    let (from, to) = (n.start_byte() + quote, n.end_byte().saturating_sub(quote).max(n.start_byte() + quote));
+    let inner = text.get(from..to).unwrap_or_default();
+    let mut decoded = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            decoded.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => decoded.push('\n'),
+            Some('t') => decoded.push('\t'),
+            Some('r') => decoded.push('\r'),
+            Some('b') => decoded.push('\u{8}'),
+            Some('f') => decoded.push('\u{c}'),
+            Some('s') => decoded.push(' '),
+            Some(o) => decoded.push(o),
+            None => {}
+        }
+    }
+    if quote == 3 {
+        // A text block starts after the line break that follows its opening quotes.
+        decoded = decoded.trim_start_matches([' ', '\t']).trim_start_matches('\n').to_owned();
+    }
+    AnnotationValue::Str { text: decoded, at: pos_in(n, from, text), end: pos_in(n, to, text) }
+}
+
+fn parse_value(n: Node, text: &str) -> AnnotationValue {
+    match n.kind() {
+        "string_literal" => string_value(n, text),
+        "class_literal" => {
+            let mut c = n.walk();
+            let ty = n.named_children(&mut c).next().map(|t| erased(t, text)).unwrap_or_default();
+            AnnotationValue::Class(ty)
+        }
+        "true" => AnnotationValue::Bool(true),
+        "false" => AnnotationValue::Bool(false),
+        "identifier" | "field_access" | "scoped_identifier" => AnnotationValue::Name(compact(node_text(n, text))),
+        k if k.ends_with("_literal") && k != "null_literal" => AnnotationValue::Num(node_text(n, text).to_owned()),
+        "unary_expression" => AnnotationValue::Num(compact(node_text(n, text))),
+        "element_value_array_initializer" | "array_initializer" => {
+            let mut c = n.walk();
+            AnnotationValue::Array(
+                n.named_children(&mut c)
+                    .filter(|v| !matches!(v.kind(), "line_comment" | "block_comment"))
+                    .map(|v| parse_value(v, text))
+                    .collect(),
+            )
+        }
+        "annotation" | "marker_annotation" => {
+            parse_annotation(n, text).map_or(AnnotationValue::Other, |a| AnnotationValue::Annotation(Box::new(a)))
+        }
+        "parenthesized_expression" => {
+            let mut c = n.walk();
+            n.named_children(&mut c).next().map_or(AnnotationValue::Other, |v| parse_value(v, text))
+        }
+        "binary_expression" if n.child_by_field_name("operator").is_some_and(|o| node_text(o, text) == "+") => {
+            let mut parts = Vec::new();
+            let mut stack = vec![n];
+            // Left-to-right leaves of a `+` chain.
+            while let Some(e) = stack.pop() {
+                let plus = e.kind() == "binary_expression"
+                    && e.child_by_field_name("operator").is_some_and(|o| node_text(o, text) == "+");
+                match (plus, e.child_by_field_name("left"), e.child_by_field_name("right")) {
+                    (true, Some(l), Some(r)) => {
+                        stack.push(r);
+                        stack.push(l);
+                    }
+                    _ => parts.push(parse_value(e, text)),
+                }
+            }
+            if parts.iter().all(|p| matches!(p, AnnotationValue::Str { .. })) {
+                let (first, last) = (parts.first().cloned(), parts.last().cloned());
+                let joined: String = parts.iter().filter_map(AnnotationValue::as_str).collect();
+                match (first, last) {
+                    (Some(AnnotationValue::Str { at, .. }), Some(AnnotationValue::Str { end, .. })) => {
+                        AnnotationValue::Str { text: joined, at, end }
+                    }
+                    _ => AnnotationValue::Other,
+                }
+            } else {
+                AnnotationValue::Concat(parts)
+            }
+        }
+        _ => AnnotationValue::Other,
     }
 }
 
@@ -588,10 +901,13 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
         JavaTypeKind::Class => {}
     }
     let mut supers = Vec::new();
+    let mut super_args = Vec::new();
     let mut c = decl.walk();
     for child in decl.children(&mut c) {
         match child.kind() {
-            "superclass" | "super_interfaces" | "extends_interfaces" => type_list(child, text, &mut supers),
+            "superclass" | "super_interfaces" | "extends_interfaces" => {
+                type_list(child, text, &mut supers, &mut super_args)
+            }
             _ => {}
         }
     }
@@ -608,6 +924,8 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
         values: annotation_values(decl, text),
+        annotation_args: annotation_args(decl, text),
+        super_args,
     });
     if kind == JavaTypeKind::Record
         && let Some(params) = decl.child_by_field_name("parameters")
@@ -630,6 +948,7 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
                 ty_args: Vec::new(),
                 values: Vec::new(),
                 param_details: Vec::new(),
+                annotation_args: Vec::new(),
             };
             // The component's field and its accessor, both at the component.
             let members = &mut stub.types[index as usize].members;
@@ -687,9 +1006,10 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                     annotations,
                     at: pos(name, text),
                     end_line: child.end_position().row as u32,
-                    ty_args: Vec::new(),
+                    ty_args: child.child_by_field_name("type").map(|t| type_args(t, text)).unwrap_or_default(),
                     values: annotation_values(child, text),
                     param_details: param_details(child.child_by_field_name("parameters"), text),
+                    annotation_args: annotation_args(child, text),
                 });
                 if let Some(body) = child.child_by_field_name("body") {
                     local_types(body, owner, text, stub);
@@ -704,6 +1024,7 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                 let ty = ty_node.map(|t| erased(t, text)).unwrap_or_default();
                 let ty_args = ty_node.map(|t| type_args(t, text)).unwrap_or_default();
                 let values = annotation_values(child, text);
+                let args = annotation_args(child, text);
                 let mut dc = child.walk();
                 for d in child.children_by_field_name("declarator", &mut dc) {
                     let Some(name) = d.child_by_field_name("name") else { continue };
@@ -720,6 +1041,7 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                         ty_args: ty_args.clone(),
                         values: values.clone(),
                         param_details: Vec::new(),
+                        annotation_args: args.clone(),
                     });
                     if let Some(value) = d.child_by_field_name("value") {
                         local_types(value, owner, text, stub);
@@ -743,6 +1065,7 @@ fn declare_members(body: Node, owner: u32, owner_kind: JavaTypeKind, text: &str,
                     ty_args: Vec::new(),
                     values: Vec::new(),
                     param_details: Vec::new(),
+                    annotation_args: annotation_args(child, text),
                 });
                 if let Some(args) = child.child_by_field_name("arguments") {
                     local_types(args, owner, text, stub);
@@ -807,6 +1130,8 @@ fn anonymous_type(body: Node, base: String, at: Pos, decl: Node, owner: u32, tex
         end_line: decl.end_position().row as u32,
         members: Vec::new(),
         values: Vec::new(),
+        annotation_args: Vec::new(),
+        super_args: vec![Vec::new()],
     });
     declare_members(body, index, JavaTypeKind::Class, text, stub);
 }
@@ -1268,7 +1593,7 @@ impl<'a> JavaView<'a> {
 }
 
 mod insight;
-mod spring;
+pub mod spring;
 pub use insight::{
     JavaMarker, JavaMarkerKind, JavaMarkerTarget, JavaMarkers, JavaTypeItem, UsageScope, declaration_named_at,
     implementations, implementations_may_be_generated, markers, subtype_items, supertype_items, usage_scope,

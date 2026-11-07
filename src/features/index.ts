@@ -33,6 +33,7 @@ import { activate as sonarlint, activateSettingsPages as sonarlintPages } from "
 import { activate as hotReload, activateSettingsPages as hotReloadPages } from "./hot-reload";
 import { activate as lombok, activateSettingsPages as lombokPages } from "./lombok";
 import { activate as dotenv, activateSettingsPages as dotenvPages } from "./dotenv";
+import { activate as spring, activateSettingsPages as springPages } from "./spring";
 import { activate as rainbowBrackets, activateSettingsPages as rainbowBracketsPages } from "./rainbow-brackets";
 import { activate as projectStructure } from "./project-structure";
 import { activate as tools, activateSettingsPages as toolsPages } from "./tools";
@@ -85,6 +86,7 @@ const features: Array<[string, Activate]> = [
   ["hot-reload", hotReload],
   ["lombok", lombok],
   ["dotenv", dotenv],
+  ["spring", spring],
   ["project-structure", projectStructure],
   ["tools", tools],
   ["scratch", scratch],
@@ -137,6 +139,7 @@ export function activateSettingsWindowFeatures(parent: string): () => void {
     ["hot-reload", hotReloadPages],
     ["lombok", lombokPages],
     ["dotenv", dotenvPages],
+    ["spring", springPages],
     ["tools", toolsPages],
     ["web", webPages],
     ["agents", agentsPages],
