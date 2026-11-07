@@ -8,6 +8,7 @@ import type {
   RequestId,
   UsageSearchScope,
 } from "@/bindings";
+import { CONTRIBUTED_USAGES, contributedAt, type ContributedUsages } from "@/editor/api";
 import { clearLineTokens } from "@/editor/lineTokens";
 import { incompleteNote } from "@/editor/lsp/lsp";
 import { commands, isCancelled, nextRequestId } from "@/platform/ipc";
@@ -210,6 +211,12 @@ export async function fetchUsages(
   let locs: Location[];
   let classified: ClassifiedReference[] = [];
   let note: string | null = null;
+  const own = contributedUsages(c);
+  if (own) {
+    const found = await own.search();
+    const files = await readManyFileLines(found.locations.map((l) => l.path));
+    return { groups: groupUsages(found.locations, files), note: found.note ?? null };
+  }
   try {
     const refs = await lspRequest(() => commands.lspFindUsages(request, c.doc, { line: c.line, col: c.col }, scope));
     locs = refs.locations;
@@ -230,6 +237,14 @@ export async function fetchUsages(
   }
   const files = await readManyFileLines(locs.map((l) => l.path));
   return { groups: groupUsages(locs, files, classified), note };
+}
+
+/** A feature's own answer for the caret (an environment variable), before the language server. */
+function contributedUsages(c: CaretContext): ReturnType<ContributedUsages> {
+  const state = c.view?.state;
+  if (!state || c.line >= state.doc.lines) return null;
+  const offset = Math.min(state.doc.line(c.line + 1).from + c.col, state.doc.length);
+  return contributedAt<ContributedUsages>(state, CONTRIBUTED_USAGES, offset)?.(state, offset) ?? null;
 }
 
 /** In-flight server requests: of tool window searches by search id, and of the popup. */

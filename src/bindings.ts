@@ -463,6 +463,11 @@ export const commands = {
 	/**  The agent jdtls runs with, whether the project uses Lombok and its `lombok.config` files. */
 	lombokStatus: () => typedError<LombokStatus, IdeError>(__TAURI_INVOKE("lombok_status")),
 	/**
+	 *  The project's files declaring environment variables: `.env` files (git-ignored ones
+	 *  included), `docker-compose.yml` and Dockerfiles.
+	 */
+	dotenvFiles: () => typedError<DotEnvSource[], IdeError>(__TAURI_INVOKE("dotenv_files")),
+	/**
 	 *  Runs Lombok's `delombok` on `files` (editor text) with the module's `classpath`.
 	 *  Cancel with `cancel_request(request)`.
 	 */
@@ -3035,6 +3040,24 @@ export type DocumentLink = {
 	/**  Any other target (`https:`, …). */
 	url: string | null,
 	tooltip: string | null,
+};
+
+export type DotEnvSettings = {
+	/**  Off: `.env` files are highlighted as properties and nothing else is offered. */
+	enabled?: boolean,
+	/**  Environment variables are completed in code (`getenv('…')`, `process.env.…`). */
+	completion?: boolean,
+	/**  Completion shows each variable's value (`DB_HOST = 127.0.0.1`); off for privacy. */
+	showValues?: boolean,
+	/**  Values in `.env` files start folded, as when sharing the screen. */
+	hideValues?: boolean,
+};
+
+/**  A file declaring environment variables, with its modification time (to re-read on change). */
+export type DotEnvSource = {
+	path: IpcPath,
+	/**  Milliseconds since the epoch; `None` when unknown. */
+	mtimeMs: number | null,
 };
 
 export type DuplicateGroup = {
@@ -6414,6 +6437,8 @@ export type Settings_Deserialize = {
 	hotReload?: HotReloadSettings,
 	/**  Languages & Frameworks › Lombok (bundled plugin). */
 	lombok?: LombokSettings,
+	/**  Languages & Frameworks › .env files (bundled plugin). */
+	dotenv?: DotEnvSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6480,6 +6505,8 @@ export type Settings_Serialize = {
 	hotReload: HotReloadSettings,
 	/**  Languages & Frameworks › Lombok (bundled plugin). */
 	lombok: LombokSettings,
+	/**  Languages & Frameworks › .env files (bundled plugin). */
+	dotenv: DotEnvSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */

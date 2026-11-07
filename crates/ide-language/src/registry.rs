@@ -453,6 +453,8 @@ mod tests {
         "HXML",
         "HTTP",
         "IDL",
+        // features/dotenv (the .env files plugin)
+        "DotEnv",
         // features/lombok/config (the Lombok plugin)
         "Lombok Config",
         "JSON-LD",

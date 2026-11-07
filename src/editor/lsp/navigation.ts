@@ -346,7 +346,8 @@ function linkAt(view: EditorView, x: number, y: number): { from: number; to: num
  */
 async function probeNavigation(view: EditorView, offset: number): Promise<{ info: NavInfo | null } | null> {
   const doc = docOf(view);
-  let navigable = !!contributedAt<ContributedDefinition>(view.state, CONTRIBUTED_DEFINITION, offset);
+  const own = contributedAt<ContributedDefinition>(view.state, CONTRIBUTED_DEFINITION, offset);
+  let navigable = !!own && (own.covers?.(view.state, offset) ?? true);
   if (!navigable && doc) {
     const pos = offsetToPos(view.state.doc, offset);
     try {

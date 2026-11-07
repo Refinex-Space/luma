@@ -180,6 +180,12 @@ impl ProjectIndex {
         matching::symbols_named(&self.shared.data.read(), name, kind, limit)
     }
 
+    /// Indexed files whose name satisfies `pred` (`.env.example`, `docker-compose.yml`), in no order.
+    pub fn files_named(&self, mut pred: impl FnMut(&str) -> bool) -> Vec<PathBuf> {
+        let d = self.shared.data.read();
+        d.files.iter().flatten().filter(|e| pred(e.name())).map(|e| e.path.clone()).collect()
+    }
+
     /// Runs `f` over the Java structure index, with the declarations of `path` taken from its
     /// (possibly unsaved) `text`. `None` when `text` cannot be parsed as Java.
     pub fn with_java<R>(&self, path: &Path, text: &str, f: impl FnOnce(&java::JavaView) -> R) -> Option<R> {

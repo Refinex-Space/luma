@@ -241,8 +241,85 @@ export const LOMBOK_PRODUCERS = {
   config: "lombok-config",
 } as const;
 
+/** Producers of the .env files plugin's checks (the JetBrains plugin's DotEnv inspections). */
+export const DOTENV_PRODUCERS = {
+  duplicateKey: "dotenv-duplicate-key",
+  spaceInsideNonQuoted: "dotenv-space-inside-non-quoted",
+  extraBlankLine: "dotenv-extra-blank-line",
+  incorrectDelimiter: "dotenv-incorrect-delimiter",
+  leadingCharacter: "dotenv-leading-character",
+  lowercaseKey: "dotenv-lowercase-key",
+  trailingWhitespace: "dotenv-trailing-whitespace",
+  spaceAroundSeparator: "dotenv-space-around-separator",
+  undefinedNested: "dotenv-undefined-nested-variable",
+  emptyNested: "dotenv-empty-nested-variable",
+  nestedOutsideDoubleQuotes: "dotenv-nested-outside-double-quotes",
+} as const;
+
+const DOTENV_INSPECTION_LIST: readonly BuiltinInspection[] = (
+  [
+    {
+      producer: DOTENV_PRODUCERS.duplicateKey,
+      name: "Duplicate keys",
+      description: "Reports keys declared more than once in a .env file: only one of the values takes effect.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.spaceInsideNonQuoted,
+      name: "Space inside non-quoted value",
+      description: "Reports unquoted values containing spaces, which dotenv loaders cut or reject. Fix: add quotes.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.extraBlankLine,
+      name: "Extra blank line",
+      description: "Reports more than one blank line between properties. Fix: keep one.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.incorrectDelimiter,
+      name: "Incorrect delimiter",
+      description: "Reports keys separating words with '-' instead of '_', which shells cannot export.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.leadingCharacter,
+      name: "Invalid leading character",
+      description: "Reports keys starting with a character other than a letter or '_'.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.lowercaseKey,
+      name: "Key uses lowercase characters",
+      description: "Reports keys with lowercase letters; environment variables are written in uppercase.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.trailingWhitespace,
+      name: "Value has trailing whitespace",
+      description: "Reports whitespace at the end of lines, easily read as part of a value.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.spaceAroundSeparator,
+      name: "Extra spaces surrounding '='",
+      description: "Reports spaces between a key, its '=' and its value.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.undefinedNested,
+      name: "Undefined nested variable",
+      description: "Reports ${NAME} references to variables no .env file, docker-compose file or Dockerfile declares.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.emptyNested,
+      name: "Empty nested variable",
+      description: "Reports ${} references without a variable name.",
+    },
+    {
+      producer: DOTENV_PRODUCERS.nestedOutsideDoubleQuotes,
+      name: "Nested variable outside double quotes",
+      description: "Reports ${NAME} references in unquoted values: they are expanded inside double quotes only.",
+      defaultLevel: "error",
+    },
+  ] satisfies Array<Omit<BuiltinInspection, "id" | "group">>
+).map((i): BuiltinInspection => ({ ...i, id: `builtin:${i.producer}`, group: "DotEnv" }));
+
 /** Checks the IDE runs itself (not a language server). */
 export const BUILTIN_INSPECTIONS: readonly BuiltinInspection[] = [
+  ...DOTENV_INSPECTION_LIST,
   {
     id: "builtin:lombok-getter",
     producer: LOMBOK_PRODUCERS.getter,

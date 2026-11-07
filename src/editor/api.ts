@@ -28,6 +28,7 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import { GutterMarker, ViewPlugin, type EditorView } from "@codemirror/view";
+import type { Range } from "@/bindings";
 import type { LanguageDescription } from "@codemirror/language";
 import { create } from "zustand";
 import { maybeEditorService } from "@/workbench/contributions";
@@ -325,19 +326,38 @@ export function editorCorner(view: EditorView): HTMLElement {
 export const CONTRIBUTED_FORMAT = "lumaFormat";
 export const CONTRIBUTED_DEFINITION = "lumaDefinition";
 export const CONTRIBUTED_HOVER = "lumaHover";
+export const CONTRIBUTED_USAGES = "lumaUsages";
 
 /** Reformat Code: replacements for `range` (the selection) or the whole document. */
 export type ContributedFormatter = (
   state: EditorState,
   range: { from: number; to: number } | null,
 ) => Array<{ from: number; to: number; insert: string }>;
-/** Go to Declaration / ⌘-click: `true` when it handled `pos`. */
-export type ContributedDefinition = (view: EditorView, pos: number) => boolean;
+/**
+ * Go to Declaration / ⌘-click: `true` when it handled `pos`. A handler contributed to
+ * documents it only partly answers for says where with `covers` (the ⌘-hover underline).
+ */
+export type ContributedDefinition = ((view: EditorView, pos: number) => boolean) & {
+  covers?: (state: EditorState, pos: number) => boolean;
+};
 /** Hover and Quick Documentation: Markdown about the symbol at `pos`. */
 export type ContributedHover = (
   state: EditorState,
   pos: number,
 ) => { from: number; to: number; markdown: string } | null;
+
+/**
+ * Find Usages / Show Usages: when `pos` names something the feature resolves itself (an
+ * environment variable), its name and a search for its usages; `null` leaves `pos` to
+ * the language server.
+ */
+export type ContributedUsages = (
+  state: EditorState,
+  pos: number,
+) => {
+  symbol: string;
+  search: () => Promise<{ locations: Array<{ path: string; range: Range }>; note?: string | null }>;
+} | null;
 
 export function contributedAt<T>(state: EditorState, key: string, pos: number): T | undefined {
   return state.languageDataAt<T>(key, pos)[0];

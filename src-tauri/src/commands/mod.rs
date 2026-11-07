@@ -20,6 +20,7 @@ pub mod dependencies;
 pub mod deploy;
 pub mod doc;
 pub mod docker;
+pub mod dotenv;
 pub mod elastic;
 pub mod env;
 pub mod fonts;
@@ -242,6 +243,7 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         hot_reload::hot_reload_status,
         hot_reload::hot_reload_install,
         lombok::lombok_status,
+        dotenv::dotenv_files,
         lombok::lombok_delombok,
         hot_reload::hot_reload_launch,
         sonar::sonar_status,

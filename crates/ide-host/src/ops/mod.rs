@@ -11,6 +11,7 @@ pub mod debug;
 pub mod dependencies;
 pub mod deploy;
 pub mod doc;
+pub mod dotenv;
 pub mod env;
 pub mod fs;
 pub mod history;
@@ -82,6 +83,7 @@ pub fn register_all(d: &mut crate::rpc::Dispatcher) {
     sonar::register(d);
     hot_reload::register(d);
     lombok::register(d);
+    dotenv::register(d);
     sdk::register(d);
     java::register(d);
     debug::register(d);

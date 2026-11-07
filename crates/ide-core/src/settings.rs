@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::BTreeMap;
 
+pub use crate::dotenv::DotEnvSettings;
 pub use crate::editor_settings::*;
 pub use crate::hot_reload::HotReloadSettings;
 pub use crate::inspection_settings::*;
@@ -62,6 +63,8 @@ pub struct Settings {
     pub hot_reload: HotReloadSettings,
     /// Languages & Frameworks › Lombok (bundled plugin).
     pub lombok: LombokSettings,
+    /// Languages & Frameworks › .env files (bundled plugin).
+    pub dotenv: DotEnvSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -206,6 +209,7 @@ impl Default for Settings {
             sonarlint: SonarLintSettings::default(),
             hot_reload: HotReloadSettings::default(),
             lombok: LombokSettings::default(),
+            dotenv: DotEnvSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),
