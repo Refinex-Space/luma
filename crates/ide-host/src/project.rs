@@ -11,6 +11,7 @@ use ide_text::{AppliedChange, ByteEdit};
 use ide_vcs::{Repo, Repos};
 use ide_vfs::Watcher;
 use ide_workspace::documents::DocumentObserver;
+use ide_workspace::roots::RootKind;
 use ide_workspace::{DocumentInfo, Documents, FileMoves, LocalHistory, ProjectRoots, SettingsStore, SourceFolder};
 use parking_lot::{Mutex, RwLock};
 use std::path::{Path, PathBuf};
@@ -1083,13 +1084,85 @@ pub(crate) fn unlinked_maven_poms(root: &Path, settings: &ide_core::settings::Se
 }
 
 fn linked_roots(root: &Path, settings: &ide_core::settings::Settings, detected: &[SourceFolder]) -> ProjectRoots {
-    let unlinked = ide_build::maven::UnlinkedProjects::load(root, &settings.languages.java.maven);
-    let detected = detected
+    let maven = &settings.languages.java.maven;
+    let unlinked = ide_build::maven::UnlinkedProjects::load(root, maven);
+    // Ignored Maven projects are not imported: their folders stay plain, like unlinked ones.
+    let ignored = ide_build::maven::IgnoredProjects::new(maven);
+    fn from_pom(folder: &SourceFolder) -> Option<&str> {
+        folder.detected_from.as_deref().filter(|f| f.ends_with("pom.xml"))
+    }
+    let mut detected: Vec<SourceFolder> = detected
         .iter()
-        .filter(|folder| !folder.detected_from.as_ref().is_some_and(|pom| unlinked.contains(pom)))
+        .filter(|folder| !from_pom(folder).is_some_and(|pom| unlinked.contains(pom) || ignored.contains(pom)))
+        // Importing › Exclude build directory.
+        .filter(|folder| {
+            maven.importing.exclude_target_folder
+                || !(folder.kind == RootKind::Excluded && from_pom(folder).is_some() && is_target(&folder.path))
+        })
         .cloned()
         .collect();
+    let poms: Vec<String> = detected.iter().filter_map(|f| from_pom(f).map(str::to_owned)).collect();
+    let mut seen = std::collections::HashSet::new();
+    for pom in poms.into_iter().filter(|p| seen.insert(p.clone())) {
+        let module = pom.strip_suffix("pom.xml").unwrap_or("").trim_end_matches('/');
+        for (path, kind) in generated_source_roots(root, module, maven.importing.generated_sources_folder) {
+            if !detected.iter().any(|d| d.path == path) {
+                detected.push(SourceFolder { path, kind, detected_from: Some(pom.clone()) });
+            }
+        }
+    }
     ProjectRoots::compute(detected, &settings.project_structure)
+}
+
+fn is_target(path: &str) -> bool {
+    path == "target" || path.ends_with("/target")
+}
+
+/// Importing › Generated sources folders: folders under `target/generated-sources`
+/// (and `generated-test-sources`) of the Maven module `module` that become source roots.
+fn generated_source_roots(
+    root: &Path,
+    module: &str,
+    mode: ide_core::settings::MavenGeneratedSources,
+) -> Vec<(String, RootKind)> {
+    use ide_core::settings::MavenGeneratedSources as Mode;
+    let join = |a: &str, b: &str| if a.is_empty() { b.to_owned() } else { format!("{a}/{b}") };
+    let mut out = Vec::new();
+    for (dir, kind) in
+        [("target/generated-sources", RootKind::Source), ("target/generated-test-sources", RootKind::Test)]
+    {
+        let rel = join(module, dir);
+        let abs = root.join(&rel);
+        if !abs.is_dir() {
+            continue;
+        }
+        let subdirs = || -> Vec<String> {
+            let mut v: Vec<String> = std::fs::read_dir(&abs)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter(|e| e.path().is_dir())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect();
+            v.sort();
+            v
+        };
+        match mode {
+            Mode::Ignore => {}
+            Mode::GeneratedSourceFolder => out.push((rel, kind)),
+            Mode::SubfoldersOfGeneratedSourceFolder => {
+                out.extend(subdirs().into_iter().map(|d| (join(&rel, &d), kind)))
+            }
+            // Each subfolder holding sources directly (a package tree or files), as IDEA's autodetection.
+            Mode::Autodetect => out.extend(
+                subdirs()
+                    .into_iter()
+                    .filter(|d| std::fs::read_dir(abs.join(d)).into_iter().flatten().flatten().next().is_some())
+                    .map(|d| (join(&rel, &d), kind)),
+            ),
+        }
+    }
+    out
 }
 
 fn exclude_globs(root: &Path, settings: &ide_core::settings::Settings, detected: &[SourceFolder]) -> Vec<String> {

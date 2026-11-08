@@ -65,6 +65,17 @@ pub struct MavenModel {
     /// Build files changed since that sync.
     pub stale: bool,
     pub sync_error: Option<String>,
+    /// The local repository the build resolves against (Repositories › local).
+    #[serde(default)]
+    pub local_repository: Option<String>,
+}
+
+/// A repository of a root project (the tool window's Repositories node).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MavenRepository {
+    pub id: String,
+    pub url: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
@@ -98,6 +109,18 @@ pub struct MavenProject {
     pub options: Vec<String>,
     /// Environment for runs (`JAVA_HOME` of the matching JDK); filled in by the shell.
     pub env: BTreeMap<String, String>,
+    /// `<build><defaultGoal>` (Run Maven Build on the project node).
+    #[serde(default)]
+    pub default_goal: Option<String>,
+    /// Remote repositories: the POM's (effective after a sync), then Maven Central.
+    #[serde(default)]
+    pub repositories: Vec<MavenRepository>,
+    /// Kept in the tree but left out of the IDE model (Settings › Maven › Ignored Files).
+    #[serde(default)]
+    pub ignored: bool,
+    /// What the last sync reported against this project.
+    #[serde(default)]
+    pub problems: Vec<String>,
 }
 
 impl MavenProject {
@@ -249,6 +272,8 @@ struct RawPom {
     profiles: Vec<RawProfile>,
     /// `<build><plugins>` `maven-compiler-plugin` `<release>` / `<source>`.
     compiler_release: Option<String>,
+    default_goal: Option<String>,
+    repositories: Vec<MavenRepository>,
 }
 
 fn read_dep(e: &Element) -> Option<RawDep> {
@@ -307,6 +332,27 @@ fn read_build(e: &Element, plugins: &mut Vec<RawPlugin>, managed: &mut Vec<RawPl
     managed.extend(e.list("build/pluginManagement/plugins", "plugin").into_iter().filter_map(read_plugin));
 }
 
+fn read_repositories(e: &Element) -> Vec<MavenRepository> {
+    e.list("repositories", "repository")
+        .into_iter()
+        .filter_map(|r| {
+            let url = r.text_of("url")?;
+            Some(MavenRepository { id: r.text_of("id").unwrap_or_else(|| url.clone()), url })
+        })
+        .collect()
+}
+
+/// Maven Central, from the super POM.
+pub const CENTRAL: (&str, &str) = ("central", "https://repo.maven.apache.org/maven2");
+
+/// The project's repositories followed by Maven Central (unless redefined).
+fn with_central(mut repos: Vec<MavenRepository>) -> Vec<MavenRepository> {
+    if !repos.iter().any(|r| r.id == CENTRAL.0) {
+        repos.push(MavenRepository { id: CENTRAL.0.into(), url: CENTRAL.1.into() });
+    }
+    repos
+}
+
 fn read_raw(project: &Element) -> RawPom {
     let parent = project.child("parent").and_then(|p| {
         Some(ParentRef {
@@ -332,6 +378,8 @@ fn read_raw(project: &Element) -> RawPom {
             .into_iter()
             .filter_map(read_dep)
             .collect(),
+        default_goal: project.at("build/defaultGoal").map(|g| g.text.trim().to_owned()).filter(|g| !g.is_empty()),
+        repositories: read_repositories(project),
         ..RawPom::default()
     };
     read_build(project, &mut pom.plugins, &mut pom.managed_plugins);
@@ -1333,12 +1381,97 @@ pub(crate) fn load_with_repo(root: &Path, local_repo: Option<PathBuf>) -> MavenM
             command: wrapper(root, &dir),
             options: Vec::new(),
             env: BTreeMap::new(),
+            default_goal: pom.default_goal.as_deref().map(i),
+            repositories: with_central(
+                pom.repositories.iter().map(|r| MavenRepository { id: i(&r.id), url: i(&r.url) }).collect(),
+            ),
+            ignored: false,
+            problems: Vec::new(),
         });
         for m in modules.into_iter().rev() {
             stack.push((m, true));
         }
     }
+    model.local_repository = resolver.local_repo.as_ref().map(|p| p.to_string_lossy().into_owned());
     model
+}
+
+/// Projects of Settings › Maven › Ignored Files: listed POMs and POM paths matching a pattern.
+#[derive(Default)]
+pub struct IgnoredProjects {
+    files: std::collections::BTreeSet<String>,
+    patterns: Vec<String>,
+}
+
+impl IgnoredProjects {
+    pub fn new(settings: &ide_core::settings::MavenSettings) -> Self {
+        Self {
+            files: settings.ignored_files.iter().map(|p| normalized_pom(p)).collect(),
+            patterns: settings
+                .ignored_patterns
+                .iter()
+                .flat_map(|p| p.split([',', ' ', '\n', '\t']))
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
+                .map(|p| p.replace('\\', "/"))
+                .collect(),
+        }
+    }
+
+    /// `pom` is project-relative.
+    pub fn contains(&self, pom: &str) -> bool {
+        let pom = normalized_pom(pom);
+        self.files.contains(&pom) || self.patterns.iter().any(|p| glob_match(p, &pom))
+    }
+
+    pub fn mark(&self, model: &mut MavenModel) {
+        for p in &mut model.projects {
+            p.ignored = self.contains(&p.pom);
+        }
+    }
+}
+
+/// `*` (any run, `/` included, as IDEA's masks) and `?` (one character).
+fn glob_match(pattern: &str, text: &str) -> bool {
+    let (p, t): (Vec<char>, Vec<char>) = (pattern.chars().collect(), text.chars().collect());
+    let (mut pi, mut ti, mut star, mut mark) = (0, 0, None, 0);
+    while ti < t.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == t[ti]) {
+            pi += 1;
+            ti += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star = Some(pi);
+            mark = ti;
+            pi += 1;
+        } else if let Some(s) = star {
+            pi = s + 1;
+            mark += 1;
+            ti = mark;
+        } else {
+            return false;
+        }
+    }
+    while pi < p.len() && p[pi] == '*' {
+        pi += 1;
+    }
+    pi == p.len()
+}
+
+/// `<repositories>` of every project in `mvn help:effective-pom` output, keyed `groupId:artifactId`.
+pub fn effective_repositories(text: &str) -> Vec<(String, Vec<MavenRepository>)> {
+    let Some(root) = xml::parse(text) else { return Vec::new() };
+    let projects: Vec<&Element> = if root.name == "projects" {
+        root.children.iter().filter(|c| c.name == "project").collect()
+    } else {
+        vec![&root]
+    };
+    projects
+        .into_iter()
+        .filter_map(|p| {
+            let group = p.text_of("groupId").or_else(|| p.at("parent/groupId").map(|g| g.text.trim().to_owned()))?;
+            Some((format!("{group}:{}", p.text_of("artifactId")?), read_repositories(p)))
+        })
+        .collect()
 }
 
 /// Shared linkage decision for every Maven consumer, including modules outside a reactor directory.
@@ -2263,5 +2396,56 @@ mod static_classpath_tests {
             [("p:bom".to_owned(), root.join("bom")), ("p:app".to_owned(), root.join("app"))].into();
         let cp = StaticClasspath::new(Some(repo)).of(&root.join("app/pom.xml"), &reactor);
         assert_eq!(cp, [client, api]);
+    }
+
+    #[test]
+    fn ignored_projects_by_file_and_pattern() {
+        let settings = ide_core::settings::MavenSettings {
+            ignored_files: vec!["./a/pom.xml".into()],
+            ignored_patterns: vec!["tools/*, ex?mple/pom.xml".into()],
+            ..Default::default()
+        };
+        let ignored = IgnoredProjects::new(&settings);
+        assert!(ignored.contains("a/pom.xml"));
+        assert!(ignored.contains("tools/x/pom.xml"));
+        assert!(ignored.contains("example/pom.xml"));
+        assert!(!ignored.contains("b/pom.xml"));
+        let mut model = MavenModel {
+            projects: vec![
+                MavenProject { pom: "a/pom.xml".into(), ..Default::default() },
+                MavenProject { pom: "b/pom.xml".into(), ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        ignored.mark(&mut model);
+        assert_eq!(model.projects.iter().map(|p| p.ignored).collect::<Vec<_>>(), [true, false]);
+    }
+
+    #[test]
+    fn repositories_default_goal_and_effective_repositories() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("pom.xml"),
+            "<project><groupId>g</groupId><artifactId>a</artifactId><version>1</version>\
+             <build><defaultGoal>clean install</defaultGoal></build>\
+             <repositories><repository><id>corp</id><url>https://repo.example.com/m2</url></repository></repositories>\
+             </project>",
+        )
+        .unwrap();
+        let model = load_with_repo(tmp.path(), Some(tmp.path().join("repo")));
+        let p = &model.projects[0];
+        assert_eq!(p.default_goal.as_deref(), Some("clean install"));
+        assert_eq!(p.repositories.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["corp", "central"]);
+        assert_eq!(model.local_repository.as_deref(), Some(tmp.path().join("repo").to_string_lossy().as_ref()));
+        let effective = "<projects><project><groupId>g</groupId><artifactId>a</artifactId>\
+            <repositories><repository><id>central</id><url>https://repo.maven.apache.org/maven2</url></repository></repositories>\
+            </project></projects>";
+        assert_eq!(
+            effective_repositories(effective),
+            [(
+                "g:a".to_owned(),
+                vec![MavenRepository { id: "central".into(), url: "https://repo.maven.apache.org/maven2".into() }]
+            )]
+        );
     }
 }

@@ -11,8 +11,24 @@
   align-items: center;
   gap: 2px;
   padding: 0 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+.entry {
+  display: inline-flex;
+  flex: none;
+}
+.overflowed {
+  visibility: hidden;
+  position: absolute;
+  pointer-events: none;
+}
+.more {
+  flex: none;
+  margin-left: auto;
 }
 .sep {
+  flex: none;
   width: 1px;
   height: 16px;
   margin: 0 4px;
@@ -73,21 +89,15 @@
   flex: none;
 }
 .label {
-  flex: 0 1 auto;
-  min-width: 24px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
   color: var(--fg);
 }
 .selectedLabel {
   color: var(--fg-strong);
 }
 .detail {
-  flex: 0 100 auto;
-  min-width: 0;
+  flex: none;
   color: var(--fg-subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .profile {
   min-width: 0;
@@ -178,4 +188,60 @@
   padding: 6px 10px;
   color: var(--fg-subtle);
   font-size: var(--fs-small);
+}
+
+/* Maven toolbar: split and popup buttons */
+.split {
+  display: inline-flex;
+  align-items: center;
+}
+.splitArrow {
+  width: 12px;
+  min-width: 12px;
+  margin-left: -2px;
+  padding: 0;
+}
+.popupButton {
+  position: relative;
+}
+.popupButton::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  border-left: 3px solid transparent;
+  border-top: 3px solid currentColor;
+  opacity: 0.6;
+}
+
+/* Tree rows */
+.implicit {
+  opacity: 0.55;
+}
+.greyed {
+  color: var(--fg-subtle);
+}
+.error {
+  text-decoration: underline wavy var(--danger);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.bold {
+  font-weight: 600;
+}
+.skipped {
+  color: var(--fg-subtle);
+  text-decoration: line-through;
+}
+
+/* No Maven projects (IDEA paints this text over the empty tree) */
+.empty p {
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+.emptyLead {
+  text-align: center;
+}
+.inlineIcon {
+  vertical-align: -2px;
 }

@@ -5,7 +5,7 @@
 //! into the static model by [`crate::load`]; a changed build file marks them stale.
 
 use crate::gradle::{self, GradleModel, GradleTask};
-use crate::maven::{self, MavenDependency, MavenModel, MavenPlugin};
+use crate::maven::{self, MavenDependency, MavenModel, MavenPlugin, MavenProject};
 use crate::process::{self, Output};
 use ide_core::{CancellationToken, IdeError, IdeResult};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -19,6 +19,16 @@ pub struct SyncProgress {
     pub message: String,
     /// 0..1, or `None` when indeterminate.
     pub fraction: Option<f32>,
+    /// A console line of the build tool (the Build tool window's Sync tab), without its line break.
+    #[serde(default)]
+    #[specta(optional)]
+    pub output: Option<String>,
+}
+
+impl SyncProgress {
+    fn status(message: impl Into<String>, fraction: Option<f32>) -> Self {
+        Self { message: message.into(), fraction, output: None }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -44,6 +54,12 @@ struct CachedMavenProject {
     plugins: Vec<MavenPlugin>,
     /// Effective direct dependencies, with transitive ones when `dependency:tree` ran.
     dependencies: Vec<MavenDependency>,
+    /// Effective repositories (inherited ones and Central included).
+    #[serde(default)]
+    repositories: Vec<maven::MavenRepository>,
+    /// Errors the sync reported against the project.
+    #[serde(default)]
+    problems: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -146,8 +162,25 @@ pub fn apply_maven_cache(root: &Path, cache_dir: &Path, model: &mut MavenModel) 
                 p.plugins = c.plugins.clone();
             }
             p.dependencies = c.dependencies.clone();
+            if !c.repositories.is_empty() {
+                p.repositories = c.repositories.clone();
+            }
+            p.problems = c.problems.clone();
         }
     }
+}
+
+/// The project an error line of a sync is about (`… on project app: …`,
+/// `… for project demo:app:jar:1.0 …`), by `groupId:artifactId` key.
+fn problem_project(line: &str, model: &MavenModel) -> Option<String> {
+    if let Some(rest) = line.split(" on project ").nth(1) {
+        let artifact = rest.split([':', ' ']).next()?;
+        return model.projects.iter().find(|p| p.artifact_id == artifact).map(MavenProject::key);
+    }
+    let rest = line.split(" for project ").nth(1)?;
+    let mut parts = rest.split(':');
+    let key = format!("{}:{}", parts.next()?, parts.next()?.split_whitespace().next()?);
+    model.projects.iter().any(|p| p.key() == key).then_some(key)
 }
 
 /// Merges the cached task list into `model`.
@@ -246,7 +279,8 @@ pub fn sync_maven(
             },
         );
     let mut errors: Vec<String> = Vec::new();
-    for (n, top) in model.projects.iter().filter(|p| !p.aggregated).enumerate() {
+    let ignored = maven::IgnoredProjects::new(&options.maven_settings);
+    for (n, top) in model.projects.iter().filter(|p| !p.aggregated && !ignored.contains(&p.pom)).enumerate() {
         let effective = cache_dir.join(format!("effective-pom-{n}.xml"));
         let _ = std::fs::remove_file(&effective);
         let mut args: Vec<String> = vec!["-B".into(), "-fae".into(), "-Dstyle.color=never".into()];
@@ -258,37 +292,53 @@ pub fn sync_maven(
             args.push(format!("-P{}", options.profiles.join(",")));
         }
         args.extend(maven_sync_goals(&effective, options.offline));
-        progress(SyncProgress { message: format!("Reading {}", top.display_name), fraction: None });
+        progress(SyncProgress::status(format!("Reading {}", top.display_name), None));
         let command = options.maven_command.as_deref().unwrap_or(&top.command);
+        let mut status = SyncProgress::status(format!("Reading {}", top.display_name), None);
         let out = run(command, &args, &root.join(&top.dir), &options.env, cancel, |line| {
             if let Some((name, i, total)) = maven_building(line) {
                 let fraction = (i.saturating_sub(1) as f32 / total.max(1) as f32).min(1.0);
-                progress(SyncProgress { message: format!("Building model of {name}"), fraction: Some(fraction) });
+                status = SyncProgress::status(format!("Building model of {name}"), Some(fraction));
             } else if let Some(url) =
                 line.strip_prefix("Downloading from ").and_then(|l| l.split_once(": ")).map(|(_, u)| u)
             {
-                progress(SyncProgress {
-                    message: format!("Downloading {}", url.rsplit('/').next().unwrap_or(url)),
-                    fraction: None,
-                });
+                status = SyncProgress::status(format!("Downloading {}", url.rsplit('/').next().unwrap_or(url)), None);
             }
+            progress(SyncProgress { output: Some(line.to_owned()), ..status.clone() });
         })?;
         let effective_projects = std::fs::read_to_string(&effective)
             .map(|t| maven::parse_effective_pom_in(&t, local_repo.as_deref()))
             .unwrap_or_default();
         let trees = maven::parse_dependency_tree(&out.text);
+        let repositories =
+            std::fs::read_to_string(&effective).map(|t| maven::effective_repositories(&t)).unwrap_or_default();
         for (key, plugins, deps) in effective_projects {
             let dependencies = trees.iter().find(|(k, _)| *k == key).map(|(_, t)| t.clone()).unwrap_or(deps);
-            cache.projects.push(CachedMavenProject { key, plugins, dependencies });
+            let repositories = repositories.iter().find(|(k, _)| *k == key).map(|(_, r)| r.clone()).unwrap_or_default();
+            cache.projects.push(CachedMavenProject { key, plugins, dependencies, repositories, problems: Vec::new() });
         }
         // Modules whose effective POM could not be written still get their tree.
         for (key, tree) in trees {
             if !cache.projects.iter().any(|c| c.key == key) {
-                cache.projects.push(CachedMavenProject { key, plugins: Vec::new(), dependencies: tree });
+                cache.projects.push(CachedMavenProject { key, dependencies: tree, ..CachedMavenProject::default() });
             }
         }
         if !out.success {
             errors.push(error_summary(&out.text));
+            // Each error goes to the project it names, else to the project the sync ran on.
+            for line in out.text.lines().filter_map(|l| l.strip_prefix("[ERROR] ")) {
+                let line = line.trim();
+                if line.is_empty() || !(line.contains(" on project ") || line.contains(" for project ")) {
+                    continue;
+                }
+                let key = problem_project(line, &model).unwrap_or_else(|| top.key());
+                let text = line.trim_end_matches("-> [Help 1]").trim().to_owned();
+                match cache.projects.iter_mut().find(|c| c.key == key) {
+                    Some(c) if !c.problems.contains(&text) => c.problems.push(text),
+                    Some(_) => {}
+                    None => cache.projects.push(CachedMavenProject { key, problems: vec![text], ..Default::default() }),
+                }
+            }
         }
     }
     cache.at_ms = now_ms();
@@ -309,14 +359,19 @@ pub fn sync_gradle(
     if options.offline {
         args.push("--offline".into());
     }
-    progress(SyncProgress { message: "Loading Gradle tasks".into(), fraction: None });
+    progress(SyncProgress::status("Loading Gradle tasks", None));
     let out = run(
         options.gradle_command.as_deref().unwrap_or(&model.command),
         &args,
         &root.join(&model.dir),
         &options.env,
         cancel,
-        |_| {},
+        |line| {
+            progress(SyncProgress {
+                output: Some(line.to_owned()),
+                ..SyncProgress::status("Loading Gradle tasks", None)
+            })
+        },
     )?;
     let cache = GradleCache {
         hash: hash_files(&gradle::build_files(root, &model)),
@@ -380,6 +435,7 @@ mod tests {
                     None,
                 )],
                 dependencies: vec![MavenDependency { artifact_id: "dep".into(), ..MavenDependency::default() }],
+                ..CachedMavenProject::default()
             }],
         };
         write_cache(&cache_dir, MAVEN_CACHE, &cache).unwrap();
@@ -430,6 +486,7 @@ mod tests {
                     None,
                 )],
                 dependencies: vec![MavenDependency { artifact_id: "cached".into(), ..MavenDependency::default() }],
+                ..CachedMavenProject::default()
             }],
         };
         write_cache(&cache_dir, MAVEN_CACHE, &cache).unwrap();

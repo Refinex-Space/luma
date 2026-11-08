@@ -76,6 +76,8 @@ pub struct Settings {
     pub deployment: DeploymentSettings,
     /// Build, Execution, Deployment › Run Targets.
     pub run_targets: Vec<RunTarget>,
+    /// Build, Execution, Deployment › Build Tools.
+    pub build_tools: BuildToolsSettings,
     pub cmake: CMakeSettings,
     /// Tools › Web Browsers and Preview (global only).
     pub web_browsers: WebBrowserSettings,
@@ -218,6 +220,7 @@ impl Default for Settings {
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),
             run_targets: Vec::new(),
+            build_tools: BuildToolsSettings::default(),
             cmake: CMakeSettings::default(),
             web_browsers: WebBrowserSettings::default(),
             built_in_server: BuiltInServerSettings::default(),
@@ -759,8 +762,9 @@ pub enum GradleDistribution {
     Local,
 }
 
-/// Build Tools › Maven.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
+/// Build Tools › Maven (IDEA's `MavenGeneralSettings`, `MavenImportingSettings`,
+/// `MavenRunnerSettings`, ignored files and goal task activation).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default, rename_all = "camelCase")]
 pub struct MavenSettings {
     /// Project-relative root POMs removed from the Maven project model.
@@ -771,6 +775,213 @@ pub struct MavenSettings {
     pub user_settings: String,
     /// Local repository (`-Dmaven.repo.local`); empty = from `settings.xml`.
     pub local_repository: String,
+    /// Work offline (`--offline`).
+    pub work_offline: bool,
+    /// `--non-recursive` (the page's "Execute goals recursively" unchecked).
+    pub non_recursive: bool,
+    /// Print exception stack traces (`--errors`).
+    pub print_stack_traces: bool,
+    /// Always update snapshots (`--update-snapshots`).
+    pub update_snapshots: bool,
+    /// Output level; `debug` adds `--debug`.
+    pub output_level: MavenOutputLevel,
+    pub checksum_policy: MavenChecksumPolicy,
+    /// Multiproject build fail policy.
+    pub failure_behavior: MavenFailureBehavior,
+    /// Thread count (`-T`), e.g. `4` or `1C`; empty = Maven's default.
+    pub threads: String,
+    /// Settings in `.mvn/maven.config` take precedence over the options above.
+    pub use_maven_config: bool,
+    pub importing: MavenImportingSettings,
+    /// Project-relative POMs kept in the tree but left out of the IDE model (Ignore Projects).
+    pub ignored_files: Vec<String>,
+    /// Glob patterns (`*`, `?`) of POM paths to ignore.
+    pub ignored_patterns: Vec<String>,
+    pub runner: MavenRunnerSettings,
+    /// Goals run before / after Build Project and Rebuild Project.
+    pub tasks: MavenTaskSettings,
+}
+
+impl Default for MavenSettings {
+    fn default() -> Self {
+        Self {
+            unlinked_projects: Vec::new(),
+            home: String::new(),
+            user_settings: String::new(),
+            local_repository: String::new(),
+            work_offline: false,
+            non_recursive: false,
+            print_stack_traces: false,
+            update_snapshots: false,
+            output_level: MavenOutputLevel::Info,
+            checksum_policy: MavenChecksumPolicy::NoGlobalPolicy,
+            failure_behavior: MavenFailureBehavior::Default,
+            threads: String::new(),
+            use_maven_config: true,
+            importing: MavenImportingSettings::default(),
+            ignored_files: Vec::new(),
+            ignored_patterns: Vec::new(),
+            runner: MavenRunnerSettings::default(),
+            tasks: MavenTaskSettings::default(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum MavenOutputLevel {
+    Debug,
+    #[default]
+    Info,
+    Warn,
+    Error,
+    Fatal,
+    Disabled,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum MavenChecksumPolicy {
+    #[default]
+    NoGlobalPolicy,
+    /// `--strict-checksums`.
+    Fail,
+    /// `--lax-checksums`.
+    Warn,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum MavenFailureBehavior {
+    #[default]
+    Default,
+    /// `--fail-fast`.
+    FailFast,
+    /// `--fail-at-end`.
+    FailAtEnd,
+    /// `--fail-never`.
+    FailNever,
+}
+
+/// Build Tools › Maven › Importing.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MavenImportingSettings {
+    /// Exclude `target` of each Maven module from the project.
+    pub exclude_target_folder: bool,
+    pub generated_sources_folder: MavenGeneratedSources,
+    /// Phase "Generate Sources and Update Folders" runs.
+    pub update_folders_phase: String,
+    /// After a sync, download the sources / javadoc jars of the dependencies.
+    pub download_sources: bool,
+    pub download_docs: bool,
+    /// `MAVEN_OPTS` of the sync.
+    pub vm_options: String,
+    /// JDK the sync runs on: empty = the project JDK, `JAVA_HOME`, or a JDK home.
+    pub jdk: String,
+}
+
+impl Default for MavenImportingSettings {
+    fn default() -> Self {
+        Self {
+            exclude_target_folder: true,
+            generated_sources_folder: MavenGeneratedSources::Autodetect,
+            update_folders_phase: "process-resources".into(),
+            download_sources: true,
+            download_docs: false,
+            vm_options: String::new(),
+            jdk: String::new(),
+        }
+    }
+}
+
+/// Which folders under `target/generated-sources` become source roots.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum MavenGeneratedSources {
+    /// Don't detect.
+    Ignore,
+    /// Each subdirectory that holds sources (`annotations`, `antlr4`, …).
+    #[default]
+    Autodetect,
+    /// `target/generated-sources` itself.
+    GeneratedSourceFolder,
+    /// Every subdirectory of `target/generated-sources`.
+    SubfoldersOfGeneratedSourceFolder,
+}
+
+/// Build Tools › Maven › Runner (applies to goals run from the IDE and Build Project).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MavenRunnerSettings {
+    /// `MAVEN_OPTS`.
+    pub vm_options: String,
+    /// JRE (`JAVA_HOME`): empty = the project JDK, `JAVA_HOME`, or a JDK home.
+    pub jre: String,
+    pub env: BTreeMap<String, String>,
+    pub pass_parent_env: bool,
+    /// `-DskipTests=true`.
+    pub skip_tests: bool,
+    /// `-Dname=value`, in order.
+    pub properties: Vec<MavenProperty>,
+}
+
+impl Default for MavenRunnerSettings {
+    fn default() -> Self {
+        Self {
+            vm_options: String::new(),
+            jre: String::new(),
+            env: BTreeMap::new(),
+            pass_parent_env: true,
+            skip_tests: false,
+            properties: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MavenProperty {
+    pub name: String,
+    pub value: String,
+}
+
+/// A goal of a Maven project (`pom` project-relative), run as a build task.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MavenTask {
+    pub pom: String,
+    pub goal: String,
+}
+
+/// IDEA's "Execute Before Build" / "After Build" / "Before Rebuild" / "After Rebuild".
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MavenTaskSettings {
+    pub before_build: Vec<MavenTask>,
+    pub after_build: Vec<MavenTask>,
+    pub before_rebuild: Vec<MavenTask>,
+    pub after_rebuild: Vec<MavenTask>,
+}
+
+/// Build, Execution, Deployment › Build Tools.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct BuildToolsSettings {
+    /// "Sync project after changes in the build scripts".
+    pub auto_reload: AutoReload,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AutoReload {
+    /// Any changes (also saves in the editor).
+    All,
+    /// External changes (VCS updates, other tools).
+    #[default]
+    Selective,
+    /// Never: only the "Sync Maven Changes" prompt.
+    None,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

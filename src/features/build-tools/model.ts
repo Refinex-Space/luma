@@ -1,10 +1,11 @@
 /**
  * Tree model and run configurations of the Maven and Gradle tool windows (pure).
  *
- * Maven (IDEA): Profiles, then one node per top-level project; each project has
- * Lifecycle, Plugins (expandable to goals), Dependencies (transitive after a
- * sync), Run Configurations and its modules. Gradle: the root project with
- * Tasks (grouped), Run Configurations and its subprojects.
+ * Maven (IDEA's `MavenProjectsStructure`): Profiles, then the root projects sorted by
+ * name (modules nested under their aggregator with Group Modules, else flat). Each
+ * project has Lifecycle, Plugins, Run Configurations, Dependencies, Repositories (root
+ * projects) and its modules. Gradle: the root project with Tasks (grouped), Run
+ * Configurations and its subprojects.
  */
 import type {
   GradleModel,
@@ -15,10 +16,53 @@ import type {
   MavenPlugin,
   MavenProfile,
   MavenProject,
+  MavenRepository,
+  MavenTaskSettings,
   RunConfig,
 } from "@/platform/ipc";
 
-export const LIFECYCLE = ["clean", "validate", "compile", "test", "package", "verify", "install", "site", "deploy"];
+/** IDEA's `MavenConstants.PHASES`: the Lifecycle node with "Show Basic Phases Only" off. */
+export const PHASES = [
+  "clean",
+  "validate",
+  "generate-sources",
+  "process-sources",
+  "generate-resources",
+  "process-resources",
+  "compile",
+  "process-classes",
+  "generate-test-sources",
+  "process-test-sources",
+  "generate-test-resources",
+  "process-test-resources",
+  "test-compile",
+  "process-test-classes",
+  "test",
+  "prepare-package",
+  "package",
+  "pre-integration-test",
+  "integration-test",
+  "post-integration-test",
+  "verify",
+  "install",
+  "site",
+  "deploy",
+];
+
+const BASIC_PHASES = new Set([
+  "clean",
+  "validate",
+  "compile",
+  "test",
+  "package",
+  "verify",
+  "install",
+  "deploy",
+  "site",
+]);
+
+/** The basic phases in lifecycle order (IDEA filters `PHASES` with `BASIC_PHASES`). */
+export const LIFECYCLE = PHASES.filter((p) => BASIC_PHASES.has(p));
 
 /** Every phase of the clean, default and site lifecycles (Execute Maven Goal completion). */
 export const ALL_PHASES = [
@@ -54,55 +98,143 @@ export const ALL_PHASES = [
   "site-deploy",
 ];
 
-export type BuildNode =
-  | { kind: "profiles"; key: string }
-  | { kind: "profile"; key: string; profile: MavenProfile }
-  | { kind: "mavenProject"; key: string; project: MavenProject }
-  | { kind: "lifecycle"; key: string; project: MavenProject }
-  | { kind: "phase"; key: string; project: MavenProject; phase: string }
-  | { kind: "plugins"; key: string; project: MavenProject }
-  | { kind: "plugin"; key: string; project: MavenProject; plugin: MavenPlugin }
-  | { kind: "goal"; key: string; project: MavenProject; plugin: MavenPlugin; goal: string }
-  | { kind: "dependencies"; key: string; project: MavenProject; dependencies: MavenDependency[] }
-  | { kind: "dependency"; key: string; dependency: MavenDependency }
-  | { kind: "runConfigs"; key: string; configs: RunConfig[] }
-  | { kind: "runConfig"; key: string; config: RunConfig }
-  | { kind: "gradleProject"; key: string; project: GradleProject }
-  | { kind: "tasks"; key: string; project: GradleProject }
-  | { kind: "taskGroup"; key: string; project: GradleProject; group: string; tasks: GradleTask[] }
-  | { kind: "task"; key: string; project: GradleProject; task: GradleTask };
+/** Maven nodes carry their text (`label`) and grey hint, computed with the view options. */
+interface Text {
+  label: string;
+  hint?: string | null;
+}
 
-/** Options applied to every Maven run (toolbar toggles, Profiles checkboxes). */
+export type BuildNode =
+  | ({ kind: "profiles"; key: string } & Text)
+  | ({ kind: "profile"; key: string; profile: MavenProfile } & Text)
+  | ({ kind: "mavenProject"; key: string; project: MavenProject } & Text)
+  | ({ kind: "lifecycle"; key: string; project: MavenProject } & Text)
+  | ({ kind: "phase"; key: string; project: MavenProject; phase: string } & Text)
+  | ({ kind: "plugins"; key: string; project: MavenProject } & Text)
+  | ({ kind: "plugin"; key: string; project: MavenProject; plugin: MavenPlugin } & Text)
+  | ({ kind: "goal"; key: string; project: MavenProject; plugin: MavenPlugin; goal: string } & Text)
+  | ({ kind: "dependencies"; key: string; project: MavenProject; dependencies: MavenDependency[] } & Text)
+  | ({ kind: "dependency"; key: string; project: MavenProject; dependency: MavenDependency } & Text)
+  | ({ kind: "repositories"; key: string; project: MavenProject } & Text)
+  | ({ kind: "repository"; key: string; repository: MavenRepository; local: boolean } & Text)
+  | { kind: "runConfigs"; key: string; configs: RunConfig[]; label?: string; hint?: string | null }
+  | { kind: "runConfig"; key: string; config: RunConfig; label?: string; hint?: string | null }
+  | { kind: "gradleProject"; key: string; project: GradleProject; label?: string; hint?: string | null }
+  | { kind: "tasks"; key: string; project: GradleProject; label?: string; hint?: string | null }
+  | {
+      kind: "taskGroup";
+      key: string;
+      project: GradleProject;
+      group: string;
+      tasks: GradleTask[];
+      label?: string;
+      hint?: string | null;
+    }
+  | { kind: "task"; key: string; project: GradleProject; task: GradleTask; label?: string; hint?: string | null };
+
+/** Options applied to every Maven run besides Settings › Maven (the Profiles checkboxes). */
 export interface MavenRunOptions {
-  offline: boolean;
-  skipTests: boolean;
-  /** Explicit profile choices: id → checked. Unlisted profiles keep their default. */
+  /** Explicit profile choices: id → enabled. Unlisted profiles keep their default. */
   profiles: Record<string, boolean>;
+  /** Settings › Maven › Runner › Skip Tests (already among the project's options). */
+  skipTests?: boolean;
 }
 
 export interface GradleRunOptions {
   offline: boolean;
 }
 
+/** The tool window's options menu (IDEA's `MavenProjectsNavigatorState`). */
+export interface MavenViewOptions {
+  groupModules: boolean;
+  showIgnored: boolean;
+  basicPhasesOnly: boolean;
+  alwaysShowArtifactId: boolean;
+  showVersions: boolean;
+}
+
+/** Group Modules is on as after IDEA's import; the other defaults are IDEA's. */
+export const DEFAULT_MAVEN_VIEW: MavenViewOptions = {
+  groupModules: true,
+  showIgnored: true,
+  basicPhasesOnly: true,
+  alwaysShowArtifactId: false,
+  showVersions: false,
+};
+
+export interface MavenTreeContext {
+  model: MavenModel;
+  configs: readonly RunConfig[];
+  view: MavenViewOptions;
+  /** Goal task activation (the "Before Build" … hints). */
+  tasks?: MavenTaskSettings;
+}
+
 // ---------------------------------------------------------------------------
 // Maven tree
 
 const projectKey = (p: MavenProject) => `mvn:${p.pom}`;
+const byName = (a: { label: string }, b: { label: string }) =>
+  a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
 
+/** `group:artifact[:type][:classifier]:version` (IDEA's `MavenArtifact.getDisplayStringWithType…`). */
 export function dependencyLabel(d: MavenDependency): string {
   const parts = [d.groupId, d.artifactId];
+  if (d.type && d.type !== "jar") parts.push(d.type);
   if (d.classifier) parts.push(d.classifier);
   if (d.version) parts.push(d.version);
   return parts.join(":");
 }
 
+/** `[scope ]omitted for conflict with 1.2` / `omitted for duplicate` (IDEA's `DependencyNode` hint). */
+export function dependencyHint(d: MavenDependency): string | null {
+  const parts: string[] = [];
+  if (d.scope && d.scope !== "compile") parts.push(d.scope);
+  if (d.optional) parts.push("optional");
+  if (d.omitted === "conflict")
+    parts.push(d.conflictWith ? `omitted for conflict with ${d.conflictWith}` : "omitted for conflict");
+  else if (d.omitted === "duplicate") parts.push("omitted for duplicate");
+  return parts.length ? parts.join(" ") : null;
+}
+
+/** Plugin text: the goal prefix, with `group:artifact:version` as hint; unresolved ones show their coordinates. */
 export function pluginLabel(p: MavenPlugin): string {
-  return `${p.prefix} (${p.groupId}:${p.artifactId}${p.version ? `:${p.version}` : ""})`;
+  return pluginResolved(p) ? p.prefix : `${p.groupId}:${p.artifactId}${p.version ? `:${p.version}` : ""}`;
+}
+
+export function pluginResolved(p: MavenPlugin): boolean {
+  return p.goals.length > 0;
+}
+
+/** IDEA's profile states: explicitly enabled, implicitly active (greyed), or not. */
+export type ProfileState = "explicit" | "implicit" | "none";
+
+export function profileState(profile: MavenProfile, choices: Record<string, boolean>): ProfileState {
+  const choice = choices[profile.id];
+  if (choice === true) return "explicit";
+  if (choice === false) return "none";
+  return profile.activeByDefault ? "implicit" : "none";
 }
 
 /** Whether a profile is active for runs: the explicit choice, else `activeByDefault`. */
 export function profileChecked(profile: MavenProfile, choices: Record<string, boolean>): boolean {
-  return choices[profile.id] ?? profile.activeByDefault;
+  return profileState(profile, choices) !== "none";
+}
+
+/**
+ * Toggle Profile (IDEA's `ToggleProfileAction`): explicitly disabled → enabled, enabled →
+ * default, default-inactive → enabled, default-active → disabled. `undefined` = default.
+ */
+export function nextProfileChoice(profile: MavenProfile, choices: Record<string, boolean>): boolean | undefined {
+  const choice = choices[profile.id];
+  if (choice === false) return true;
+  if (choice === true) return undefined;
+  return profile.activeByDefault ? false : true;
+}
+
+/** The text of Toggle Profile: Activate / Deactivate / Use Default. */
+export function toggleProfileText(next: boolean | undefined): string {
+  return next === true ? "Activate" : next === false ? "Deactivate" : "Use Default";
 }
 
 /** `-P` value for the choices that differ from the defaults (`a,!b`), or null. */
@@ -121,16 +253,51 @@ export function profilesList(profiles: readonly MavenProfile[], choices: Record<
   return profilesArg(profiles, choices)?.split(",") ?? [];
 }
 
-export function mavenRoots(model: MavenModel): BuildNode[] {
+const visibleProject = (p: MavenProject, view: MavenViewOptions) => !p.ignored || view.showIgnored;
+
+/** The project aggregating `p` (whose `<modules>` list it), if any. */
+export function aggregatorOf(model: MavenModel, p: MavenProject): MavenProject | undefined {
+  return model.projects.find((q) => q.modules.includes(p.pom));
+}
+
+function projectNode(p: MavenProject, ctx: MavenTreeContext, rootHint: boolean): BuildNode {
+  const { view } = ctx;
+  const name = view.alwaysShowArtifactId ? p.artifactId : p.displayName;
+  return {
+    kind: "mavenProject",
+    key: projectKey(p),
+    project: p,
+    label: name,
+    hint: rootHint ? "root" : null,
+  };
+}
+
+/** Root projects: with Group Modules those without a visible aggregator, else every project. */
+export function mavenRoots(ctx: MavenTreeContext): BuildNode[] {
+  const { model, view } = ctx;
   const out: BuildNode[] = [];
-  if (model.profiles.length) out.push({ kind: "profiles", key: "mvn:profiles" });
-  for (const p of model.projects) if (!p.aggregated) out.push({ kind: "mavenProject", key: projectKey(p), project: p });
+  if (model.profiles.length) out.push({ kind: "profiles", key: "mvn:profiles", label: "Profiles" });
+  const visible = model.projects.filter((p) => visibleProject(p, view));
+  const rootCount = model.projects.filter((p) => !aggregatorOf(model, p)).length;
+  const roots = view.groupModules
+    ? visible.filter((p) => {
+        const agg = aggregatorOf(model, p);
+        return !agg || !visibleProject(agg, view);
+      })
+    : visible;
+  // IDEA: "(root)" marks a project without an aggregator when modules are shown flat beside it.
+  const nodes = roots.map((p) =>
+    projectNode(p, ctx, !view.groupModules && !aggregatorOf(model, p) && model.projects.length > rootCount),
+  );
+  out.push(...nodes.sort((a, b) => byName(a as Text, b as Text)));
   return out;
 }
 
 /** Run configurations of a Maven project: `maven` configs whose directory is the project's. */
 export function mavenRunConfigs(project: MavenProject, configs: readonly RunConfig[]): RunConfig[] {
-  return configs.filter((c) => c.kind === "maven" && normalizeDir(c.cwd) === project.dir);
+  return configs
+    .filter((c) => c.kind === "maven" && normalizeDir(c.cwd) === project.dir)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 }
 
 /** Run configurations of a Gradle build: every `gradle` config. */
@@ -145,74 +312,171 @@ function normalizeDir(cwd: string | null | undefined): string {
     .replace(/\/+$/, "");
 }
 
-export function mavenChildren(
-  node: BuildNode,
-  model: MavenModel,
-  configs: readonly RunConfig[],
-): BuildNode[] | undefined {
+/** The goals of a run configuration, its grey hint in the tree. */
+export function configGoals(config: RunConfig): string {
+  return config.args
+    .filter((a, i) => !a.startsWith("-") && !/^-[sfT]$|^-pl$|^-rf$/.test(config.args[i - 1] ?? ""))
+    .join(" ");
+}
+
+const TASK_LABELS: Array<[keyof MavenTaskSettings, string]> = [
+  ["beforeBuild", "Before Build"],
+  ["afterBuild", "After Build"],
+  ["beforeRebuild", "Before Rebuild"],
+  ["afterRebuild", "After Rebuild"],
+];
+
+/** "Before Build, After Rebuild" for a goal of a project (IDEA's `MavenTasksManager.getDescription`). */
+export function goalTaskHint(tasks: MavenTaskSettings | undefined, pom: string, goal: string): string | null {
+  if (!tasks) return null;
+  const labels = TASK_LABELS.filter(([k]) => tasks[k]?.some((t) => t.pom === pom && t.goal === goal)).map(([, l]) => l);
+  return labels.length ? labels.join(", ") : null;
+}
+
+export function mavenChildren(node: BuildNode, ctx: MavenTreeContext): BuildNode[] | undefined {
+  const { model, configs, view, tasks } = ctx;
   switch (node.kind) {
     case "profiles":
-      return model.profiles.map((profile) => ({ kind: "profile", key: `mvn:profile:${profile.id}`, profile }));
+      return [...model.profiles]
+        .sort((a, b) => a.id.localeCompare(b.id, undefined, { sensitivity: "base" }))
+        .map((profile) => ({ kind: "profile", key: `mvn:profile:${profile.id}`, profile, label: profile.id }));
     case "mavenProject": {
       const p = node.project;
       const k = projectKey(p);
       const out: BuildNode[] = [
-        { kind: "lifecycle", key: `${k}:lifecycle`, project: p },
-        { kind: "plugins", key: `${k}:plugins`, project: p },
+        { kind: "lifecycle", key: `${k}:lifecycle`, project: p, label: "Lifecycle" },
+        { kind: "plugins", key: `${k}:plugins`, project: p, label: "Plugins" },
       ];
-      if (p.dependencies.length)
-        out.push({ kind: "dependencies", key: `${k}:deps`, project: p, dependencies: p.dependencies });
       const runs = mavenRunConfigs(p, configs);
-      if (runs.length) out.push({ kind: "runConfigs", key: `${k}:runs`, configs: runs });
-      for (const pom of p.modules) {
-        const m = model.projects.find((x) => x.pom === pom);
-        if (m) out.push({ kind: "mavenProject", key: projectKey(m), project: m });
+      if (runs.length) out.push({ kind: "runConfigs", key: `${k}:runs`, configs: runs, label: "Run Configurations" });
+      if (p.dependencies.length)
+        out.push({
+          kind: "dependencies",
+          key: `${k}:deps`,
+          project: p,
+          dependencies: p.dependencies,
+          label: "Dependencies",
+        });
+      if (!aggregatorOf(model, p) && ((p.repositories ?? []).length || model.localRepository))
+        out.push({ kind: "repositories", key: `${k}:repos`, project: p, label: "Repositories" });
+      if (view.groupModules) {
+        const modules = p.modules
+          .map((pom) => model.projects.find((x) => x.pom === pom))
+          .filter((m): m is MavenProject => !!m && visibleProject(m, view))
+          .map((m) => projectNode(m, ctx, false));
+        out.push(...modules.sort((a, b) => byName(a as Text, b as Text)));
       }
       return out;
     }
     case "lifecycle":
-      return LIFECYCLE.map((phase) => ({ kind: "phase", key: `${node.key}:${phase}`, project: node.project, phase }));
+      return (view.basicPhasesOnly ? LIFECYCLE : PHASES).map((phase) => ({
+        kind: "phase",
+        key: `${node.key}:${phase}`,
+        project: node.project,
+        phase,
+        label: phase,
+        hint: goalTaskHint(tasks, node.project.pom, phase),
+      }));
     case "plugins":
-      return node.project.plugins.map((plugin) => ({
-        kind: "plugin",
-        key: `${node.key}:${plugin.groupId}:${plugin.artifactId}`,
-        project: node.project,
-        plugin,
-      }));
+      return node.project.plugins
+        .map((plugin): BuildNode => ({
+          kind: "plugin",
+          key: `${node.key}:${plugin.groupId}:${plugin.artifactId}`,
+          project: node.project,
+          plugin,
+          label: pluginLabel(plugin),
+          hint: pluginResolved(plugin)
+            ? `${plugin.groupId}:${plugin.artifactId}${plugin.version ? `:${plugin.version}` : ""}`
+            : null,
+        }))
+        .sort((a, b) => byName(a as Text, b as Text));
     case "plugin":
-      return node.plugin.goals.map((goal) => ({
-        kind: "goal",
-        key: `${node.key}:${goal}`,
-        project: node.project,
-        plugin: node.plugin,
-        goal,
-      }));
+      return node.plugin.goals
+        .map((goal): BuildNode => {
+          const name = `${node.plugin.prefix}:${goal}`;
+          return {
+            kind: "goal",
+            key: `${node.key}:${goal}`,
+            project: node.project,
+            plugin: node.plugin,
+            goal,
+            label: name,
+            hint: goalTaskHint(tasks, node.project.pom, name),
+          };
+        })
+        .sort((a, b) => byName(a as Text, b as Text));
     case "dependencies":
-      return dependencyNodes(node.key, node.dependencies);
+      return dependencyNodes(node.key, node.project, node.dependencies);
     case "dependency": {
-      const kids = dependencyNodes(node.key, node.dependency.children);
+      if (node.dependency.omitted) return undefined;
+      const kids = dependencyNodes(node.key, node.project, node.dependency.children);
       return kids.length ? kids : undefined;
     }
+    case "repositories": {
+      const out: BuildNode[] = [];
+      if (model.localRepository)
+        out.push({
+          kind: "repository",
+          key: `${node.key}:local`,
+          repository: { id: "local", url: model.localRepository },
+          local: true,
+          label: "local",
+          hint: model.localRepository,
+        });
+      for (const r of node.project.repositories ?? [])
+        out.push({
+          kind: "repository",
+          key: `${node.key}:${r.id}`,
+          repository: r,
+          local: false,
+          label: r.id,
+          hint: r.url,
+        });
+      return out;
+    }
     case "runConfigs":
-      return node.configs.map((config) => ({ kind: "runConfig", key: `${node.key}:${config.id}`, config }));
+      return node.configs.map((config) => ({
+        kind: "runConfig",
+        key: `${node.key}:${config.id}`,
+        config,
+        label: config.name,
+        hint: configGoals(config) || null,
+      }));
     default:
       return undefined;
   }
 }
 
-/** The resolved dependencies; occurrences Maven omitted are shown by the Dependency Analyzer only. */
-function dependencyNodes(parent: string, deps: readonly MavenDependency[]): BuildNode[] {
+/** Resolved occurrences plus those Maven omitted for a conflict or a duplicate (greyed, no children). */
+function dependencyNodes(parent: string, project: MavenProject, deps: readonly MavenDependency[]): BuildNode[] {
   return deps.flatMap((dependency, i) =>
-    dependency.omitted == null
-      ? [
+    dependency.omitted === "cycle"
+      ? []
+      : [
           {
             kind: "dependency" as const,
             key: `${parent}/${dependency.groupId}:${dependency.artifactId}:${i}`,
+            project,
             dependency,
+            label: dependencyLabel(dependency),
+            hint: dependencyHint(dependency),
           },
-        ]
-      : [],
+        ],
   );
+}
+
+/** Red wavy underline: the node or a descendant has an error (IDEA's `MavenSimpleNode.getTotalErrorLevel`). */
+export function mavenNodeError(node: BuildNode): boolean {
+  switch (node.kind) {
+    case "mavenProject":
+      return (node.project.problems ?? []).length > 0 || node.project.plugins.some((p) => !pluginResolved(p));
+    case "plugins":
+      return node.project.plugins.some((p) => !pluginResolved(p));
+    case "plugin":
+      return !pluginResolved(node.plugin);
+    default:
+      return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -284,27 +548,8 @@ export function gradleChildren(
 // Labels, icons
 
 export function nodeLabel(node: BuildNode): string {
+  if (node.label) return node.label;
   switch (node.kind) {
-    case "profiles":
-      return "Profiles";
-    case "profile":
-      return node.profile.id;
-    case "mavenProject":
-      return node.project.displayName;
-    case "lifecycle":
-      return "Lifecycle";
-    case "phase":
-      return node.phase;
-    case "plugins":
-      return "Plugins";
-    case "plugin":
-      return pluginLabel(node.plugin);
-    case "goal":
-      return `${node.plugin.prefix}:${node.goal}`;
-    case "dependencies":
-      return "Dependencies";
-    case "dependency":
-      return dependencyLabel(node.dependency);
     case "runConfigs":
       return "Run Configurations";
     case "runConfig":
@@ -317,6 +562,8 @@ export function nodeLabel(node: BuildNode): string {
       return node.group;
     case "task":
       return node.task.name;
+    default:
+      return "";
   }
 }
 
@@ -327,14 +574,13 @@ export function nodeIcon(node: BuildNode): string {
     case "profile":
       return "maven-profiles";
     case "mavenProject":
-      return node.project.aggregated ? "maven-module" : "maven-project";
+      return "maven-project";
     case "lifecycle":
     case "plugins":
-    case "runConfigs":
-    case "tasks":
-      return "folder";
+      return "build-task-group";
     case "phase":
-      return "maven-goal";
+    case "runConfigs":
+      return "build-task";
     case "plugin":
       return "maven-plugin";
     case "goal":
@@ -343,10 +589,16 @@ export function nodeIcon(node: BuildNode): string {
       return "folder-library";
     case "dependency":
       return "library";
+    case "repositories":
+      return "maven-repo-folder";
+    case "repository":
+      return node.local ? "maven-repo-local" : "maven-repo-remote";
     case "runConfig":
-      return node.config.kind === "gradle" ? "build-task" : "maven-goal";
+      return node.config.kind === "gradle" ? "build-task" : "file-maven";
     case "gradleProject":
       return "file-gradle";
+    case "tasks":
+      return "folder";
     case "taskGroup":
       return "build-task-group";
     case "task":
@@ -401,18 +653,28 @@ export function parseTaskLine(line: string): string[] {
   return args;
 }
 
+/** Goals plus the explicit profiles (`-P`); offline, Skip Tests and the other settings are the project's options. */
 export function mavenArgs(
   goals: readonly string[],
   model: Pick<MavenModel, "profiles">,
   options: MavenRunOptions,
 ): string[] {
   const args = [...goals];
-  const has = (flag: string) => args.some((a) => a === flag || a.startsWith(`${flag}=`));
-  if (options.offline && !has("-o") && !has("--offline")) args.push("-o");
-  if (options.skipTests && !has("-DskipTests")) args.push("-DskipTests");
   const profiles = profilesArg(model.profiles, options.profiles);
   if (profiles && !args.some((a) => a.startsWith("-P"))) args.push(`-P${profiles}`);
   return args;
+}
+
+/** Selected goals in lifecycle order, plugin goals after the phases (IDEA's `MavenProjectsNavigatorPanel`). */
+export function sortGoals(goals: readonly string[]): string[] {
+  const rank = (g: string) => {
+    const i = PHASES.indexOf(g);
+    return i < 0 ? PHASES.length : i;
+  };
+  return goals
+    .map((g, i) => ({ g, i }))
+    .sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i)
+    .map((x) => x.g);
 }
 
 /** IDEA names Maven configurations `<project> [goal1,goal2]`. */
@@ -436,7 +698,10 @@ export function mavenGoalConfig(
     cwd: project.dir || null,
     env: { ...project.env },
     detected: false,
-    isTest: !options.skipTests && !args.includes("-DskipTests") && goals.some((g) => MAVEN_TEST_GOALS.test(g)),
+    isTest:
+      !options.skipTests &&
+      !args.some((a) => a === "-DskipTests" || a === "-DskipTests=true") &&
+      goals.some((g) => MAVEN_TEST_GOALS.test(g)),
     debugAdapter: null,
   };
 }

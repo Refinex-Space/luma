@@ -1,208 +1,102 @@
 /**
- * Build tool window (IDEA's Build view): the build → file → message tree on
- * the left, the raw console of the build on the right. Selecting a message
- * shows its full text on the right instead; Enter / double-click / F4 opens
- * its source (as IDEA: selection shows, navigation jumps).
+ * Build tool window (IDEA's `BuildContentManager`): a "Sync" tab with the last Maven /
+ * Gradle reload and a "Build Output" tab with the last Build Project, each IDEA's build
+ * view — the event tree (Maven projects and goals, files, messages) beside the console.
+ * Selecting a message shows its full text; Enter / double-click / F4 opens its source.
  */
 import { copySelectionOnKeyDown } from "@/ui/selectableText";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { basename, relativeDir, useProject } from "@/platform/project";
-import {
-  EmptyState,
-  Icon,
-  IconButton,
-  SplitGroup,
-  SplitHandle,
-  SplitPanel,
-  Spinner,
-  Tree,
-  fileIconName,
-  type TreeHandle,
-  type TreeRowState,
-  T,
-} from "@/ui";
-import type { BuildMessage, Severity } from "@/platform/ipc";
-import {
-  ROOT_KEY,
-  fileChildren,
-  findNode,
-  finishSummary,
-  formatDuration,
-  rootChildren,
-  rootNode,
-  type BuildNode,
-  type BuildStatus,
-} from "./model";
-import { navigateToMessage, rerunBuild, selectBuildNode, useBuildRun } from "./store";
-import styles from "./Build.module.css";
+import { EmptyState, IconButton, Tabs, T } from "@/ui";
 import { tx } from "@/platform/i18n";
+import { maybeEditorService } from "@/workbench/contributions";
+import { ExecFiltersButton, ExecTreeView } from "./exec/ExecTreeView";
+import type { FilePosition } from "./exec/tree";
+import type { ConsoleLine } from "./model";
+import { rerunBuild, selectBuildNode, useBuildRun } from "./store";
+import { selectBuildTab, useBuildTabs, useSyncView } from "./syncView";
+import styles from "./Build.module.css";
 
-const SEVERITY_ICON: Record<Severity, string> = { error: "error", warning: "warning", info: "info", hint: "info" };
+const LINE_HEIGHT = 20;
 
-function firstLocated(n: BuildNode): BuildMessage | undefined {
-  if (n.kind === "message") return n.message;
-  if (n.kind === "file") return n.messages[0];
-  return undefined;
+function openSource(file: FilePosition, focus: boolean) {
+  void maybeEditorService()
+    ?.openFile(file.path, {
+      selection: file.line != null ? { line: file.line, col: file.col ?? 0 } : undefined,
+      focus,
+      preview: !focus,
+    })
+    .catch(() => undefined);
 }
 
-function StatusIcon({ status }: { status: BuildStatus }) {
-  if (status === "running") return <Spinner size={14} label="Building" />;
-  const name = status === "success" ? "success" : status === "failed" ? "error" : "warning";
-  return <Icon name={name} size={14} className={styles[`status-${status}`]} />;
+/** The shown tab: the chosen one while it has content, else whichever has. */
+function useActiveTab(): "sync" | "build" | null {
+  const hasBuild = useBuildRun((s) => s.tree !== null);
+  const hasSync = useSyncView((s) => s.tree !== null);
+  const active = useBuildTabs((s) => s.active);
+  if (active === "sync" && hasSync) return "sync";
+  if (hasBuild) return "build";
+  return hasSync ? "sync" : null;
 }
 
-function rootDetail(status: BuildStatus, durationMs: number | null, errors: number, warnings: number): string {
-  if (status === "running") return "running…";
-  if (status === "cancelled") return "cancelled";
-  const summary = finishSummary({ success: status === "success", errors, warnings, durationMs });
-  return status === "success"
-    ? `finished ${formatDuration(durationMs ?? 0)}`
-    : summary.replace(/^Build failed:?\s*/, "") || "failed";
+/** Sync | Build Output, in the tool window header. */
+export function BuildTabs() {
+  const hasBuild = useBuildRun((s) => s.tree !== null);
+  const hasSync = useSyncView((s) => s.tree !== null);
+  const active = useActiveTab();
+  if (!active) return null;
+  const items = [
+    ...(hasSync ? [{ id: "sync", label: "Sync", text: "Sync" }] : []),
+    ...(hasBuild ? [{ id: "build", label: "Build Output", text: "Build Output" }] : []),
+  ];
+  return (
+    <Tabs
+      variant="compact"
+      aria-label="Build contents"
+      items={items}
+      activeId={active}
+      onSelect={(id) => selectBuildTab(id as "sync" | "build")}
+      panelIdPrefix="luma-build"
+    />
+  );
 }
 
 export function BuildHeaderActions() {
-  const running = useBuildRun((s) => s.status === "running");
+  const active = useActiveTab();
+  const building = useBuildRun((s) => s.status === "running");
+  const sync = useSyncView();
+  if (active === "sync") {
+    return (
+      <>
+        <IconButton
+          icon="rerun"
+          size="small"
+          title="Rerun"
+          onClick={() => sync.rerun?.()}
+          disabled={sync.running || !sync.rerun}
+        />
+        <IconButton icon="stop" size="small" title="Stop" onClick={() => sync.stop?.()} disabled={!sync.running} />
+        <ExecFiltersButton />
+      </>
+    );
+  }
   return (
     <>
-      <IconButton icon="rerun" size="small" title="Rebuild Last" onClick={() => void rerunBuild()} disabled={running} />
-      <IconButton icon="stop" size="small" action="build.stop" disabled={!running} />
+      <IconButton
+        icon="rerun"
+        size="small"
+        title="Rebuild Last"
+        onClick={() => void rerunBuild()}
+        disabled={building || active === null}
+      />
+      <IconButton icon="stop" size="small" action="build.stop" disabled={!building} />
+      {active && <ExecFiltersButton />}
     </>
   );
 }
 
-function BuildTree() {
-  const { title, status, messages, durationMs, selected } = useBuildRun();
-  const root = useProject((s) => s.project?.root ?? "");
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-  const tree = useRef<TreeHandle>(null);
-  const selection = useMemo(() => new Set(selected ? [selected] : []), [selected]);
-  const roots = useMemo(() => (status ? [rootNode(title, status, messages)] : []), [title, status, messages]);
-  const children = useMemo(() => rootChildren(messages), [messages]);
-  const expanded = useMemo(() => {
-    const keys = new Set<string>([ROOT_KEY]);
-    for (const c of children) if (c.kind === "file") keys.add(c.key);
-    for (const k of collapsed) keys.delete(k);
-    return keys;
-  }, [children, collapsed]);
-
-  // A selection made by the store (the first error of a failed build) expands
-  // its file, then is scrolled into view.
-  const [shown, setShown] = useState(selected);
-  if (shown !== selected) {
-    setShown(selected);
-    const file = selected?.split("\u0000")[0];
-    if (file && file !== selected && collapsed.has(file)) {
-      const next = new Set(collapsed);
-      next.delete(file);
-      setCollapsed(next);
-    }
-  }
-  useEffect(() => {
-    if (selected && tree.current?.leadKey() !== selected) tree.current?.reveal(selected);
-  }, [selected, expanded]);
-
-  const navigate = (n: BuildNode) => {
-    const m = firstLocated(n);
-    if (m) navigateToMessage(m, true);
-  };
-
-  const getChildren = useCallback(
-    (n: BuildNode): BuildNode[] | undefined =>
-      n.kind === "root" ? children : n.kind === "file" ? fileChildren(n) : undefined,
-    [children],
-  );
-
-  const renderNode = (n: BuildNode, state: TreeRowState) => {
-    if (n.kind === "root") {
-      return (
-        <span className={styles.row}>
-          <StatusIcon status={n.status} />
-          <span className={styles.strong}>{n.title}</span>
-          <span className={styles.muted}>{rootDetail(n.status, durationMs, n.errors, n.warnings)}</span>
-        </span>
-      );
-    }
-    if (n.kind === "file") {
-      const errors = n.messages.filter((m) => m.severity === "error").length;
-      const warnings = n.messages.filter((m) => m.severity === "warning").length;
-      const counts = [
-        errors && `${errors} error${errors === 1 ? "" : "s"}`,
-        warnings && `${warnings} warning${warnings === 1 ? "" : "s"}`,
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return (
-        <span className={styles.row}>
-          <Icon name={fileIconName(basename(n.path))} size={16} className={styles.fileIcon} />
-          <span className={clsx(styles.strong, errors > 0 && styles.fileError, state.selected && styles.selected)}>
-            {basename(n.path)}
-          </span>
-          <span className={styles.muted}>{relativeDir(root, n.path)}</span>
-          <span className={styles.muted}>{counts}</span>
-        </span>
-      );
-    }
-    const m = n.message;
-    const start = m.range?.start;
-    return (
-      <span className={styles.row} title={m.text}>
-        <Icon name={SEVERITY_ICON[m.severity]} size={14} className={styles[`sev-${m.severity}`]} />
-        <span className={styles.message}>{m.text.split("\n")[0]}</span>
-        {start && (
-          <span className={styles.position}>
-            :{start.line + 1}:{start.col + 1}
-          </span>
-        )}
-      </span>
-    );
-  };
-
-  return (
-    <div
-      className={styles.treeHost}
-      onKeyDown={(e) => {
-        if (e.key !== "F4" || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || !selected) return;
-        const n = findNode(messages, selected);
-        if (!n) return;
-        e.preventDefault();
-        e.stopPropagation();
-        navigate(n);
-      }}
-    >
-      <Tree<BuildNode>
-        handleRef={tree}
-        aria-label="Build"
-        roots={roots}
-        getKey={(n) => n.key}
-        getLabel={(n) => (n.kind === "root" ? n.title : n.kind === "file" ? basename(n.path) : n.message.text)}
-        getChildren={getChildren}
-        isExpandable={(n) => n.kind !== "message"}
-        expanded={expanded}
-        onExpandedChange={(_next, node, isOpen) =>
-          setCollapsed((prev) => {
-            const s = new Set(prev);
-            if (isOpen) s.delete(node.key);
-            else s.add(node.key);
-            return s;
-          })
-        }
-        renderNode={renderNode}
-        selected={selection}
-        onActivate={navigate}
-        onSelectionChange={(_sel, lead) => selectBuildNode(lead?.key ?? null)}
-        multiSelect={false}
-        empty={<EmptyState title="No build output" />}
-      />
-    </div>
-  );
-}
-
-const LINE_HEIGHT = 20;
-
-function BuildConsole() {
-  const lines = useBuildRun((s) => s.lines);
+function Console({ lines, label }: { lines: readonly ConsoleLine[]; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const virtualizer = useVirtualizer({
@@ -221,7 +115,7 @@ function BuildConsole() {
       tabIndex={0}
       role="log"
       onKeyDown={copySelectionOnKeyDown}
-      aria-label={tx("Build output")}
+      aria-label={tx(label)}
       onScroll={(e) => {
         const el = e.currentTarget;
         stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < LINE_HEIGHT * 2;
@@ -245,43 +139,54 @@ function BuildConsole() {
   );
 }
 
-/** Full text and location of the selected message (IDEA shows the node's own console). */
-function MessageDetail({ message }: { message: BuildMessage }) {
-  const root = useProject((s) => s.project?.root ?? "");
-  const start = message.range?.start;
-  const location = message.path
-    ? `${relativeDir(root, message.path) ? `${relativeDir(root, message.path)}/` : ""}${basename(message.path)}${
-        start ? `:${start.line + 1}:${start.col + 1}` : ""
-      }`
-    : null;
+function BuildOutput() {
+  const tree = useBuildRun((s) => s.tree)!;
+  const lines = useBuildRun((s) => s.lines);
+  const selected = useBuildRun((s) => s.selected);
   return (
-    <div
-      className={styles.detail}
-      tabIndex={0}
-      onKeyDown={copySelectionOnKeyDown}
-      role="document"
-      aria-label={tx("Build message")}
-    >
-      {location && (
-        <button type="button" className={styles.detailLocation} onClick={() => navigateToMessage(message, true)}>
-          {location}
-        </button>
-      )}
-      <div className={clsx(styles.detailText, message.severity === "error" && styles.err)}>{message.text}</div>
-    </div>
+    <ExecTreeView
+      tree={tree}
+      console={<Console lines={lines} label="Build output" />}
+      onNavigate={openSource}
+      selected={selected}
+      onSelect={selectBuildNode}
+      // The store selects (and opens) the first error of a failed build.
+      selectFirstError={false}
+      splitId="build-view-split"
+      aria-label={tx("Build")}
+      contextItems={() => [
+        {
+          label: "Rebuild Last",
+          icon: "rerun",
+          disabled: useBuildRun.getState().status === "running",
+          run: () => void rerunBuild(),
+        },
+      ]}
+    />
   );
 }
 
-function BuildOutput() {
-  const selected = useBuildRun((s) => s.selected);
-  const messages = useBuildRun((s) => s.messages);
-  const node = useMemo(() => (selected ? findNode(messages, selected) : undefined), [selected, messages]);
-  return node?.kind === "message" ? <MessageDetail message={node.message} /> : <BuildConsole />;
+function SyncOutput() {
+  const tree = useSyncView((s) => s.tree)!;
+  const lines = useSyncView((s) => s.lines);
+  return (
+    <ExecTreeView
+      tree={tree}
+      console={<Console lines={lines} label="Sync output" />}
+      onNavigate={openSource}
+      splitId="build-sync-split"
+      aria-label={tx("Sync")}
+      contextItems={() => {
+        const s = useSyncView.getState();
+        return [{ label: "Rerun", icon: "rerun", disabled: s.running || !s.rerun, run: () => s.rerun?.() }];
+      }}
+    />
+  );
 }
 
 export function BuildView() {
-  const hasBuild = useBuildRun((s) => s.status !== null);
-  if (!hasBuild) {
+  const active = useActiveTab();
+  if (!active) {
     return (
       <div className={styles.view}>
         <EmptyState title="No build output">
@@ -291,16 +196,13 @@ export function BuildView() {
     );
   }
   return (
-    <div className={styles.view}>
-      <SplitGroup orientation="horizontal" className={styles.split} id="build-view-split">
-        <SplitPanel id="build-tree" defaultSize="38%" minSize="120px" className={styles.pane}>
-          <BuildTree />
-        </SplitPanel>
-        <SplitHandle />
-        <SplitPanel id="build-console" minSize="120px" className={styles.pane}>
-          <BuildOutput />
-        </SplitPanel>
-      </SplitGroup>
+    <div
+      className={styles.view}
+      role="tabpanel"
+      id={`luma-build-panel-${active}`}
+      aria-labelledby={`luma-build-tab-${active}`}
+    >
+      {active === "sync" ? <SyncOutput /> : <BuildOutput />}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 /**
- * Build, Execution, Deployment pages: Gradle, Maven, Console, Debugger (+ Data Views,
+ * Build, Execution, Deployment pages: Build Tools (Gradle, Maven › Ignored Files / Importing /
+ * Runner), Console, Debugger (+ Data Views,
  * Stepping), Python Debugger and Run/Debug. Consumed by the run and debugger
  * features (and `ide-run` for encoding / termination timeout).
  */
@@ -7,7 +8,14 @@ import { CMakeProfiles } from "./cmake";
 import { WORKFLOW_LIMITS } from "@/platform/workflowSettings";
 import type { SelectOption } from "@/ui";
 import { GlobListEditor, NumberInput, Row } from "../components/Form";
-import { GradlePage, MavenPage } from "../languages/LanguagePages";
+import { GradlePage } from "../languages/LanguagePages";
+import {
+  BuildToolsPage,
+  MavenIgnoredFilesPage,
+  MavenImportingPage,
+  MavenPage,
+  MavenRunnerPage,
+} from "../languages/MavenPages";
 import { useSetting } from "../components/context";
 import type { PageSpec } from "./spec";
 import { Indented, ToggleNumber } from "./workflowControls";
@@ -111,12 +119,22 @@ export const EXECUTION_PAGES: PageSpec[] = [
     component: CMakeProfiles,
   },
   {
-    id: "build.gradle",
+    id: "build.tools",
+    title: "Build Tools",
+    group: BUILD_GROUP,
+    order: 358,
+    projectScope: true,
+    defaultScope: "project",
+    keywords: ["auto-sync", "auto import", "reload", "sync project after changes", "external changes", "any changes"],
+    component: BuildToolsPage,
+  },
+  {
+    id: "build.tools.gradle",
     projectScope: true,
     defaultScope: "project",
     title: "Gradle",
     group: BUILD_GROUP,
-    order: 358,
+    order: 1,
     keywords: [
       "Gradle JVM",
       "JDK",
@@ -134,15 +152,82 @@ export const EXECUTION_PAGES: PageSpec[] = [
     component: GradlePage,
   },
   {
-    id: "build.maven",
+    id: "build.tools.maven",
     projectScope: true,
     defaultScope: "project",
     title: "Maven",
     group: BUILD_GROUP,
-    // IntelliJ IDEA: Build Tools › Maven, before Console / Debugger.
-    order: 359,
-    keywords: ["maven home", "mvn", "mvnw", "wrapper", "settings.xml", "user settings", "local repository", "m2"],
+    // IntelliJ IDEA: Build Tools › Maven (order "last").
+    order: 2,
+    keywords: [
+      "maven home",
+      "mvn",
+      "mvnw",
+      "wrapper",
+      "settings.xml",
+      "user settings",
+      "local repository",
+      "m2",
+      "Work offline",
+      "Execute goals recursively",
+      "Print exception stack traces",
+      "Always update snapshots",
+      "Output level",
+      "Checksum policy",
+      "Multiproject build fail policy",
+      "Thread count",
+      "maven.config",
+    ],
     component: MavenPage,
+  },
+  {
+    id: "build.tools.maven.ignored",
+    projectScope: true,
+    defaultScope: "project",
+    title: "Ignored Files",
+    group: BUILD_GROUP,
+    order: 1,
+    keywords: ["ignore", "ignored projects", "path patterns", "pom.xml"],
+    component: MavenIgnoredFilesPage,
+  },
+  {
+    id: "build.tools.maven.importing",
+    projectScope: true,
+    defaultScope: "project",
+    title: "Importing",
+    group: BUILD_GROUP,
+    order: 2,
+    keywords: [
+      "Exclude build directory",
+      "target",
+      "Generated sources folders",
+      "Phase to be used for folders update",
+      "Automatically download",
+      "sources",
+      "documentation",
+      "javadoc",
+      "VM options for importer",
+      "JDK for importer",
+    ],
+    component: MavenImportingPage,
+  },
+  {
+    id: "build.tools.maven.runner",
+    projectScope: true,
+    defaultScope: "project",
+    title: "Runner",
+    group: BUILD_GROUP,
+    order: 3,
+    keywords: [
+      "Delegate IDE build/run actions to Maven",
+      "VM Options",
+      "MAVEN_OPTS",
+      "JRE",
+      "Environment variables",
+      "Skip Tests",
+      "Properties",
+    ],
+    component: MavenRunnerPage,
   },
   {
     id: "build.console",

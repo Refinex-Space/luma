@@ -112,15 +112,15 @@ describe("Settings dialog", () => {
 
   it("finds Gradle JVM and applies project Gradle settings", async () => {
     useProject.setState({ project: { root: "/project" } as never });
-    const dialog = await openDialog("build.gradle");
+    const dialog = await openDialog("build.tools.gradle");
     fireEvent.change(within(dialog).getByLabelText("Search settings"), { target: { value: "Gradle JVM" } });
     expect(within(dialog).getByRole("tree", { name: "Settings pages" }).textContent).toContain("Gradle");
     expect(within(dialog).getByLabelText("Gradle JVM")).toBeInTheDocument();
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.jvm", "/jdk21"));
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.distribution", "local"));
+    await act(async () => stage("build.tools.gradle", "project", "languages.java.gradle.jvm", "/jdk21"));
+    await act(async () => stage("build.tools.gradle", "project", "languages.java.gradle.distribution", "local"));
     expect(within(dialog).getByPlaceholderText("Gradle installation directory")).toBeInTheDocument();
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.home", "/gradle"));
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.userHome", "/gradle-cache"));
+    await act(async () => stage("build.tools.gradle", "project", "languages.java.gradle.home", "/gradle"));
+    await act(async () => stage("build.tools.gradle", "project", "languages.java.gradle.userHome", "/gradle-cache"));
     await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Apply" })));
     expect(settingsSet.mock.calls).toEqual(
       expect.arrayContaining([

@@ -6,6 +6,7 @@ import {
   normalizeFolder,
   validateLanguages,
   validateProjectStructure,
+  DEFAULT_MAVEN_SETTINGS,
 } from "@/platform/languageSettings";
 import { buildPageTree } from "../model/pages";
 import { LANGUAGE_PAGES } from "../pages/languages";
@@ -21,7 +22,17 @@ describe("languages settings", () => {
       node: { packageManager: "pip" },
       rust: { checkCommand: "clippy", checkOnSave: false },
       typescript: { version: "" },
-      java: { jdtlsVmArgs: " -Xmx2g ", jdk: 21, jdtlsJdk: " /opt/jdk-25 ", maven: { home: " /opt/maven " } },
+      java: {
+        jdtlsVmArgs: " -Xmx2g ",
+        jdk: 21,
+        jdtlsJdk: " /opt/jdk-25 ",
+        maven: {
+          home: " /opt/maven ",
+          outputLevel: "verbose",
+          threads: " 2C ",
+          runner: { skipTests: true, properties: [{ name: "a" }] },
+        },
+      },
     });
     expect(v.python).toEqual({ interpreter: "/usr/bin/python3", activateVirtualenv: true });
     expect(v.node.packageManager).toBe("");
@@ -31,7 +42,12 @@ describe("languages settings", () => {
     expect(v.java.jdtlsVmArgs).toBe("-Xmx2g");
     expect(v.java.jdk).toBe("");
     expect(v.java.jdtlsJdk).toBe("/opt/jdk-25");
-    expect(v.java.maven).toEqual({ home: "/opt/maven", userSettings: "", localRepository: "", unlinkedProjects: [] });
+    expect(v.java.maven).toEqual({
+      ...DEFAULT_MAVEN_SETTINGS,
+      home: "/opt/maven",
+      threads: "2C",
+      runner: { ...DEFAULT_MAVEN_SETTINGS.runner, skipTests: true, properties: [{ name: "a", value: "" }] },
+    });
     expect(validateSettings({}).languages).toEqual(DEFAULT_LANGUAGES);
   });
 

@@ -48,6 +48,7 @@ import { failedTestPaths, leafTestPaths, rerunFailedConfig, testsConfig } from "
 import { compoundChildren } from "./configs";
 import { remoteLabel, startWithRemedies } from "./remote";
 import { TerminalOutput } from "./terminalOutput";
+import { finishMavenRunTree, mavenRunTree, type MavenRunTree } from "./mavenTree";
 import { typeFor } from "./types";
 import { recordRun } from "./services";
 import { startedPort } from "./serverPort";
@@ -100,6 +101,8 @@ interface SessionRuntime {
   terminal: TerminalOutput | null;
   /** Last size the terminal console reported (sent once the process has an id). */
   terminalSize: { cols: number; rows: number } | null;
+  /** IDEA's build tree of a Maven run (projects, goals, compiler messages). */
+  build: MavenRunTree | null;
 }
 
 interface RunState {
@@ -442,6 +445,7 @@ export function applyConsoleSettings() {
 
 function newRuntime(config: RunConfig): SessionRuntime {
   const tests = config.isTest ? new TestResults() : null;
+  const build = mavenRunTree(config);
   const parser = config.isTest ? createTestParser(config) : null;
   const goOutput =
     tests && parser && frameworkFor(config) === "go"
@@ -455,6 +459,7 @@ function newRuntime(config: RunConfig): SessionRuntime {
       maxChars: consoleCharLimit(),
       onLine: (text, kind) => {
         if (parser && tests && kind !== "system" && !(kind === "stdout" && goOutput)) tests.apply(parser.feed(text));
+        if (build && kind !== "system") build.parser.feed(text);
         if (kind !== "system") for (const l of runtime.lineListeners) l(text);
       },
     }),
@@ -465,6 +470,7 @@ function newRuntime(config: RunConfig): SessionRuntime {
     input: "",
     terminal: null,
     terminalSize: null,
+    build,
   };
   return runtime;
 }
@@ -643,6 +649,7 @@ export async function startRun(
   if (!isTauri()) {
     enqueue(sessionId, { kind: "system", text: "Running processes requires the desktop app.\n" });
     flush(sessionId);
+    if (rt.build) finishMavenRunTree(rt.build, null, false);
     patchSession(sessionId, { status: "failed", endedAt: Date.now() });
     return getSession(sessionId) ?? null;
   }
@@ -709,6 +716,7 @@ export async function startRun(
     const message = e instanceof Error ? e.message : String(e);
     enqueue(sessionId, { kind: "stderr", text: tx`Error running '${config.name}': ${message}\n` });
     flush(sessionId);
+    if (rt.build) finishMavenRunTree(rt.build, null, false);
     patchSession(sessionId, { status: "failed", endedAt: Date.now() });
     notifications().notify({
       group: "run",
@@ -819,6 +827,7 @@ function finishSession(sessionId: string, code: number | null) {
         rt.tests.finish(code);
         recordTestStates(rt.tests);
       }
+      if (rt.build) finishMavenRunTree(rt.build, code, !!getSession(sessionId)?.stopped);
       patchSession(sessionId, { status: "finished", exitCode: code, endedAt: Date.now() });
       bump(sessionId);
       notifyExit(sessionId, code);

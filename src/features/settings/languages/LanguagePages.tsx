@@ -1,6 +1,6 @@
 /**
  * Settings › Languages & Frameworks › Go / Java / Node.js / Rust / TypeScript and
- * Build Tools › Maven: the toolchain each language's server and run configurations
+ * Build Tools › Gradle: the toolchain each language's server and run configurations
  * use (applied by `ide-sdk` when language servers start and when run configurations load).
  */
 import { useId, useMemo } from "react";
@@ -334,41 +334,6 @@ export function GradlePage() {
           placeholder="~/.gradle"
           title="Select Gradle User Home Directory"
           hint="Sets GRADLE_USER_HOME. Empty uses Gradle's default."
-        />
-      </Section>
-    </div>
-  );
-}
-
-export function MavenPage() {
-  return (
-    <div className={styles.page}>
-      <Section>
-        <SdkRow
-          k="languages.java.maven.home"
-          label="Maven home path"
-          kind="maven"
-          emptyLabel="Auto"
-          emptyDetail="Maven wrapper, else mvn on PATH"
-          directory
-          browseTitle="Select Maven Home Directory"
-          aria-label="Maven home path"
-          hint="Runs sync, builds and Maven run configurations. A chosen home is used instead of the project's mvnw."
-        />
-        <PathInput
-          k="languages.java.maven.userSettings"
-          label="User settings file"
-          placeholder="~/.m2/settings.xml"
-          title="Select Maven settings.xml"
-          file
-          hint="Passed as -s (mirrors, servers, proxies)."
-        />
-        <PathInput
-          k="languages.java.maven.localRepository"
-          label="Local repository"
-          placeholder="From settings.xml, else ~/.m2/repository"
-          title="Select Local Repository"
-          hint="Passed as -Dmaven.repo.local."
         />
       </Section>
     </div>

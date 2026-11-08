@@ -5,6 +5,7 @@ use crate::rpc::Dispatcher;
 use crate::{Host, Project, apply_workspace_edit};
 
 use ide_build::compile::{self, BuildEvent, BuildKind, BuildResult};
+use ide_build::maven_tasks::{self, ArtifactFilter, MavenEnvironment, MavenTaskKind, MavenUserFile};
 use ide_build::pom_edit::{ArtifactKey, Exclusion};
 use ide_build::{BuildModel, BuildTool, SyncOptions, SyncProgress};
 use ide_core::settings::Settings;
@@ -36,9 +37,10 @@ pub fn load(root: &Path, cache: &Path, settings: &Settings) -> BuildModel {
     let jdk = ide_sdk::apply::project_jdk(root, settings);
     if let Some(m) = &mut model.maven {
         let mvn = ide_sdk::apply::maven_command(root, settings);
-        let options = ide_sdk::apply::maven_options(root, settings);
+        // Goals run from the tool window and Build Project: Settings › Maven and its Runner page.
+        let options = ide_sdk::apply::maven_run_options(root, settings);
         for p in &mut m.projects {
-            p.env = java_env(jdk.as_ref(), p.java_version);
+            p.env = ide_sdk::apply::maven_run_env(root, settings, java_env(jdk.as_ref(), p.java_version));
             if let Some(mvn) = &mvn {
                 p.command = mvn.to_string_lossy().into_owned();
             }
@@ -101,29 +103,31 @@ pub async fn build_sync(
     let token = host.begin_project_request(window, request);
     let result = tokio::task::spawn_blocking(move || {
         let current = load(&root, &cache, &settings);
-        let env = match tool {
-            BuildTool::Maven => current
-                .maven
-                .as_ref()
-                .and_then(|m| m.projects.iter().find(|p| !p.env.is_empty()))
-                .map(|p| p.env.clone())
-                .unwrap_or_default(),
-            BuildTool::Gradle => current.gradle.as_ref().map(|g| g.env.clone()).unwrap_or_default(),
-        };
-        let options = SyncOptions {
-            offline,
-            profiles,
-            env,
-            maven_command: ide_sdk::apply::maven_command(&root, &settings).map(|p| p.to_string_lossy().into_owned()),
-            maven_options: ide_sdk::apply::maven_options(&root, &settings),
-            maven_settings: settings.languages.java.maven.clone(),
-            gradle_command: current.gradle.as_ref().map(|g| g.command.clone()),
-        };
+        let options = sync_options(&root, &settings, &current, tool, offline, profiles);
         let progress = |p: SyncProgress| {
             let _ = on_progress.send(p);
         };
         match tool {
-            BuildTool::Maven => ide_build::sync_maven(&root, &cache, &options, &token, &progress)?,
+            BuildTool::Maven => {
+                ide_build::sync_maven(&root, &cache, &options, &token, &progress)?;
+                // Importing › Automatically download: Sources / Documentation.
+                let importing = &settings.languages.java.maven.importing;
+                let download = match (importing.download_sources, importing.download_docs) {
+                    (true, true) => Some(MavenTaskKind::DownloadSourcesAndDocs),
+                    (true, false) => Some(MavenTaskKind::DownloadSources),
+                    (false, true) => Some(MavenTaskKind::DownloadDocs),
+                    (false, false) => None,
+                };
+                if let (Some(kind), Some(model)) = (download, load(&root, &cache, &settings).maven) {
+                    // A failed download (no network, say) leaves the synced model as it is.
+                    if let Err(e) =
+                        maven_tasks::run_maven_task(&root, &model, &options, kind, &[], &[], &token, &progress)
+                        && e.kind == ide_core::error::ErrorKind::Cancelled
+                    {
+                        return Err(e);
+                    }
+                }
+            }
             BuildTool::Gradle => ide_build::sync_gradle(&root, &cache, &options, &token, &progress)?,
         }
         Ok::<BuildModel, IdeError>(load(&root, &cache, &settings))
@@ -157,6 +161,183 @@ pub async fn build_sync(
         }
     });
     Ok(model)
+}
+
+/// How a sync (or a background Maven task) runs: the launcher, the general options,
+/// offline mode and the importer's JDK / VM options (Settings › Maven › Importing).
+fn sync_options(
+    root: &Path,
+    settings: &Settings,
+    current: &BuildModel,
+    tool: BuildTool,
+    offline: bool,
+    profiles: Vec<String>,
+) -> SyncOptions {
+    let env = match tool {
+        BuildTool::Maven => {
+            let jdk = ide_sdk::apply::project_jdk(root, settings);
+            let release = current.maven.as_ref().and_then(|m| m.projects.iter().find_map(|p| p.java_version));
+            ide_sdk::apply::maven_sync_env(root, settings, java_env(jdk.as_ref(), release))
+        }
+        BuildTool::Gradle => current.gradle.as_ref().map(|g| g.env.clone()).unwrap_or_default(),
+    };
+    let maven = &settings.languages.java.maven;
+    SyncOptions {
+        offline: offline || (maven.work_offline && !ide_sdk::apply::maven_config_governs(root, settings)),
+        profiles,
+        env,
+        maven_command: ide_sdk::apply::maven_command(root, settings).map(|p| p.to_string_lossy().into_owned()),
+        maven_options: ide_sdk::apply::maven_options(root, settings),
+        maven_settings: maven.clone(),
+        gradle_command: current.gradle.as_ref().map(|g| g.command.clone()),
+    }
+}
+
+/// Runs a Maven tool window task (Generate Sources and Update Folders, Download Sources /
+/// Documentation) on the projects `poms` (all when empty) and the selected `artifacts`,
+/// streaming the console on `on_progress`; cancellable with `cancel_request(request)`.
+/// Returns Maven's error summary when the run failed. Language servers re-read the
+/// projects afterwards (new source folders, attached sources).
+#[allow(clippy::too_many_arguments)]
+pub async fn maven_task(
+    host: &Host,
+    window: &str,
+    kind: MavenTaskKind,
+    poms: Vec<String>,
+    artifacts: Vec<ArtifactFilter>,
+    profiles: Vec<String>,
+    request: RequestId,
+    on_progress: Channel<SyncProgress>,
+) -> IdeResult<Option<String>> {
+    host.require_trust(window)?;
+    let project = host.project(window)?;
+    let (root, cache, settings) = (project.root.clone(), project.build_cache_dir(), project.settings.effective());
+    let token = host.begin_project_request(window, request);
+    let result = tokio::task::spawn_blocking(move || {
+        let current = load(&root, &cache, &settings);
+        let model = current.maven.clone().ok_or_else(|| IdeError::not_found("no Maven project"))?;
+        let options = sync_options(&root, &settings, &current, BuildTool::Maven, false, profiles);
+        let progress = |p: SyncProgress| {
+            let _ = on_progress.send(p);
+        };
+        maven_tasks::run_maven_task(&root, &model, &options, kind, &poms, &artifacts, &token, &progress)
+    })
+    .await
+    .map_err(join_err);
+    host.end_request(request);
+    let outcome = result??;
+    let lsp = project.lsp.clone();
+    let root = project.root.clone();
+    let uris = ide_build::maven::load(&root)
+        .projects
+        .iter()
+        .map(|p| ide_lsp::path_to_uri_string(&root.join(&p.pom)))
+        .collect();
+    tokio::spawn(async move {
+        if let Err(e) = lsp.java_update_project_configs(&root, uris).await {
+            tracing::debug!("java/projectConfigurationsUpdate: {e}");
+        }
+    });
+    Ok(outcome)
+}
+
+/// Writes the effective POM of the Maven project `pom` (project-relative) and returns its path.
+pub async fn maven_effective_pom(
+    host: &Host,
+    window: &str,
+    pom: String,
+    profiles: Vec<String>,
+    request: RequestId,
+) -> IdeResult<std::path::PathBuf> {
+    host.require_trust(window)?;
+    let project = host.project(window)?;
+    let (root, cache, settings) = (project.root.clone(), project.build_cache_dir(), project.settings.effective());
+    let token = host.begin_project_request(window, request);
+    let result = tokio::task::spawn_blocking(move || {
+        let current = load(&root, &cache, &settings);
+        let target = current
+            .maven
+            .as_ref()
+            .and_then(|m| m.projects.iter().find(|p| p.pom == pom))
+            .cloned()
+            .ok_or_else(|| IdeError::not_found(format!("{pom} is not a Maven project here")))?;
+        let options = sync_options(&root, &settings, &current, BuildTool::Maven, false, profiles);
+        maven_tasks::effective_pom(&root, &cache, &target, &options, &token)
+    })
+    .await
+    .map_err(join_err);
+    host.end_request(request);
+    result?
+}
+
+/// The user `settings.xml` / `toolchains.xml`, created from IDEA's template when `create`
+/// and missing; `None` when it does not exist and `create` is false.
+pub async fn maven_user_file(
+    host: &Host,
+    window: &str,
+    kind: MavenUserFile,
+    create: bool,
+) -> IdeResult<Option<std::path::PathBuf>> {
+    let project = host.project(window)?;
+    let (root, settings) = (project.root.clone(), project.settings.effective());
+    let configured = ide_sdk::apply::setting_path(&root, &settings.languages.java.maven.user_settings);
+    let path = maven_tasks::user_file_path(kind, configured.as_deref())
+        .ok_or_else(|| IdeError::not_found("no home directory"))?;
+    if create {
+        maven_tasks::create_user_file(&path, kind)?;
+    }
+    Ok(path.exists().then_some(path))
+}
+
+/// Settings › Maven: the version of the Maven home `home` (empty = the wrapper or
+/// `mvn` on `PATH`) and the user settings / local repository used when not overridden.
+pub async fn maven_environment(
+    host: &Host,
+    window: &str,
+    home: String,
+    user_settings: String,
+) -> IdeResult<MavenEnvironment> {
+    let root = host.project(window).map(|p| p.root.clone()).unwrap_or_default();
+    tokio::task::spawn_blocking(move || {
+        let home = ide_sdk::apply::setting_path(&root, &home);
+        let user_settings = ide_sdk::apply::setting_path(&root, &user_settings);
+        maven_tasks::environment(&root, home.as_deref(), user_settings.as_deref())
+    })
+    .await
+    .map_err(join_err)
+}
+
+/// Maven goals activated before / after Build Project and Rebuild Project, as build steps.
+fn task_steps(
+    root: &Path,
+    model: &BuildModel,
+    settings: &Settings,
+    kind: BuildKind,
+) -> (Vec<compile::BuildStep>, Vec<compile::BuildStep>) {
+    let Some(m) = &model.maven else { return (Vec::new(), Vec::new()) };
+    let tasks = &settings.languages.java.maven.tasks;
+    let (before, after) = match kind {
+        BuildKind::Build => (&tasks.before_build, &tasks.after_build),
+        BuildKind::Rebuild => (&tasks.before_rebuild, &tasks.after_rebuild),
+        BuildKind::Artifacts => return (Vec::new(), Vec::new()),
+    };
+    let steps = |list: &[ide_core::settings::MavenTask]| {
+        // One step per project, its goals in the order they were activated.
+        let mut out: Vec<(String, Vec<String>)> = Vec::new();
+        for t in list {
+            match out.iter_mut().find(|(pom, _)| *pom == t.pom) {
+                Some((_, goals)) => goals.push(t.goal.clone()),
+                None => out.push((t.pom.clone(), vec![t.goal.clone()])),
+            }
+        }
+        out.into_iter()
+            .filter_map(|(pom, goals)| {
+                let p = m.projects.iter().find(|p| p.pom == pom)?;
+                Some(compile::maven_goal_step(root, p, &goals))
+            })
+            .collect::<Vec<_>>()
+    };
+    (steps(before), steps(after))
 }
 
 /// The POM declaring `dependency` for the Maven module `pom` (project-relative): the
@@ -267,7 +448,14 @@ pub async fn build_run(
             plan.title = workspace.name;
             plan
         } else {
-            compile::plan(&root, &load(&root, &cache, &settings), kind, file.as_deref())?
+            let model = load(&root, &cache, &settings);
+            let mut plan = compile::plan(&root, &model, kind, file.as_deref())?;
+            if plan.system == compile::BuildSystem::Maven {
+                let (before, after) = task_steps(&root, &model, &settings, kind);
+                plan.steps.splice(0..0, before);
+                plan.steps.extend(after);
+            }
+            plan
         };
         let result = compile::run(&root, &plan, &token, &|e| {
             let _ = on_event.send(e);
@@ -297,6 +485,29 @@ pub(crate) fn register(d: &mut Dispatcher) {
             c.sender("onProgress")?,
         )
         .await
+    });
+    d.add("maven_task", |c| async move {
+        maven_task(
+            &c.host,
+            &c.window,
+            c.arg("kind")?,
+            c.arg("poms")?,
+            c.arg("artifacts")?,
+            c.arg("profiles")?,
+            c.arg("request")?,
+            c.sender("onProgress")?,
+        )
+        .await
+    });
+    d.add("maven_effective_pom", |c| async move {
+        maven_effective_pom(&c.host, &c.window, c.arg("pom")?, c.arg("profiles")?, c.arg("request")?).await
+    });
+    d.add(
+        "maven_user_file",
+        |c| async move { maven_user_file(&c.host, &c.window, c.arg("kind")?, c.arg("create")?).await },
+    );
+    d.add("maven_environment", |c| async move {
+        maven_environment(&c.host, &c.window, c.arg("home")?, c.arg("userSettings")?).await
     });
     d.add("maven_dependency_declaration", |c| async move {
         maven_dependency_declaration(&c.host, &c.window, c.arg("pom")?, c.arg("dependency")?).await

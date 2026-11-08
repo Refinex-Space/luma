@@ -29,6 +29,10 @@ const mavenModel: BuildModel = {
         command: "/p/mvnw",
         options: [],
         env: {},
+        defaultGoal: null,
+        repositories: [],
+        ignored: false,
+        problems: [],
       },
     ],
     profiles: [{ id: "ci", activeByDefault: false }],
@@ -76,26 +80,31 @@ describe("build tools feature", () => {
     ).toEqual([
       "maven.addProjects",
       "maven.analyzeDependencies",
+      "maven.downloadDocs",
+      "maven.downloadSources",
+      "maven.downloadSourcesAndDocs",
       "maven.executeGoal",
       "maven.reload",
       "maven.settings",
+      "maven.syncAll",
       "maven.toggleOffline",
       "maven.toggleSkipTests",
+      "maven.unlinkProjects",
+      "maven.updateFolders",
     ]);
     const reload = allActions().find((a) => a.id === "maven.reload")!;
     expect(isActionEnabled(reload)).toBe(false);
     act(() => useBuild.setState({ root: "/p", model: mavenModel }));
     expect(isActionEnabled(reload)).toBe(true);
 
-    await executeAction("maven.toggleSkipTests");
-    await executeAction("maven.toggleOffline");
-    expect(useBuild.getState().settings.maven).toMatchObject({ offline: true, skipTests: true });
-    expect(JSON.parse(localStorage.getItem("luma.buildTools:/p")!).maven.skipTests).toBe(true);
-    expect(
-      allActions()
-        .find((a) => a.id === "maven.toggleOffline")!
-        .toggled?.(),
-    ).toBe(true);
+    // Offline and Skip Tests are Settings › Maven options of the project (IDEA's workOffline / skipTests).
+    act(() => useBuild.setState((s) => ({ maven: { ...s.maven, workOffline: true, skipTests: true } })));
+    for (const id of ["maven.toggleOffline", "maven.toggleSkipTests"])
+      expect(
+        allActions()
+          .find((a) => a.id === id)!
+          .toggled?.(),
+      ).toBe(true);
 
     await executeAction("maven.executeGoal");
     expect(useBuild.getState().executeOpen).toBe("maven");
@@ -109,16 +118,23 @@ describe("build tools feature", () => {
       hidden: true,
       run: ({ arg }) => void started.push(arg),
     });
+    // The backend puts Settings › Maven (Skip Tests here) into the project's options.
+    const withOptions: BuildModel = {
+      ...mavenModel,
+      maven: { ...mavenModel.maven!, projects: [{ ...mavenModel.maven!.projects[0]!, options: ["-DskipTests=true"] }] },
+    };
     act(() =>
-      useBuild.setState({
+      useBuild.setState((s) => ({
         root: "/p",
-        model: mavenModel,
+        model: withOptions,
+        maven: { ...s.maven, skipTests: true },
         expanded: { maven: new Set(["mvn:pom.xml", "mvn:pom.xml:lifecycle"]), gradle: new Set() },
-      }),
+      })),
     );
-    await executeAction("maven.toggleSkipTests");
     render(<MavenView />);
-    expect(screen.getByText("Build files changed since the last reload")).toBeTruthy();
+    expect(screen.getByText("Build files changed since the last sync")).toBeTruthy();
+    // The skipped test phase is struck through.
+    expect(screen.getByText("test").className).toMatch(/skipped/);
     const phase = screen.getByText("package");
     await act(async () => {
       phase.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
@@ -130,7 +146,7 @@ describe("build tools feature", () => {
     expect(config).toMatchObject({
       name: "spring-demo [package]",
       command: "/p/mvnw",
-      args: ["package", "-DskipTests"],
+      args: ["-DskipTests=true", "package"],
       kind: "maven",
     });
   });

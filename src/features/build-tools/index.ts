@@ -6,7 +6,7 @@
 import { onEditorEvent } from "@/editor/api";
 import { executeAction, registerActions } from "@/platform/actions";
 import { setContext } from "@/platform/context";
-import { onIdeEvent, type BuildModel, type BuildTool } from "@/platform/ipc";
+import { onIdeEvent, type BuildModel, type BuildTool, type MavenProject } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
 import {
   registerEditorKind,
@@ -14,24 +14,42 @@ import {
   registerOverlay,
   registerRunAnythingProvider,
   registerToolWindow,
+  toolWindowService,
 } from "@/workbench/contributions";
-import { lazyComponent } from "@/ui";
+import { lazyComponent, type MenuItem } from "@/ui";
 import { GradleView, MavenView } from "./BuildToolView";
 import { ExecutePopupHost } from "./ExecutePopup";
 import { buildToolsRunAnything } from "./runAnything";
-import { expandableKeys, gradleChildren, gradleRoots, mavenChildren, mavenRoots } from "./model";
+import {
+  aggregatorOf,
+  expandableKeys,
+  gradleChildren,
+  gradleRoots,
+  mavenChildren,
+  mavenRoots,
+  type MavenViewOptions,
+} from "./model";
 import {
   ANALYZER_KIND,
   addProjects,
   unlinkProjects,
+  unlinkable,
   cancelSync,
   loadModel,
   changedOutsideIde,
+  noteBuildChange,
   noteExternalBuildChange,
   noteIdeSave,
   openAnalyzer,
+  openUserFile,
+  refreshUserFiles,
   resetBuild,
+  resetProfiles,
+  runMavenTask,
   setExpanded,
+  setViewOption,
+  showEffectivePom,
+  syncIncrementally,
   syncTool,
   toggleGradleOffline,
   toggleMavenOffline,
@@ -45,13 +63,18 @@ export const GRADLE_WHEN = "projectOpen && build.gradle";
 /** Build files whose creation / change / removal re-reads the model. */
 const BUILD_FILE = /(?:^|\/)(?:pom\.xml|(?:build|settings)\.gradle(?:\.kts)?|mvnw(?:\.cmd)?|gradlew(?:\.bat)?)$/;
 
+function mavenContext() {
+  const { model, configs, view, maven } = useBuild.getState();
+  return model?.maven ? { model: model.maven, configs, view, tasks: maven.tasks } : null;
+}
+
 function expandAll(tool: BuildTool) {
   const { model, configs } = useBuild.getState();
-  if (tool === "maven" && model?.maven) {
-    const m = model.maven;
+  const ctx = mavenContext();
+  if (tool === "maven" && ctx) {
     setExpanded(
       tool,
-      expandableKeys(mavenRoots(m), (n) => mavenChildren(n, m, configs)),
+      expandableKeys(mavenRoots(ctx), (n) => mavenChildren(n, ctx)),
     );
   } else if (tool === "gradle" && model?.gradle) {
     const g = model.gradle;
@@ -79,6 +102,39 @@ function analyzerPom(arg: unknown): string | null {
   return current.maven ?? null;
 }
 
+/** `poms` of an action argument (`{ poms }`), else the selected project nodes. */
+function argPoms(arg: unknown): string[] {
+  const a = (arg ?? {}) as { poms?: unknown };
+  return Array.isArray(a.poms)
+    ? a.poms.filter((p): p is string => typeof p === "string")
+    : useBuild.getState().selectedPoms;
+}
+
+/** The Maven project containing `path` (absolute): the deepest module directory above it. */
+function projectOf(path: string): MavenProject | undefined {
+  const { model, root } = useBuild.getState();
+  if (!root || !path.startsWith(`${root}/`)) return undefined;
+  const rel = path.slice(root.length + 1);
+  return (model?.maven?.projects ?? [])
+    .filter((p) => p.dir === "" || rel === p.dir || rel.startsWith(`${p.dir}/`))
+    .sort((a, b) => b.dir.length - a.dir.length)[0];
+}
+
+/** Select in Maven: shows the tool window with the project node of `pom` selected. */
+function selectInMaven(pom: string) {
+  const { model, expanded } = useBuild.getState();
+  const projects = model?.maven?.projects ?? [];
+  const keys = new Set(expanded.maven);
+  for (let p = projects.find((x) => x.pom === pom); p;) {
+    const agg = model?.maven ? aggregatorOf(model.maven, p) : undefined;
+    if (agg) keys.add(`mvn:${agg.pom}`);
+    p = agg;
+  }
+  setExpanded("maven", keys);
+  useBuild.setState((s) => ({ reveal: { key: `mvn:${pom}`, seq: (s.reveal?.seq ?? 0) + 1 } }));
+  toolWindowService().show("maven", true);
+}
+
 const synced = new Set<string>();
 
 /** Registers / unregisters the tool windows to match the model; first sync of a never-synced build. */
@@ -98,6 +154,8 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
               anchor: "right",
               order: 30,
               component: MavenView,
+              headerMenu: useMavenViewMenu,
+              headerMenuInTitle: false,
             })
           : registerToolWindow({
               id: "gradle",
@@ -125,6 +183,23 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
   }
 }
 
+/** The tool window's options menu (IDEA's gear: Group Modules, Show Ignored Projects, …). */
+function useMavenViewMenu(): MenuItem[] {
+  const view = useBuild((s) => s.view);
+  const item = (key: keyof MavenViewOptions, label: string): MenuItem => ({
+    label,
+    checked: view[key],
+    run: () => setViewOption(key, !view[key]),
+  });
+  return [
+    item("groupModules", "Group Modules"),
+    item("showIgnored", "Show Ignored Projects"),
+    item("basicPhasesOnly", "Show Basic Phases Only"),
+    item("alwaysShowArtifactId", "Always Show ArtifactId"),
+    item("showVersions", "Maven tool window: Show project version next to name"),
+  ];
+}
+
 export function activate(): () => void {
   const registered: Partial<Record<BuildTool, () => void>> = {};
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -132,6 +207,14 @@ export function activate(): () => void {
     clearTimeout(timer);
     timer = setTimeout(() => void loadModel(), 300);
   };
+  const maven = (id: string, title: string, run: (arg: unknown) => unknown, extra: Record<string, unknown> = {}) => ({
+    id,
+    title,
+    category: "Maven",
+    when: MAVEN_WHEN,
+    run: ({ arg }: { arg?: unknown }) => void run(arg),
+    ...extra,
+  });
   const disposers: Array<() => void> = [
     registerOverlay({ id: "build-tools.execute", component: ExecutePopupHost }),
     registerRunAnythingProvider(buildToolsRunAnything),
@@ -156,13 +239,27 @@ export function activate(): () => void {
         return [{ kind: "action", action: "maven.analyzeDependencies", arg: { pom }, label: "Analyze Dependencies…" }];
       },
     }),
+    // Select In (⌥F1) › Maven: the project node of the file's module.
+    registerMenuGroup({
+      id: "maven.selectIn",
+      menus: ["selectIn"],
+      order: 20,
+      items: (_menu, { paths }) => {
+        const project = paths[0] ? projectOf(paths[0]) : undefined;
+        if (!project) return [];
+        return [{ label: "Maven", icon: "toolwindow-maven", run: () => selectInMaven(project.pom) }];
+      },
+    }),
     useBuild.subscribe((s, prev) => {
       if (s.model !== prev.model || s.root !== prev.root) apply(s.root ? s.model : null, registered);
     }),
     useProject.subscribe((s, prev) => {
       if (s.project?.root === prev.project?.root && s.project?.trusted === prev.project?.trusted) return;
       resetBuild();
-      if (s.project) void loadModel();
+      if (s.project) {
+        void loadModel();
+        void refreshUserFiles();
+      }
     }),
     onEditorEvent((e) => {
       if (e.type === "docSaved" && BUILD_FILE.test(e.path)) noteIdeSave(e.path);
@@ -173,118 +270,166 @@ export function activate(): () => void {
       // Changes the IDE's own saves didn't make came from outside (a VCS update, another tool),
       // also for a build file open in a tab.
       if (changedOutsideIde(changed)) noteExternalBuildChange();
+      noteBuildChange();
       scheduleLoad();
     }),
     onIdeEvent("projectRootsChanged", scheduleLoad),
     // Project JDK / Maven home and options are applied to the model's launchers.
     onIdeEvent("settingsChanged", (e) => {
-      if (e.key === "languages" || e.key.startsWith("languages.java")) scheduleLoad();
+      if (e.key === "languages" || e.key.startsWith("languages.java") || e.key.startsWith("buildTools")) scheduleLoad();
     }),
     registerActions([
+      maven("maven.syncAll", "Sync All Maven Projects", () => syncIncrementally(), {
+        icon: "refresh",
+        description: "Syncs the Maven projects whose build files changed since the last sync",
+        keywords: ["maven", "sync", "import", "refresh"],
+      }),
+      maven(
+        "maven.reload",
+        "Reload All Maven Projects",
+        () => {
+          // The Sync split button shows (and runs) the last one chosen.
+          useBuild.setState({ syncAction: "maven.reload" });
+          return syncTool("maven");
+        },
+        {
+          icon: "force-refresh",
+          description: "Re-reads the effective POMs and dependency trees of every Maven project",
+          keywords: ["maven", "sync", "reimport", "refresh", "reload"],
+        },
+      ),
+      maven("maven.cancelReload", "Stop Reloading Maven Projects", () => cancelSync("maven"), {
+        icon: "stop",
+        hidden: true,
+      }),
+      maven(
+        "maven.updateFolders",
+        "Generate Sources and Update Folders For All Projects",
+        () => runMavenTask("updateFolders"),
+        {
+          icon: "maven-update-folders",
+          keywords: ["maven", "generate sources", "update folders", "generated-sources"],
+        },
+      ),
+      maven(
+        "maven.updateFoldersForProject",
+        "Generate Sources and Update Folders",
+        (arg) => runMavenTask("updateFolders", argPoms(arg)),
+        {
+          icon: "maven-update-folders",
+          hidden: true,
+        },
+      ),
+      maven(
+        "maven.downloadSources",
+        "Download Sources",
+        (arg) => runMavenTask("downloadSources", [], artifactsOf(arg)),
+        {
+          icon: "download",
+          description: "Download sources for all dependencies",
+          keywords: ["maven", "sources", "download"],
+        },
+      ),
+      maven(
+        "maven.downloadDocs",
+        "Download Documentation",
+        (arg) => runMavenTask("downloadDocs", [], artifactsOf(arg)),
+        {
+          icon: "download",
+          description: "Download documentation for all dependencies",
+          keywords: ["maven", "javadoc", "documentation", "download"],
+        },
+      ),
+      maven(
+        "maven.downloadSourcesAndDocs",
+        "Download Sources and Documentation",
+        (arg) => runMavenTask("downloadSourcesAndDocs", [], artifactsOf(arg)),
+        {
+          icon: "download",
+          description: "Download sources and documentation for all dependencies",
+          keywords: ["maven", "sources", "javadoc", "download"],
+        },
+      ),
       {
         id: "maven.addProjects",
         title: "Add Maven Projects",
+        description: "Add and reload Maven projects to the projects tree",
         category: "Maven",
         icon: "plus",
         when: "projectOpen",
         run: () => addProjects(),
       },
-      {
-        id: "maven.unlinkProjects",
-        title: "Unlink Maven Projects",
-        category: "Maven",
-        hidden: true,
-        when: MAVEN_WHEN,
-        run: ({ arg }) => unlinkProjects(analyzerPom(arg)),
-      },
-      {
-        id: "maven.reload",
-        title: "Reload All Maven Projects",
-        description: "Re-reads the effective POMs and dependency trees with Maven",
-        category: "Maven",
-        icon: "refresh",
-        when: MAVEN_WHEN,
-        keywords: ["maven", "sync", "reimport", "refresh"],
-        run: () => syncTool("maven"),
-      },
-      {
-        id: "maven.cancelReload",
-        title: "Stop Reloading Maven Projects",
-        category: "Maven",
-        icon: "stop",
-        hidden: true,
-        when: MAVEN_WHEN,
-        run: () => cancelSync("maven"),
-      },
-      {
-        id: "maven.executeGoal",
-        title: "Execute Maven Goal…",
-        category: "Maven",
+      maven(
+        "maven.unlinkProjects",
+        "Unlink Maven Projects",
+        (arg) => {
+          const poms = unlinkable(
+            arg ? [analyzerPom(arg)].filter((p): p is string => !!p) : useBuild.getState().selectedPoms,
+          );
+          return poms[0] ? unlinkProjects(poms[0]) : undefined;
+        },
+        {
+          icon: "minus",
+          description: "Unlink selected Maven projects and their subprojects from the project tree",
+        },
+      ),
+      maven("maven.executeGoal", "Execute Maven Goal…", () => openExecute("maven"), {
         icon: "run-anything",
-        when: MAVEN_WHEN,
         keywords: ["maven", "mvn", "goal", "run anything"],
-        run: () => openExecute("maven"),
-      },
-      {
-        id: "maven.analyzeDependencies",
-        title: "Analyze Dependencies…",
-        description: "Shows a Maven module's dependency tree, version conflicts and where each library comes from",
-        category: "Maven",
-        icon: "build-dependencies",
-        when: MAVEN_WHEN,
-        keywords: ["maven", "dependency", "dependencies", "conflict", "tree", "exclude", "analyzer"],
-        run: ({ arg }) => openAnalyzer(analyzerPom(arg)),
-      },
-      {
-        id: "maven.toggleOffline",
-        title: "Toggle Offline Mode",
-        description: "Runs Maven with -o",
-        category: "Maven",
+      }),
+      maven(
+        "maven.analyzeDependencies",
+        "Analyze Dependencies…",
+        (arg) => {
+          const a = (arg ?? {}) as { focus?: unknown };
+          return openAnalyzer(analyzerPom(arg), typeof a.focus === "string" ? a.focus : null);
+        },
+        {
+          icon: "build-dependencies",
+          description: "Shows a Maven module's dependency tree, version conflicts and where each library comes from",
+          keywords: ["maven", "dependency", "dependencies", "conflict", "tree", "exclude", "analyzer"],
+        },
+      ),
+      maven("maven.toggleOffline", "Toggle Offline Mode", () => toggleMavenOffline(), {
         icon: "build-offline",
-        when: MAVEN_WHEN,
+        description: "Toggle offline mode for Maven builds",
         keywords: ["maven", "offline"],
-        toggled: () => useBuild.getState().settings.maven.offline,
-        run: () => toggleMavenOffline(),
-      },
-      {
-        id: "maven.toggleSkipTests",
-        title: "Toggle 'Skip Tests' Mode",
-        description: "Runs Maven with -DskipTests",
-        category: "Maven",
+        toggled: () => useBuild.getState().maven.workOffline,
+      }),
+      maven("maven.toggleSkipTests", "Toggle 'Skip Tests' Mode", () => toggleSkipTests(), {
         icon: "skip-tests",
-        when: MAVEN_WHEN,
+        description: "Toggle 'Skip tests' mode for Maven builds",
         keywords: ["maven", "skip tests"],
-        toggled: () => useBuild.getState().settings.maven.skipTests,
-        run: () => toggleSkipTests(),
-      },
-      {
-        id: "maven.expandAll",
-        title: "Expand All",
-        category: "Maven",
-        icon: "expand-all",
-        hidden: true,
-        when: MAVEN_WHEN,
-        run: () => expandAll("maven"),
-      },
-      {
-        id: "maven.collapseAll",
-        title: "Collapse All",
-        category: "Maven",
+        toggled: () => useBuild.getState().maven.skipTests,
+      }),
+      maven("maven.expandAll", "Expand All", () => expandAll("maven"), { icon: "expand-all", hidden: true }),
+      maven("maven.collapseAll", "Collapse All", () => setExpanded("maven", new Set()), {
         icon: "collapse-all",
         hidden: true,
-        when: MAVEN_WHEN,
-        run: () => setExpanded("maven", new Set()),
-      },
-      {
-        id: "maven.settings",
-        title: "Maven Settings…",
-        description: "Opens Settings › Build, Execution, Deployment › Maven",
-        category: "Maven",
+      }),
+      maven("maven.settings", "Maven Settings", () => executeAction("file.settings", "build.tools.maven"), {
         icon: "settings",
-        when: MAVEN_WHEN,
+        description: "Edit Maven integration settings for the current project",
         keywords: ["maven home", "mvn", "settings", "preferences"],
-        run: () => void executeAction("file.settings", "build.maven"),
-      },
+      }),
+      maven("maven.autoSyncSettings", "Auto-Sync Settings…", () => executeAction("file.settings", "build.tools"), {
+        description: "Edit build tools settings for the current project",
+        hidden: true,
+      }),
+      maven(
+        "maven.showEffectivePom",
+        "Show Effective POM",
+        (arg) => {
+          const pom = analyzerPom(arg);
+          return pom ? showEffectivePom(pom) : undefined;
+        },
+        { hidden: true },
+      ),
+      maven("maven.openSettingsXml", "Open settings.xml", () => openUserFile("settings"), { hidden: true }),
+      maven("maven.openToolchainsXml", "Open toolchains.xml", () => openUserFile("toolchains"), { hidden: true }),
+      maven("maven.resetProfiles", "Reset Profiles", () => resetProfiles(), {
+        hidden: true,
+      }),
       {
         id: "gradle.reload",
         title: "Reload All Gradle Projects",
@@ -344,7 +489,10 @@ export function activate(): () => void {
       },
     ]),
   ];
-  if (useProject.getState().project) void loadModel();
+  if (useProject.getState().project) {
+    void loadModel();
+    void refreshUserFiles();
+  }
   return () => {
     clearTimeout(timer);
     disposers.reverse().forEach((d) => d());
@@ -353,4 +501,15 @@ export function activate(): () => void {
     setContext("build.gradle", false);
     resetBuild();
   };
+}
+
+/** Selected artifacts of an action argument (`{ artifacts }`; Download for the selected dependencies). */
+function artifactsOf(arg: unknown): Array<{ groupId: string; artifactId: string }> {
+  const a = (arg ?? {}) as { artifacts?: unknown };
+  return Array.isArray(a.artifacts)
+    ? a.artifacts.filter(
+        (x): x is { groupId: string; artifactId: string } =>
+          !!x && typeof x === "object" && typeof (x as { groupId?: unknown }).groupId === "string",
+      )
+    : [];
 }

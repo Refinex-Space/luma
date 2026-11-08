@@ -25,7 +25,7 @@ icon set, copied unmodified (some renamed) from JetBrains' open-source repositor
   `plugins/markdown` (`fileTypes/markdown`); `plugins/toml` (`fileTypes/toml`);
   `plugins/terminal` (`toolwindows/terminal`); `plugins/maven`
   (`images/expui/toolwindow/maven` → `toolwindows/maven`, `images/expui/build/maven*`
-  → `maven/`); `plugins/gradle` (`icons/expui/gradle` → `toolwindows/gradle`,
+  and `images/expui/build/updateFolders` → `maven/`, `images/mavenRepo*` → `maven/`); `plugins/gradle` (`icons/expui/gradle` → `toolwindows/gradle`,
   `icons/expui/gradleLoadChanges` → `build/gradleLoadChanges`,
   `icons/expui/gradle`, `icons/gradleSubproject` → `gradle/`);
   `platform/external-system-impl` (`icons/newui/task` → `externalSystem/task`).

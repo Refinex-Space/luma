@@ -17,6 +17,7 @@ import {
 } from "@/workbench/contributions";
 import { useTasks } from "@/workbench/tasks";
 import { BuildView } from "./BuildView";
+import { setExecFilter } from "./exec/ExecTreeView";
 import { activate } from "./index";
 import {
   appendOutput,
@@ -185,19 +186,22 @@ describe("build feature", () => {
     });
     expect(useBuildRun.getState().lines.map((l) => l.kind)).toEqual(["system", "out"]);
     render(<BuildView />);
-    expect(screen.getByText("demo")).toBeInTheDocument();
+    // IDEA's Build Output root: the project, bold.
+    expect(screen.getByText("demo:")).toBeInTheDocument();
     expect(screen.getByText("A.java")).toBeInTheDocument();
     await act(async () => {
       fake.resolve(result(messages, false));
       await run;
     });
     expect(useBuildRun.getState().status).toBe("failed");
+    expect(screen.getByText("build failed")).toBeInTheDocument();
+    // A message the console parse missed is still listed (from the backend's messages).
     expect(screen.getByText("deprecated")).toBeInTheDocument();
-    expect(screen.getByText(":12:5")).toBeInTheDocument();
+    expect(screen.getAllByText(":12").length).toBeGreaterThan(0);
     expect(notes.at(-1)).toMatchObject({ level: "error", title: "Build failed: 1 error, 1 warning" });
     // A failure shows the tool window (unfocused), selects the first error and opens it.
     expect(show).toHaveBeenCalledWith("build", false);
-    expect(useBuildRun.getState().selected).toBe(firstError(messages)!.key);
+    expect(useBuildRun.getState().selected).toBe(useBuildRun.getState().tree!.firstError()!.id);
     expect(openFile).toHaveBeenCalledWith(
       "/p/src/A.java",
       expect.objectContaining({ focus: true, selection: { line: 11, col: 4 } }),
@@ -253,7 +257,7 @@ describe("build feature", () => {
       await failed;
     });
     expect(show).toHaveBeenCalledExactlyOnceWith("build", false);
-    expect(useBuildRun.getState().selected).toBe(firstError(messages)!.key);
+    expect(useBuildRun.getState().selected).toBe(useBuildRun.getState().tree!.firstError()!.id);
     expect(openFile).toHaveBeenCalledWith(
       "/p/src/A.java",
       expect.objectContaining({ focus: true, selection: { line: 11, col: 4 } }),
@@ -283,6 +287,7 @@ describe("build feature", () => {
       await run;
     });
     render(<BuildView />);
+    act(() => setExecFilter("showSuccessful", false));
     expect(screen.getByRole("log", { name: "Build output" })).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByText("deprecated"));
     expect(openFile).not.toHaveBeenCalled();

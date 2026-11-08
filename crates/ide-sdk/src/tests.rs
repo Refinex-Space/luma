@@ -1,6 +1,6 @@
 use crate::apply::{
-    apply_to_run_configs, configure_server, jdtls_jdk, maven_command, maven_options, project_jdk, python_interpreter,
-    terminal_activation, tsdk, without_derived,
+    apply_to_run_configs, configure_server, jdtls_jdk, maven_command, maven_options, maven_run_env, maven_run_options,
+    maven_sync_env, project_jdk, python_interpreter, terminal_activation, tsdk, without_derived,
 };
 use crate::python::parse_pip_list;
 use crate::{bin_dir, exe, venv_of};
@@ -1184,4 +1184,67 @@ fn saving_a_loaded_run_configuration_drops_what_settings_derived() {
     let ruby2 = root.join("ruby2/bin");
     assert_eq!(next.command, ruby2.join("ruby").to_string_lossy());
     assert!(next.env["PATH"].starts_with(&*ruby2.to_string_lossy()), "{}", next.env["PATH"]);
+}
+
+#[test]
+fn maven_settings_become_command_line_options_and_environment() {
+    use ide_core::settings::{MavenChecksumPolicy, MavenFailureBehavior, MavenOutputLevel, MavenProperty};
+    let tmp = tempfile::tempdir().unwrap();
+    let mut s = Settings::default();
+    assert!(maven_run_options(tmp.path(), &s).is_empty());
+    let m = &mut s.languages.java.maven;
+    m.work_offline = true;
+    m.non_recursive = true;
+    m.print_stack_traces = true;
+    m.update_snapshots = true;
+    m.output_level = MavenOutputLevel::Debug;
+    m.checksum_policy = MavenChecksumPolicy::Fail;
+    m.failure_behavior = MavenFailureBehavior::FailAtEnd;
+    m.threads = " 2C ".into();
+    m.runner.skip_tests = true;
+    m.runner.properties = vec![
+        MavenProperty { name: "env".into(), value: "dev".into() },
+        MavenProperty { name: " ".into(), value: "ignored".into() },
+    ];
+    assert_eq!(maven_options(tmp.path(), &s), ["--update-snapshots", "--strict-checksums"]);
+    assert_eq!(
+        maven_run_options(tmp.path(), &s),
+        [
+            "--update-snapshots",
+            "--strict-checksums",
+            "--offline",
+            "--debug",
+            "--non-recursive",
+            "--errors",
+            "-T",
+            "2C",
+            "--fail-at-end",
+            "-Denv=dev",
+            "-DskipTests=true"
+        ]
+    );
+    // `.mvn/maven.config` takes over the general options; Runner properties stay.
+    std::fs::create_dir_all(tmp.path().join(".mvn")).unwrap();
+    std::fs::write(tmp.path().join(".mvn/maven.config"), "-T 4\n").unwrap();
+    assert_eq!(maven_run_options(tmp.path(), &s), ["-Denv=dev", "-DskipTests=true"]);
+    s.languages.java.maven.use_maven_config = false;
+    assert!(maven_run_options(tmp.path(), &s).contains(&"--offline".to_owned()));
+
+    // Runner: JRE, VM options and variables; Importing: the importer's JDK and VM options.
+    let base = BTreeMap::from([("JAVA_HOME".to_owned(), "/project-jdk".to_owned())]);
+    assert_eq!(maven_run_env(tmp.path(), &s, base.clone()), base);
+    let m = &mut s.languages.java.maven;
+    m.runner.jre = "/jre21".into();
+    m.runner.vm_options = " -Xmx1g ".into();
+    m.runner.env = BTreeMap::from([("A".to_owned(), "1".to_owned())]);
+    m.importing.jdk = "/jdk17".into();
+    m.importing.vm_options = "-Xmx2g".into();
+    let run = maven_run_env(tmp.path(), &s, base.clone());
+    assert_eq!(run["JAVA_HOME"], "/jre21");
+    assert_eq!(run["MAVEN_OPTS"], "-Xmx1g");
+    assert_eq!(run["A"], "1");
+    let sync = maven_sync_env(tmp.path(), &s, base);
+    assert_eq!(sync["JAVA_HOME"], "/jdk17");
+    assert_eq!(sync["MAVEN_OPTS"], "-Xmx2g");
+    assert!(!sync.contains_key("A"));
 }

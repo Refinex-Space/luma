@@ -96,7 +96,9 @@ it("offers unlink on a root's context menu and persists a confirmed project sett
   await act(async () => {
     await executeAction("maven.unlinkProjects", { pom: "a/pom.xml" });
   });
-  expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Unlink Maven projects?" }));
+  expect(mocks.confirm).toHaveBeenCalledWith(
+    expect.objectContaining({ title: "Unlink Maven Project(s)", ok: "Remove" }),
+  );
   expect(mocks.set).toHaveBeenCalledWith("project", "languages.java.maven.unlinkedProjects", '["a/pom.xml"]');
   expect(mocks.model).toHaveBeenCalledTimes(2);
 });

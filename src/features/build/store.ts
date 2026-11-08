@@ -26,7 +26,12 @@ import {
 import { useProject } from "@/platform/project";
 import { maybeEditorService, notifications, toolWindowService } from "@/workbench/contributions";
 import { cancelTask, removeTask, upsertTask, useTasks } from "@/workbench/tasks";
+import { basename } from "@/platform/project";
+import { tx } from "@/platform/i18n";
+import { MavenOutputParser } from "./exec/maven";
+import { ExecTree, finishedAtHint } from "./exec/tree";
 import { appendOutput, finishSummary, firstError, messageFiles, type BuildStatus, type ConsoleLine } from "./model";
+import { selectBuildTab } from "./syncView";
 
 export const BUILD_TASK_ID = "build:compile";
 export const BUILD_RUNNING = "build.running";
@@ -76,8 +81,10 @@ export interface BuildState {
   lines: ConsoleLine[];
   /** Files with diagnostics from the last build. */
   files: string[];
-  /** Key of the selected tree node (a message node shows its detail beside the tree). */
+  /** Id of the selected tree node (a message node shows its detail beside the tree). */
   selected: string | null;
+  /** The build's event tree (IDEA's Build Output): Maven projects and goals, files, messages. */
+  tree: ExecTree | null;
 }
 
 const INITIAL: BuildState = {
@@ -93,6 +100,7 @@ const INITIAL: BuildState = {
   lines: [],
   files: [],
   selected: null,
+  tree: null,
 };
 
 export const useBuildRun = create<BuildState>(() => INITIAL);
@@ -115,6 +123,89 @@ export function applyBuildEvent(s: BuildState, e: BuildEvent): Partial<BuildStat
   }
 }
 
+/** The root's text when a build ends (IDEA's `build.messages.finished` / `failed` / `cancelled`). */
+const OUTCOME: Record<BuildKind, Record<"finished" | "failed" | "cancelled", () => string>> = {
+  build: {
+    finished: () => tx("build finished"),
+    failed: () => tx("build failed"),
+    cancelled: () => tx("build cancelled"),
+  },
+  rebuild: {
+    finished: () => tx("rebuild finished"),
+    failed: () => tx("rebuild failed"),
+    cancelled: () => tx("rebuild cancelled"),
+  },
+  artifacts: {
+    finished: () => tx("build artifacts finished"),
+    failed: () => tx("build artifacts failed"),
+    cancelled: () => tx("build artifacts cancelled"),
+  },
+};
+
+/**
+ * Feeds the event tree: a Maven build's console goes through the Maven parser (projects,
+ * goals, compiler messages, as IDEA's delegated build); other builds list their messages by file.
+ */
+class TreeFeed {
+  private maven: MavenOutputParser | null = null;
+  private partial = "";
+  private cwd: string | null = null;
+
+  constructor(readonly tree: ExecTree) {}
+
+  apply(e: BuildEvent) {
+    switch (e.kind) {
+      case "started":
+        if (e.system === "maven")
+          this.maven = new MavenOutputParser(this.tree, {
+            mode: "run",
+            resolvePath: (p) => (p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p) || !this.cwd ? p : `${this.cwd}/${p}`),
+          });
+        break;
+      case "step":
+        this.cwd = e.cwd;
+        break;
+      case "output": {
+        if (!this.maven) break;
+        const text = this.partial + e.text;
+        const parts = text.split("\n");
+        this.partial = parts.pop() ?? "";
+        for (const line of parts) this.maven.feed(line);
+        break;
+      }
+      case "message":
+        if (!this.maven) this.add(e.message);
+        break;
+    }
+  }
+
+  private add(m: BuildMessage) {
+    const start = m.range?.start;
+    this.tree.message(
+      null,
+      m.severity === "error" ? "error" : m.severity === "warning" ? "warning" : "info",
+      m.text,
+      m.path ? { path: m.path, line: start?.line ?? null, col: start?.col ?? null } : null,
+    );
+  }
+
+  finish(success: boolean, cancelled: boolean, messages: readonly BuildMessage[]) {
+    // The backend's messages are the build's final list: those the stream did not bring
+    // (another console format, a message sent only with the result) are added.
+    const known = new Set(this.tree.messages().map((n) => `${n.file?.path ?? ""}:${n.file?.line ?? ""}:${n.name}`));
+    for (const m of messages) {
+      const key = `${m.path ?? ""}:${m.range?.start.line ?? ""}:${m.text.split("\n")[0]!.trim()}`;
+      if (!known.has(key) && (m.path || !success || !this.maven)) this.add(m);
+    }
+    if (this.maven) {
+      if (this.partial) this.maven.feed(this.partial);
+      this.maven.finish(success ? 0 : 1, cancelled);
+    } else {
+      this.tree.finishBuild(cancelled ? "skipped" : success ? "success" : "failed");
+    }
+  }
+}
+
 export function isBuilding(): boolean {
   return useBuildRun.getState().status === "running";
 }
@@ -133,7 +224,16 @@ export async function startBuild(
   const taskTitle = TITLES[kind];
   const cancel = () => backend.cancel(request);
   const previous = useBuildRun.getState().files;
-  useBuildRun.setState({ ...INITIAL, request, kind, file, title: taskTitle, status: "running", files: previous });
+  // IDEA titles the tree with the project for Build / Rebuild, else with the build's name.
+  const project = useProject.getState().project;
+  const tree = new ExecTree(
+    kind === "artifacts" ? tx(taskTitle) : (project?.name ?? basename(project?.root ?? "")),
+    Date.now(),
+    project?.root ?? null,
+  );
+  const feed = new TreeFeed(tree);
+  useBuildRun.setState({ ...INITIAL, request, kind, file, title: taskTitle, status: "running", files: previous, tree });
+  selectBuildTab("build");
   setContext(BUILD_RUNNING, true);
   if (activate) {
     try {
@@ -155,7 +255,10 @@ export async function startBuild(
     queue = [];
     if (useBuildRun.getState().request !== request || !events.length) return;
     let s = useBuildRun.getState();
-    for (const e of events) s = { ...s, ...applyBuildEvent(s, e) };
+    for (const e of events) {
+      s = { ...s, ...applyBuildEvent(s, e) };
+      feed.apply(e);
+    }
     useBuildRun.setState(s);
     if (s.message)
       upsertTask({ id: BUILD_TASK_ID, title: taskTitle, message: s.message, fraction: null, done: false, cancel });
@@ -171,6 +274,8 @@ export async function startBuild(
     clearTimeout(timer);
     flush();
     const status: BuildStatus = result.success ? "success" : "failed";
+    feed.finish(result.success, false, result.messages);
+    tree.describe("root", OUTCOME[kind][result.success ? "finished" : "failed"](), finishedAtHint(Date.now()));
     useBuildRun.setState({
       status,
       title: result.title,
@@ -197,9 +302,14 @@ export async function startBuild(
     clearTimeout(timer);
     flush();
     if (isCancelled(e)) {
+      feed.finish(false, true, []);
+      tree.describe("root", OUTCOME[kind].cancelled(), finishedAtHint(Date.now()));
       useBuildRun.setState({ status: "cancelled", files: [], message: null });
     } else {
       const text = e instanceof Error ? e.message : String(e);
+      tree.message(null, "error", text);
+      feed.finish(false, false, []);
+      tree.describe("root", OUTCOME[kind].failed(), finishedAtHint(Date.now()));
       useBuildRun.setState((s) => ({
         status: "failed",
         files: [],
@@ -251,10 +361,18 @@ function showFailure() {
   } catch {
     // No workbench (tests / settings window).
   }
-  const first = firstError(useBuildRun.getState().messages);
-  if (!first) return;
-  selectBuildNode(first.key);
-  navigateToMessage(first.message, true);
+  const { messages, tree } = useBuildRun.getState();
+  const first = firstError(messages);
+  const node = tree?.firstError();
+  if (node) selectBuildNode(node.id);
+  if (first) navigateToMessage(first.message, true);
+  else if (node?.file)
+    void maybeEditorService()
+      ?.openFile(node.file.path, {
+        selection: node.file.line != null ? { line: node.file.line, col: node.file.col ?? 0 } : undefined,
+        focus: true,
+      })
+      .catch(() => undefined);
 }
 
 export function stopBuild() {

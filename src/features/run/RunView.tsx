@@ -13,7 +13,9 @@ import {
   T,
   tooltipAttrs,
 } from "@/ui";
-import { useSessionMarks, type SessionMark } from "@/workbench/contributions";
+import { maybeEditorService, useSessionMarks, type SessionMark } from "@/workbench/contributions";
+import { ExecFiltersButton, ExecTreeView } from "@/features/build/exec/ExecTreeView";
+import type { FilePosition } from "@/features/build/exec/tree";
 import { SessionViewTabs, useSessionViews } from "./SessionViews";
 import { executeAction } from "@/platform/actions";
 import { formatBinding, hostBinding, shortcutLabel } from "@/platform/keymap";
@@ -46,6 +48,17 @@ import { showApplicationUpdate, useApplicationUpdates } from "./applicationUpdat
 import { isUpdatable } from "./updatePolicies";
 import styles from "./Run.module.css";
 import { tx } from "@/platform/i18n";
+
+/** Opens a build message's source from a Maven run's tree. */
+function openBuildSource(file: FilePosition, focus: boolean) {
+  void maybeEditorService()
+    ?.openFile(file.path, {
+      selection: file.line != null ? { line: file.line, col: file.col ?? 0 } : undefined,
+      focus,
+      preview: !focus,
+    })
+    .catch(() => undefined);
+}
 
 function failed(s: RunSession): boolean {
   return s.status === "failed" || (s.status === "finished" && s.exitCode !== 0 && !s.stopped);
@@ -212,6 +225,7 @@ export function SessionPanel({
           </>
         )}
         <IconButton icon="trash" iconSize={14} title="Clear All" onClick={() => clearConsole(session.id)} />
+        {rt.build && <ExecFiltersButton />}
         <div className={styles.toolbarSep} />
         <IconButton
           icon="settings"
@@ -226,6 +240,23 @@ export function SessionPanel({
           <div className={styles.sessionView} role="tabpanel" aria-label={tx(activeView.title)}>
             <ActiveView sessionKey={sessionKey} />
           </div>
+        ) : rt.build ? (
+          <ExecTreeView
+            tree={rt.build.tree}
+            console={consoleColumn}
+            splitId={`run-build-${session.id}`}
+            onNavigate={openBuildSource}
+            selectFirstError={false}
+            aria-label={tx("Build")}
+            contextItems={() => [
+              {
+                label: "Rerun",
+                icon: "rerun",
+                disabled: onRerun === null,
+                run: onRerun ?? (() => void rerunSession(session.id)),
+              },
+            ]}
+          />
         ) : rt.tests ? (
           <SplitGroup orientation="horizontal" id={`run-tests-${session.id}`} className={styles.testSplit}>
             <SplitPanel id="tests" defaultSize="32%" minSize="140px">

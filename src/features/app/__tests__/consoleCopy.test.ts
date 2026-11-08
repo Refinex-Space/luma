@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { cleanup as cleanupViews, render, screen } from "@testing-library/react";
 import { BuildView } from "@/features/build/BuildView";
 import { useBuildRun } from "@/features/build/store";
+import { ExecTree } from "@/features/build/exec/tree";
 import { ConsoleModel } from "@/features/run/console";
 import { ConsoleView } from "@/features/run/ConsoleView";
 import { ResultsView } from "@/features/database/ResultsView";
@@ -136,11 +137,15 @@ describe("view-local console copy with the Windows keymap (#372)", () => {
   });
 
   it.each([false, true])("copies build output and selected message detail (detail=%s)", (detail) => {
+    const tree = new ExecTree("demo");
+    const message = tree.message(null, "error", "Compiler detail")!;
+    tree.finishBuild("failed");
     useBuildRun.setState({
       status: "failed",
       lines: [{ kind: "err", text: "Compiler output" }],
       messages: [{ severity: "error", code: null, text: "Compiler detail", path: null, range: null }],
-      selected: detail ? "build:msg:0" : null,
+      tree,
+      selected: detail ? message.id : null,
     });
     render(createElement(BuildView));
     const text = screen.getByText(detail ? "Compiler detail" : "Compiler output", { selector: "div" });

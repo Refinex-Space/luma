@@ -109,6 +109,8 @@ export interface ValidSettings extends WorkflowSettings {
   tools: Record<string, { path: string }>;
   /** Settings › Language Servers, by server name (as the backend sends them). */
   languageServers: Record<string, LanguageServerEntry>;
+  /** Build, Execution, Deployment › Build Tools. */
+  buildTools: { autoReload: "all" | "selective" | "none" };
 }
 
 /** One `languageServers.<name>` entry; every field optional, like in settings.toml. */
@@ -177,6 +179,7 @@ export const DEFAULT_SETTINGS: ValidSettings = {
   projectStructure: DEFAULT_PROJECT_STRUCTURE,
   inspections: DEFAULT_INSPECTIONS,
   spelling: { ideWords: [], projectWords: [], customDictionaries: [] },
+  buildTools: { autoReload: "selective" },
   tools: {},
   languageServers: {},
   ...DEFAULT_WORKFLOW,
@@ -286,6 +289,9 @@ export function validateSettings(raw: Settings | unknown): ValidSettings {
     projectStructure: validateProjectStructure(root.projectStructure),
     inspections: validateInspections(root.inspections),
     spelling: validateSpelling(root.spelling),
+    buildTools: {
+      autoReload: ((v) => (v === "all" || v === "none" ? v : "selective"))(obj(root.buildTools).autoReload),
+    },
     tools: Object.fromEntries(
       Object.entries(obj(root.tools)).flatMap(([cmd, t]) => {
         const path = obj(t).path;

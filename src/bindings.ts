@@ -749,6 +749,19 @@ export const commands = {
 	 *  Returns the refreshed model; a failed build is reported in its `syncError`.
 	 */
 	buildSync: (tool: BuildTool, request: RequestId, offline: boolean, profiles: string[], onProgress: Channel<SyncProgress>) => typedError<BuildModel, IdeError>(__TAURI_INVOKE("build_sync", { tool, request, offline, profiles, onProgress })),
+	/**
+	 *  Runs a Maven tool window task (Generate Sources and Update Folders, Download Sources /
+	 *  Documentation) on the projects `poms` (all when empty), streaming the console on
+	 *  `on_progress`; cancellable with `cancel_request(request)`. Returns Maven's error summary
+	 *  when the run failed.
+	 */
+	mavenTask: (kind: MavenTaskKind, poms: string[], artifacts: ArtifactFilter[], profiles: string[], request: RequestId, onProgress: Channel<SyncProgress>) => typedError<string | null, IdeError>(__TAURI_INVOKE("maven_task", { kind, poms, artifacts, profiles, request, onProgress })),
+	/**  Writes the effective POM of the Maven project `pom` and returns its path (Show Effective POM). */
+	mavenEffectivePom: (pom: string, profiles: string[], request: RequestId) => typedError<string, IdeError>(__TAURI_INVOKE("maven_effective_pom", { pom, profiles, request })),
+	/**  The user `settings.xml` / `toolchains.xml`, created from a template when `create`. */
+	mavenUserFile: (kind: MavenUserFile, create: boolean) => typedError<string | null, IdeError>(__TAURI_INVOKE("maven_user_file", { kind, create })),
+	/**  Settings › Maven: the Maven version and the defaults of the overridable paths. */
+	mavenEnvironment: (home: string, userSettings: string) => typedError<MavenEnvironment, IdeError>(__TAURI_INVOKE("maven_environment", { home, userSettings })),
 	/**  Where the direct dependency `dependency` of the Maven module `pom` is declared. */
 	mavenDependencyDeclaration: (pom: string, dependency: ArtifactKey) => typedError<Location, IdeError>(__TAURI_INVOKE("maven_dependency_declaration", { pom, dependency })),
 	/**
@@ -1698,6 +1711,12 @@ export type ApplyOutcome = {
 	conflicts: string[],
 };
 
+/**  A dependency selected in the tool window (Download for the selected artifacts). */
+export type ArtifactFilter = {
+	groupId: string,
+	artifactId: string,
+};
+
 /**  `groupId:artifactId` of a dependency. */
 export type ArtifactKey = {
 	groupId: string,
@@ -1733,6 +1752,14 @@ export type AutoImportSettings = {
 	addUnambiguous?: boolean,
 	optimizeOnTheFly?: boolean,
 };
+
+export type AutoReload = 
+/**  Any changes (also saves in the editor). */
+"all" | 
+/**  External changes (VCS updates, other tools). */
+"selective" | 
+/**  Never: only the "Sync Maven Changes" prompt. */
+"none";
 
 /**  When local changes are uploaded to the default deployment server. */
 export type AutoUpload = "never" | 
@@ -1889,6 +1916,12 @@ export type BuildResult = {
 export type BuildSystem = "maven" | "gradle" | "cargo" | "go" | "typescript";
 
 export type BuildTool = "maven" | "gradle";
+
+/**  Build, Execution, Deployment › Build Tools. */
+export type BuildToolsSettings = {
+	/**  "Sync project after changes in the build scripts". */
+	autoReload?: AutoReload,
+};
 
 /**  The built-in server (IDEA's `BuiltInServerOptions`). */
 export type BuiltInServerSettings = {
@@ -4974,6 +5007,12 @@ export type Markup = {
 	value: string,
 };
 
+export type MavenChecksumPolicy = "noGlobalPolicy" | 
+/**  `--strict-checksums`. */
+"fail" | 
+/**  `--lax-checksums`. */
+"warn";
+
 export type MavenDependency = {
 	groupId: string,
 	artifactId: string,
@@ -4993,6 +5032,57 @@ export type MavenDependency = {
 	managedFrom?: string | null,
 };
 
+/**  What Settings › Maven shows about the installation and the overridable defaults. */
+export type MavenEnvironment = {
+	/**  The Maven version (`3.9.9`), when it can be read. */
+	version: string | null,
+	/**  The home that runs: the configured one, the wrapper's distribution, else `mvn` on `PATH`. */
+	home: string | null,
+	/**  The project has a Maven wrapper (`mvnw`). */
+	wrapper: boolean,
+	/**  The user settings file used when none is configured. */
+	defaultUserSettings: string,
+	/**  The local repository used when none is configured (for the given settings file). */
+	defaultLocalRepository: string,
+	/**  The project's `.mvn/maven.config` exists. */
+	mavenConfig: boolean,
+};
+
+export type MavenFailureBehavior = "default" | 
+/**  `--fail-fast`. */
+"failFast" | 
+/**  `--fail-at-end`. */
+"failAtEnd" | 
+/**  `--fail-never`. */
+"failNever";
+
+/**  Which folders under `target/generated-sources` become source roots. */
+export type MavenGeneratedSources = 
+/**  Don't detect. */
+"ignore" | 
+/**  Each subdirectory that holds sources (`annotations`, `antlr4`, …). */
+"autodetect" | 
+/**  `target/generated-sources` itself. */
+"generatedSourceFolder" | 
+/**  Every subdirectory of `target/generated-sources`. */
+"subfoldersOfGeneratedSourceFolder";
+
+/**  Build Tools › Maven › Importing. */
+export type MavenImportingSettings = {
+	/**  Exclude `target` of each Maven module from the project. */
+	excludeTargetFolder?: boolean,
+	generatedSourcesFolder?: MavenGeneratedSources,
+	/**  Phase "Generate Sources and Update Folders" runs. */
+	updateFoldersPhase?: string,
+	/**  After a sync, download the sources / javadoc jars of the dependencies. */
+	downloadSources?: boolean,
+	downloadDocs?: boolean,
+	/**  `MAVEN_OPTS` of the sync. */
+	vmOptions?: string,
+	/**  JDK the sync runs on: empty = the project JDK, `JAVA_HOME`, or a JDK home. */
+	jdk?: string,
+};
+
 export type MavenModel = {
 	/**  Pre-order: every aggregator comes before its modules. */
 	projects: MavenProject[],
@@ -5003,7 +5093,11 @@ export type MavenModel = {
 	/**  Build files changed since that sync. */
 	stale: boolean,
 	syncError: string | null,
+	/**  The local repository the build resolves against (Repositories › local). */
+	localRepository?: string | null,
 };
+
+export type MavenOutputLevel = "debug" | "info" | "warn" | "error" | "fatal" | "disabled";
 
 export type MavenPlugin = {
 	groupId: string,
@@ -5049,9 +5143,45 @@ export type MavenProject = {
 	options: string[],
 	/**  Environment for runs (`JAVA_HOME` of the matching JDK); filled in by the shell. */
 	env: { [key in string]: string },
+	/**  `<build><defaultGoal>` (Run Maven Build on the project node). */
+	defaultGoal?: string | null,
+	/**  Remote repositories: the POM's (effective after a sync), then Maven Central. */
+	repositories?: MavenRepository[],
+	/**  Kept in the tree but left out of the IDE model (Settings › Maven › Ignored Files). */
+	ignored?: boolean,
+	/**  What the last sync reported against this project. */
+	problems?: string[],
 };
 
-/**  Build Tools › Maven. */
+export type MavenProperty = {
+	name?: string,
+	value?: string,
+};
+
+/**  A repository of a root project (the tool window's Repositories node). */
+export type MavenRepository = {
+	id: string,
+	url: string,
+};
+
+/**  Build Tools › Maven › Runner (applies to goals run from the IDE and Build Project). */
+export type MavenRunnerSettings = {
+	/**  `MAVEN_OPTS`. */
+	vmOptions?: string,
+	/**  JRE (`JAVA_HOME`): empty = the project JDK, `JAVA_HOME`, or a JDK home. */
+	jre?: string,
+	env?: { [key in string]: string },
+	passParentEnv?: boolean,
+	/**  `-DskipTests=true`. */
+	skipTests?: boolean,
+	/**  `-Dname=value`, in order. */
+	properties?: MavenProperty[],
+};
+
+/**
+ *  Build Tools › Maven (IDEA's `MavenGeneralSettings`, `MavenImportingSettings`,
+ *  `MavenRunnerSettings`, ignored files and goal task activation).
+ */
 export type MavenSettings = {
 	/**  Project-relative root POMs removed from the Maven project model. */
 	unlinkedProjects?: string[],
@@ -5061,7 +5191,52 @@ export type MavenSettings = {
 	userSettings?: string,
 	/**  Local repository (`-Dmaven.repo.local`); empty = from `settings.xml`. */
 	localRepository?: string,
+	/**  Work offline (`--offline`). */
+	workOffline?: boolean,
+	/**  `--non-recursive` (the page's "Execute goals recursively" unchecked). */
+	nonRecursive?: boolean,
+	/**  Print exception stack traces (`--errors`). */
+	printStackTraces?: boolean,
+	/**  Always update snapshots (`--update-snapshots`). */
+	updateSnapshots?: boolean,
+	/**  Output level; `debug` adds `--debug`. */
+	outputLevel?: MavenOutputLevel,
+	checksumPolicy?: MavenChecksumPolicy,
+	/**  Multiproject build fail policy. */
+	failureBehavior?: MavenFailureBehavior,
+	/**  Thread count (`-T`), e.g. `4` or `1C`; empty = Maven's default. */
+	threads?: string,
+	/**  Settings in `.mvn/maven.config` take precedence over the options above. */
+	useMavenConfig?: boolean,
+	importing?: MavenImportingSettings,
+	/**  Project-relative POMs kept in the tree but left out of the IDE model (Ignore Projects). */
+	ignoredFiles?: string[],
+	/**  Glob patterns (`*`, `?`) of POM paths to ignore. */
+	ignoredPatterns?: string[],
+	runner?: MavenRunnerSettings,
+	/**  Goals run before / after Build Project and Rebuild Project. */
+	tasks?: MavenTaskSettings,
 };
+
+/**  A goal of a Maven project (`pom` project-relative), run as a build task. */
+export type MavenTask = {
+	pom?: string,
+	goal?: string,
+};
+
+export type MavenTaskKind = 
+/**  Runs the Importing page's "Phase to be used for folders update". */
+"updateFolders" | "downloadSources" | "downloadDocs" | "downloadSourcesAndDocs";
+
+/**  IDEA's "Execute Before Build" / "After Build" / "Before Rebuild" / "After Rebuild". */
+export type MavenTaskSettings = {
+	beforeBuild?: MavenTask[],
+	afterBuild?: MavenTask[],
+	beforeRebuild?: MavenTask[],
+	afterRebuild?: MavenTask[],
+};
+
+export type MavenUserFile = "settings" | "toolchains";
 
 export type MemoryCategory = 
 /**  The backend and its WebView processes. */
@@ -6527,6 +6702,8 @@ export type Settings_Deserialize = {
 	deployment?: DeploymentSettings,
 	/**  Build, Execution, Deployment › Run Targets. */
 	runTargets?: RunTarget[],
+	/**  Build, Execution, Deployment › Build Tools. */
+	buildTools?: BuildToolsSettings,
 	cmake?: CMakeSettings_Deserialize,
 	/**  Tools › Web Browsers and Preview (global only). */
 	webBrowsers?: WebBrowserSettings_Deserialize,
@@ -6597,6 +6774,8 @@ export type Settings_Serialize = {
 	deployment: DeploymentSettings,
 	/**  Build, Execution, Deployment › Run Targets. */
 	runTargets: RunTarget[],
+	/**  Build, Execution, Deployment › Build Tools. */
+	buildTools: BuildToolsSettings,
 	cmake: CMakeSettings_Serialize,
 	/**  Tools › Web Browsers and Preview (global only). */
 	webBrowsers: WebBrowserSettings_Serialize,
@@ -7275,6 +7454,8 @@ export type SyncProgress = {
 	message: string,
 	/**  0..1, or `None` when indeterminate. */
 	fraction: number | null,
+	/**  A console line of the build tool (the Build tool window's Sync tab), without its line break. */
+	output?: string | null,
 };
 
 export type SyncStatus = "localOnly" | "remoteOnly" | "localNewer" | "remoteNewer" | 

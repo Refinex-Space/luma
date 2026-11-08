@@ -12,8 +12,9 @@ import {
   registerToolWindow,
 } from "@/workbench/contributions";
 import { BuildTitleItem } from "./BuildTitleItem";
-import { BuildHeaderActions, BuildView } from "./BuildView";
+import { BuildHeaderActions, BuildTabs, BuildView } from "./BuildView";
 import { BUILD_RUNNING, resetBuildRun, startBuild, stopBuild } from "./store";
+import { resetSyncView } from "./syncView";
 
 const WHEN = `projectOpen && !${BUILD_RUNNING}`;
 
@@ -34,6 +35,7 @@ export function activate(): () => void {
       order: 6,
       component: BuildView,
       headerActions: BuildHeaderActions,
+      headerContent: BuildTabs,
     }),
     registerTitleItem({
       id: "build.project",
@@ -107,11 +109,14 @@ export function activate(): () => void {
           : [],
     }),
     useProject.subscribe((s, prev) => {
-      if (s.project?.root !== prev.project?.root) resetBuildRun();
+      if (s.project?.root === prev.project?.root) return;
+      resetBuildRun();
+      resetSyncView();
     }),
   ];
   return () => {
     disposers.reverse().forEach((d) => d());
     resetBuildRun();
+    resetSyncView();
   };
 }

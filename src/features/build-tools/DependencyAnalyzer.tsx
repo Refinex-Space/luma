@@ -222,6 +222,13 @@ export function DependencyAnalyzer(_props: { input: EditorInput }) {
   const syncing = useBuild((s) => s.syncing.maven);
   const chosen = useAnalyzer((s) => s.pom);
   const [query, setQuery] = useState("");
+  // Analyze Dependencies on a dependency of the Maven tool window: that artifact.
+  const focus = useAnalyzer((s) => s.focus);
+  const [seenFocus, setSeenFocus] = useState(focus?.seq ?? 0);
+  if (focus && focus.seq !== seenFocus) {
+    setSeenFocus(focus.seq);
+    setQuery(focus.text);
+  }
   const [conflictsOnly, setConflictsOnly] = useState(false);
   const [scope, setScope] = useState<string>(ALL_SCOPES);
   const [mode, setMode] = useState<Mode>("list");

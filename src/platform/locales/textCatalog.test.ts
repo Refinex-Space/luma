@@ -228,6 +228,9 @@ const UNTRANSLATED = new Set<string>([
   "HEAD",
   "HTTP",
   "JDK",
+  "JRE",
+  // A Maven folder name (Settings › Maven › Importing).
+  "target/generated-sources",
   "JDK 1.4.x",
   "JDK 5 - 8",
   "LTS",

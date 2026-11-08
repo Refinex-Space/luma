@@ -251,6 +251,15 @@ fn maven_steps(root: &Path, model: &BuildModel, kind: BuildKind, module: Option<
     Ok(vec![step(top, &["-pl".into(), pl, "-am".into()])])
 }
 
+/// A step running `goals` on the Maven project `p` (goals activated before / after a build).
+pub fn maven_goal_step(root: &Path, p: &maven::MavenProject, goals: &[String]) -> BuildStep {
+    let mut s = BuildStep::new(&p.command, &["-B", "-Dstyle.color=never"], &subdir(root, &p.dir), Format::Maven);
+    s.args.extend(p.options.iter().cloned());
+    s.args.extend(goals.iter().cloned());
+    s.env = p.env.clone();
+    s
+}
+
 fn gradle_steps(root: &Path, model: &BuildModel, kind: BuildKind, module: Option<&Path>) -> IdeResult<Vec<BuildStep>> {
     let fallback;
     let g = match &model.gradle {

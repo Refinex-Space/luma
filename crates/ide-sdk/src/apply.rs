@@ -5,7 +5,9 @@ use crate::discover::{project_venv_python, workspace_tsdk};
 use crate::exec::{path_with, search_path};
 use crate::{angular, godot, pinned, vue};
 use crate::{bin_dir, exe, venv_of};
-use ide_core::settings::{LanguageServerSettings, Settings};
+use ide_core::settings::{
+    LanguageServerSettings, MavenChecksumPolicy, MavenFailureBehavior, MavenOutputLevel, Settings,
+};
 use ide_core::version_managers::Tool;
 use ide_language::{LanguageConfig, LanguageServerConfig};
 use ide_run::RunConfig;
@@ -182,7 +184,106 @@ pub fn maven_options(root: &Path, s: &Settings) -> Vec<String> {
     if let Some(dir) = setting_path(root, &m.local_repository) {
         out.push(format!("-Dmaven.repo.local={}", dir.to_string_lossy()));
     }
+    if !maven_config_governs(root, s) {
+        if m.update_snapshots {
+            out.push("--update-snapshots".into());
+        }
+        match m.checksum_policy {
+            MavenChecksumPolicy::NoGlobalPolicy => {}
+            MavenChecksumPolicy::Fail => out.push("--strict-checksums".into()),
+            MavenChecksumPolicy::Warn => out.push("--lax-checksums".into()),
+        }
+    }
     out
+}
+
+/// "Use settings from .mvn/maven.config" with such a file: Maven reads its options
+/// from there, the IDE doesn't add its own general options.
+pub fn maven_config_governs(root: &Path, s: &Settings) -> bool {
+    s.languages.java.maven.use_maven_config && root.join(".mvn").join("maven.config").is_file()
+}
+
+/// Options of goals run from the IDE (tool window, Build Project): [`maven_options`]
+/// plus Settings › Maven (offline, output level, recursion, stack traces, threads,
+/// fail policy) and Runner (properties, Skip Tests), as IDEA's `MavenShCommandLineState`.
+pub fn maven_run_options(root: &Path, s: &Settings) -> Vec<String> {
+    let m = &s.languages.java.maven;
+    let mut out = maven_options(root, s);
+    if !maven_config_governs(root, s) {
+        if m.work_offline {
+            out.push("--offline".into());
+        }
+        if m.output_level == MavenOutputLevel::Debug {
+            out.push("--debug".into());
+        }
+        if m.non_recursive {
+            out.push("--non-recursive".into());
+        }
+        if m.print_stack_traces {
+            out.push("--errors".into());
+        }
+        if let Some(threads) = non_empty(&m.threads) {
+            out.extend(["-T".to_owned(), threads.to_owned()]);
+        }
+        match m.failure_behavior {
+            MavenFailureBehavior::Default => {}
+            MavenFailureBehavior::FailFast => out.push("--fail-fast".into()),
+            MavenFailureBehavior::FailAtEnd => out.push("--fail-at-end".into()),
+            MavenFailureBehavior::FailNever => out.push("--fail-never".into()),
+        }
+    }
+    for p in &m.runner.properties {
+        if let Some(name) = non_empty(&p.name) {
+            out.push(format!("-D{name}={}", p.value));
+        }
+    }
+    if m.runner.skip_tests {
+        out.push("-DskipTests=true".into());
+    }
+    out
+}
+
+/// `JAVA_HOME` of a JDK choice (`""` = `default`, `JAVA_HOME` = the variable's, else a JDK home).
+fn jdk_choice(root: &Path, choice: &str, default: Option<String>) -> Option<String> {
+    match choice.trim() {
+        "" => default,
+        "JAVA_HOME" => std::env::var("JAVA_HOME").ok().filter(|v| !v.trim().is_empty()).or(default),
+        path => setting_path(root, path).map(|p| p.to_string_lossy().into_owned()).or(default),
+    }
+}
+
+/// Environment of goals run from the IDE: Runner's JRE (`JAVA_HOME`), VM options
+/// (`MAVEN_OPTS`) and environment variables over `base` (the project JDK).
+pub fn maven_run_env(
+    root: &Path,
+    s: &Settings,
+    mut base: std::collections::BTreeMap<String, String>,
+) -> std::collections::BTreeMap<String, String> {
+    let r = &s.languages.java.maven.runner;
+    if let Some(home) = jdk_choice(root, &r.jre, base.get("JAVA_HOME").cloned()) {
+        base.insert("JAVA_HOME".into(), home);
+    }
+    if let Some(opts) = non_empty(&r.vm_options) {
+        base.insert("MAVEN_OPTS".into(), opts.to_owned());
+    }
+    base.extend(r.env.iter().filter(|(k, _)| !k.trim().is_empty()).map(|(k, v)| (k.clone(), v.clone())));
+    base
+}
+
+/// Environment of a sync: Importing's JDK for importer and VM options over `base`.
+pub fn maven_sync_env(
+    root: &Path,
+    s: &Settings,
+    mut base: std::collections::BTreeMap<String, String>,
+) -> std::collections::BTreeMap<String, String> {
+    let i = &s.languages.java.maven.importing;
+    if let Some(home) = jdk_choice(root, &i.jdk, base.get("JAVA_HOME").cloned()) {
+        base.insert("JAVA_HOME".into(), home);
+    }
+    if let Some(opts) = non_empty(&i.vm_options) {
+        base.insert("MAVEN_OPTS".into(), opts.to_owned());
+    }
+    base
 }
 
 /// The Maven local repository from settings: the configured one, else
@@ -629,7 +730,8 @@ pub fn apply_to_run_configs(configs: &mut [RunConfig], root: &Path, s: &Settings
     let gopath = setting_path(root, &s.languages.go.gopath);
     let jdk = project_jdk(root, s);
     let mvn = maven_command(root, s);
-    let mvn_options = maven_options(root, s);
+    // Detected Maven configurations use the project's Maven settings (IDEA's "Use project settings").
+    let mvn_options = maven_run_options(root, s);
     let ruby = ruby_interpreter(root, s);
 
     for c in configs.iter_mut() {
@@ -744,6 +846,8 @@ pub fn apply_to_run_configs(configs: &mut [RunConfig], root: &Path, s: &Settings
                     if let Some(mvn) = &mvn {
                         c.command = mvn.to_string_lossy().into_owned();
                     }
+                    let env = maven_run_env(root, s, std::mem::take(&mut c.env));
+                    c.env = env;
                     if !c.args.starts_with(&mvn_options) {
                         c.args.splice(0..0, mvn_options.iter().cloned());
                     }

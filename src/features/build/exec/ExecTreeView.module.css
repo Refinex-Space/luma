@@ -1,0 +1,126 @@
+.split {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.pane > * {
+  flex: 1;
+  min-height: 0;
+}
+.treeHost {
+  display: flex;
+  flex-direction: column;
+}
+.treeHost > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+}
+.icon {
+  flex: none;
+}
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title {
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.name {
+  color: var(--fg);
+}
+.fileError {
+  text-decoration: underline wavy var(--danger);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.hint {
+  color: var(--fg-subtle);
+}
+.duration {
+  flex: none;
+  padding-left: 12px;
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.console {
+  overflow: auto;
+  position: relative;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  color: var(--fg);
+  background: var(--bg-app);
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+  outline: none;
+  contain: strict;
+}
+.consoleInner {
+  position: relative;
+  width: 100%;
+  min-width: max-content;
+}
+.line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+  padding: 0 12px;
+  line-height: 20px;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.detail {
+  overflow: auto;
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: 20px;
+  color: var(--fg);
+  background: var(--bg-app);
+  -webkit-user-select: text;
+  user-select: text;
+  outline: none;
+}
+.detailLocation {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-align: left;
+}
+.detailLocation:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+.detailText {
+  white-space: pre-wrap;
+  tab-size: 4;
+}
+.err {
+  color: color-mix(in srgb, var(--danger) 88%, var(--fg));
+}

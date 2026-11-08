@@ -10,6 +10,7 @@ pub mod compile;
 pub mod gradle;
 pub mod kotlin_bridge;
 pub mod maven;
+pub mod maven_tasks;
 pub mod pom_edit;
 mod process;
 mod sync;
@@ -55,6 +56,7 @@ pub fn load_linked(
     let maven = maven::is_maven_project(root).then(|| {
         let mut m = maven::load_with_repo(root, maven_repo.or_else(maven::default_local_repo));
         maven::UnlinkedProjects::from_model(&m, settings).filter(&mut m);
+        maven::IgnoredProjects::new(settings).mark(&mut m);
         sync::apply_maven_cache(root, cache_dir, &mut m);
         m
     });

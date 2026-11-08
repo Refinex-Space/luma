@@ -13,7 +13,7 @@ import {
   parseTaskLine,
   taskCompletions,
 } from "./model";
-import { pushHistory, readHistory, runConfig, useBuild } from "./store";
+import { pushHistory, readHistory, runConfig, useBuild, mavenRunOptions } from "./store";
 
 const COMMANDS: Record<BuildTool, RegExp> = {
   maven: /^(\.\/)?mvnw?(\.cmd)?(\s|$)/,
@@ -48,7 +48,7 @@ export function executeBuildLine(tool: BuildTool, text: string, projectKey?: str
     const project = projectFor("maven", projectKey);
     const goals = parseGoalLine(text);
     if (!maven || !project || !("pom" in project) || !goals.length) return false;
-    runConfig(mavenGoalConfig(project, goals, maven, settings.maven), "run");
+    runConfig(mavenGoalConfig(project, goals, maven, mavenRunOptions()), "run");
   } else {
     const gradle = model?.gradle;
     const project = projectFor("gradle", projectKey);

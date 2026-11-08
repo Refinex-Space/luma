@@ -1,0 +1,117 @@
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.info {
+  display: inline-flex;
+  flex: none;
+  color: var(--fg-subtle);
+  cursor: help;
+}
+.info:hover {
+  color: var(--fg-muted);
+}
+.comment {
+  display: block;
+  color: var(--fg-subtle);
+  font-size: var(--fs-small);
+  line-height: 1.4;
+}
+.inline > .comment {
+  display: inline;
+}
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+.radio {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.radio input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+.radio input:disabled + span {
+  color: var(--fg-disabled, var(--fg-subtle));
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.version {
+  color: var(--fg-subtle);
+  font-size: var(--fs-small);
+}
+.short {
+  width: 96px;
+}
+.wide {
+  flex: 1;
+  min-width: 260px;
+}
+.checks {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 24px;
+  color: var(--warning);
+  font-size: var(--fs-small);
+}
+.textarea {
+  width: 100%;
+  min-height: 44px;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border);
+  background: var(--bg-input, var(--bg-app));
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  outline: none;
+}
+.textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 4px 0;
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.listItem {
+  display: flex;
+  align-items: center;
+  min-height: var(--h-row);
+  padding: 0 8px;
+}
+.listEmpty {
+  margin: auto;
+  color: var(--fg-subtle);
+}
+.table {
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+}

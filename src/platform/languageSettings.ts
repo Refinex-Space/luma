@@ -49,9 +49,75 @@ export interface LanguagesValid {
     jdtlsJdk: string;
     jdtlsVmArgs: string;
     gradle: { jvm: string; distribution: "wrapper" | "local"; home: string; userHome: string };
-    maven: { home: string; userSettings: string; localRepository: string; unlinkedProjects: string[] };
+    maven: MavenSettingsValid;
   };
 }
+
+/** Build Tools › Maven (mirrors `ide-core::settings::MavenSettings`). */
+export interface MavenSettingsValid {
+  home: string;
+  userSettings: string;
+  localRepository: string;
+  unlinkedProjects: string[];
+  workOffline: boolean;
+  nonRecursive: boolean;
+  printStackTraces: boolean;
+  updateSnapshots: boolean;
+  outputLevel: "debug" | "info" | "warn" | "error" | "fatal" | "disabled";
+  checksumPolicy: "noGlobalPolicy" | "fail" | "warn";
+  failureBehavior: "default" | "failFast" | "failAtEnd" | "failNever";
+  threads: string;
+  useMavenConfig: boolean;
+  importing: {
+    excludeTargetFolder: boolean;
+    generatedSourcesFolder: "ignore" | "autodetect" | "generatedSourceFolder" | "subfoldersOfGeneratedSourceFolder";
+    updateFoldersPhase: string;
+    downloadSources: boolean;
+    downloadDocs: boolean;
+    vmOptions: string;
+    jdk: string;
+  };
+  ignoredFiles: string[];
+  ignoredPatterns: string[];
+  runner: {
+    vmOptions: string;
+    jre: string;
+    env: Record<string, string>;
+    passParentEnv: boolean;
+    skipTests: boolean;
+    properties: Array<{ name: string; value: string }>;
+  };
+  tasks: Record<"beforeBuild" | "afterBuild" | "beforeRebuild" | "afterRebuild", Array<{ pom: string; goal: string }>>;
+}
+
+export const DEFAULT_MAVEN_SETTINGS: MavenSettingsValid = {
+  home: "",
+  userSettings: "",
+  localRepository: "",
+  unlinkedProjects: [],
+  workOffline: false,
+  nonRecursive: false,
+  printStackTraces: false,
+  updateSnapshots: false,
+  outputLevel: "info",
+  checksumPolicy: "noGlobalPolicy",
+  failureBehavior: "default",
+  threads: "",
+  useMavenConfig: true,
+  importing: {
+    excludeTargetFolder: true,
+    generatedSourcesFolder: "autodetect",
+    updateFoldersPhase: "process-resources",
+    downloadSources: true,
+    downloadDocs: false,
+    vmOptions: "",
+    jdk: "",
+  },
+  ignoredFiles: [],
+  ignoredPatterns: [],
+  runner: { vmOptions: "", jre: "", env: {}, passParentEnv: true, skipTests: false, properties: [] },
+  tasks: { beforeBuild: [], afterBuild: [], beforeRebuild: [], afterRebuild: [] },
+};
 
 export interface ProjectStructureValid {
   sourceRoots: string[];
@@ -109,7 +175,7 @@ export const DEFAULT_LANGUAGES: LanguagesValid = {
     jdtlsJdk: "",
     jdtlsVmArgs: "",
     gradle: { jvm: "", distribution: "wrapper", home: "", userHome: "" },
-    maven: { home: "", userSettings: "", localRepository: "", unlinkedProjects: [] },
+    maven: DEFAULT_MAVEN_SETTINGS,
   },
 };
 
@@ -222,12 +288,75 @@ export function validateLanguages(raw: unknown): LanguagesValid {
         home: text(gradle.home, d.java.gradle.home),
         userHome: text(gradle.userHome, d.java.gradle.userHome),
       },
-      maven: {
-        home: text(maven.home, d.java.maven.home),
-        userSettings: text(maven.userSettings, d.java.maven.userSettings),
-        localRepository: text(maven.localRepository, d.java.maven.localRepository),
-        unlinkedProjects: folders(maven.unlinkedProjects),
-      },
+      maven: validateMaven(maven),
+    },
+  };
+}
+
+const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+function validateMaven(m: Obj): MavenSettingsValid {
+  const d = DEFAULT_MAVEN_SETTINGS;
+  const i = obj(m.importing);
+  const r = obj(m.runner);
+  const t = obj(m.tasks);
+  const tasks = (v: unknown) =>
+    (Array.isArray(v) ? v : []).flatMap((x) => {
+      const o = obj(x);
+      return typeof o.pom === "string" && typeof o.goal === "string" ? [{ pom: o.pom, goal: o.goal }] : [];
+    });
+  return {
+    home: text(m.home, d.home),
+    userSettings: text(m.userSettings, d.userSettings),
+    localRepository: text(m.localRepository, d.localRepository),
+    unlinkedProjects: folders(m.unlinkedProjects),
+    workOffline: bool(m.workOffline, d.workOffline),
+    nonRecursive: bool(m.nonRecursive, d.nonRecursive),
+    printStackTraces: bool(m.printStackTraces, d.printStackTraces),
+    updateSnapshots: bool(m.updateSnapshots, d.updateSnapshots),
+    outputLevel: oneOf(m.outputLevel, ["debug", "info", "warn", "error", "fatal", "disabled"] as const, d.outputLevel),
+    checksumPolicy: oneOf(m.checksumPolicy, ["noGlobalPolicy", "fail", "warn"] as const, d.checksumPolicy),
+    failureBehavior: oneOf(
+      m.failureBehavior,
+      ["default", "failFast", "failAtEnd", "failNever"] as const,
+      d.failureBehavior,
+    ),
+    threads: text(m.threads, d.threads),
+    useMavenConfig: bool(m.useMavenConfig, d.useMavenConfig),
+    importing: {
+      excludeTargetFolder: bool(i.excludeTargetFolder, d.importing.excludeTargetFolder),
+      generatedSourcesFolder: oneOf(
+        i.generatedSourcesFolder,
+        ["ignore", "autodetect", "generatedSourceFolder", "subfoldersOfGeneratedSourceFolder"] as const,
+        d.importing.generatedSourcesFolder,
+      ),
+      updateFoldersPhase: text(i.updateFoldersPhase, d.importing.updateFoldersPhase) || d.importing.updateFoldersPhase,
+      downloadSources: bool(i.downloadSources, d.importing.downloadSources),
+      downloadDocs: bool(i.downloadDocs, d.importing.downloadDocs),
+      vmOptions: typeof i.vmOptions === "string" ? i.vmOptions : d.importing.vmOptions,
+      jdk: text(i.jdk, d.importing.jdk),
+    },
+    ignoredFiles: folders(m.ignoredFiles),
+    ignoredPatterns: strs(m.ignoredPatterns),
+    runner: {
+      vmOptions: typeof r.vmOptions === "string" ? r.vmOptions : d.runner.vmOptions,
+      jre: text(r.jre, d.runner.jre),
+      env: Object.fromEntries(Object.entries(obj(r.env)).filter(([, v]) => typeof v === "string")) as Record<
+        string,
+        string
+      >,
+      passParentEnv: bool(r.passParentEnv, d.runner.passParentEnv),
+      skipTests: bool(r.skipTests, d.runner.skipTests),
+      properties: (Array.isArray(r.properties) ? r.properties : []).flatMap((x) => {
+        const o = obj(x);
+        return typeof o.name === "string" ? [{ name: o.name, value: typeof o.value === "string" ? o.value : "" }] : [];
+      }),
+    },
+    tasks: {
+      beforeBuild: tasks(t.beforeBuild),
+      afterBuild: tasks(t.afterBuild),
+      beforeRebuild: tasks(t.beforeRebuild),
+      afterRebuild: tasks(t.afterRebuild),
     },
   };
 }

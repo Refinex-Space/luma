@@ -2,11 +2,13 @@
 
 use crate::state::AppState;
 use ide_build::compile::{BuildEvent, BuildKind, BuildResult};
+use ide_build::maven_tasks::{ArtifactFilter, MavenEnvironment, MavenTaskKind, MavenUserFile};
 use ide_build::pom_edit::ArtifactKey;
 use ide_build::{BuildModel, BuildTool, SyncProgress};
 use ide_core::{IdeResult, Location, RequestId};
 #[allow(unused_imports)]
 pub use ide_host::ops::build::*;
+use std::path::PathBuf;
 use tauri::ipc::Channel;
 use tauri::{State, Window};
 
@@ -41,6 +43,73 @@ pub async fn build_sync(
         crate::commands::sender(on_progress),
     )
     .await
+}
+
+/// Runs a Maven tool window task (Generate Sources and Update Folders, Download Sources /
+/// Documentation) on the projects `poms` (all when empty), streaming the console on
+/// `on_progress`; cancellable with `cancel_request(request)`. Returns Maven's error summary
+/// when the run failed.
+#[tauri::command]
+#[specta::specta]
+#[allow(clippy::too_many_arguments)]
+pub async fn maven_task(
+    window: Window,
+    state: State<'_, AppState>,
+    kind: MavenTaskKind,
+    poms: Vec<String>,
+    artifacts: Vec<ArtifactFilter>,
+    profiles: Vec<String>,
+    request: RequestId,
+    on_progress: Channel<SyncProgress>,
+) -> IdeResult<Option<String>> {
+    ide_host::ops::build::maven_task(
+        &state.host,
+        window.label(),
+        kind,
+        poms,
+        artifacts,
+        profiles,
+        request,
+        crate::commands::sender(on_progress),
+    )
+    .await
+}
+
+/// Writes the effective POM of the Maven project `pom` and returns its path (Show Effective POM).
+#[tauri::command]
+#[specta::specta]
+pub async fn maven_effective_pom(
+    window: Window,
+    state: State<'_, AppState>,
+    pom: String,
+    profiles: Vec<String>,
+    request: RequestId,
+) -> IdeResult<PathBuf> {
+    ide_host::ops::build::maven_effective_pom(&state.host, window.label(), pom, profiles, request).await
+}
+
+/// The user `settings.xml` / `toolchains.xml`, created from a template when `create`.
+#[tauri::command]
+#[specta::specta]
+pub async fn maven_user_file(
+    window: Window,
+    state: State<'_, AppState>,
+    kind: MavenUserFile,
+    create: bool,
+) -> IdeResult<Option<PathBuf>> {
+    ide_host::ops::build::maven_user_file(&state.host, window.label(), kind, create).await
+}
+
+/// Settings › Maven: the Maven version and the defaults of the overridable paths.
+#[tauri::command]
+#[specta::specta]
+pub async fn maven_environment(
+    window: Window,
+    state: State<'_, AppState>,
+    home: String,
+    user_settings: String,
+) -> IdeResult<MavenEnvironment> {
+    ide_host::ops::build::maven_environment(&state.host, window.label(), home, user_settings).await
 }
 
 /// Where the direct dependency `dependency` of the Maven module `pom` is declared.
