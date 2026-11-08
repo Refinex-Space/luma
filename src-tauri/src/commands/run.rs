@@ -42,6 +42,18 @@ pub async fn run_application_publish(
     ide_host::ops::run::run_application_publish(&state.host, window.label(), config, class_paths, main_class).await
 }
 
+/// Rewrites Spring Boot DevTools' restart trigger file (Update trigger file).
+#[tauri::command]
+#[specta::specta]
+pub async fn run_application_trigger(
+    window: Window,
+    state: State<'_, AppState>,
+    class_paths: Vec<String>,
+    main_class: String,
+) -> IdeResult<()> {
+    ide_host::ops::run::run_application_trigger(&state.host, window.label(), class_paths, main_class).await
+}
+
 /// Detected configs followed by user-defined ones (user ids win on conflict).
 #[tauri::command]
 #[specta::specta]

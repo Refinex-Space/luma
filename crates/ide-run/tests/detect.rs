@@ -214,7 +214,7 @@ fn builds_nested_in_a_folder_of_repositories() {
     let app = find(&c, "application:RuoYi-Vue-Plus/ruoyi-admin:org.dromara.DromaraApplication");
     assert_eq!(app.name, "DromaraApplication");
     assert_eq!(app.kind, "spring-boot");
-    assert_eq!(cmdline(app), "java -cp ${classpath} org.dromara.DromaraApplication");
+    assert_eq!(cmdline(app), "java -XX:TieredStopAtLevel=1 -cp ${classpath} org.dromara.DromaraApplication");
     assert_eq!(app.cwd.as_deref(), Some(Path::new("RuoYi-Vue-Plus/ruoyi-admin")));
     assert_eq!(app.extras.module.as_deref(), Some("RuoYi-Vue-Plus/ruoyi-admin"));
     assert_eq!(app.debug_adapter.as_deref(), Some("java-debug"));

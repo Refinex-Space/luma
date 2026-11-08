@@ -648,6 +648,18 @@ const GUTTER = editorPage({
               keywords: ["spring", "test", "context"],
               component: () => <GutterGroup id="springTest" label="Test configuration" />,
             },
+            {
+              t: "custom",
+              label: "Spring Boot configuration properties",
+              keywords: ["spring boot", "configuration properties", "application.yml", "application.properties"],
+              component: () => <GutterGroup id="springBootConfig" label="Spring Boot configuration properties" />,
+            },
+            {
+              t: "custom",
+              label: "Auto-configuration registrations",
+              keywords: ["spring boot", "auto-configuration", "imports", "spring.factories"],
+              component: () => <GutterGroup id="springBootRegistration" label="Auto-configuration registrations" />,
+            },
           ],
         },
       ],

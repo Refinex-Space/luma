@@ -20,7 +20,9 @@ export type MarkerKind =
   | "springPublisher"
   | "springScheduled"
   | "springCache"
-  | "springTest";
+  | "springTest"
+  | "bootConfig"
+  | "bootRegistration";
 
 /**
  * Settings › Gutter Icons groups: ↓ markers, ↑ markers, Spring beans and injection points,
@@ -33,7 +35,9 @@ export type MarkerGroup =
   | "springEvents"
   | "springScheduled"
   | "springCache"
-  | "springTest";
+  | "springTest"
+  | "springBootConfig"
+  | "springBootRegistration";
 
 export const MARKER_GROUPS: readonly MarkerGroup[] = [
   "inheritors",
@@ -43,6 +47,8 @@ export const MARKER_GROUPS: readonly MarkerGroup[] = [
   "springScheduled",
   "springCache",
   "springTest",
+  "springBootConfig",
+  "springBootRegistration",
 ];
 
 export const MARKER_ICONS: Record<MarkerKind, string> = {
@@ -57,6 +63,8 @@ export const MARKER_ICONS: Record<MarkerKind, string> = {
   springScheduled: "gutter-spring-scheduled",
   springCache: "gutter-spring-cacheable",
   springTest: "gutter-spring-test-context",
+  bootConfig: "gutter-spring-boot-config",
+  bootRegistration: "gutter-spring-boot-registration",
 };
 
 export interface MarkerCandidate {
@@ -305,6 +313,8 @@ const GROUP_OF: Record<MarkerKind, MarkerGroup> = {
   springScheduled: "springScheduled",
   springCache: "springCache",
   springTest: "springTest",
+  bootConfig: "springBootConfig",
+  bootRegistration: "springBootRegistration",
 };
 
 /** Settings group of a marker kind. */

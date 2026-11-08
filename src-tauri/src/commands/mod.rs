@@ -46,6 +46,7 @@ pub mod search;
 pub mod sonar;
 pub mod spell;
 pub mod spring;
+pub mod spring_boot;
 pub mod ssh;
 pub mod syntax;
 pub mod term;
@@ -256,6 +257,19 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         spring::spring_members,
         spring::spring_candidates,
         spring::spring_locate,
+        spring_boot::spring_boot_status,
+        spring_boot::spring_boot_complete,
+        spring_boot::spring_boot_hover,
+        spring_boot::spring_boot_describe,
+        spring_boot::spring_boot_problems,
+        spring_boot::spring_boot_navigate,
+        spring_boot::spring_boot_define_key,
+        spring_boot::spring_boot_markers,
+        spring_boot::spring_boot_live_attach,
+        spring_boot::spring_boot_live_status,
+        spring_boot::spring_boot_live_endpoint,
+        spring_boot::spring_boot_live_detach,
+        spring_boot::spring_boot_locate_class,
         lombok::lombok_delombok,
         hot_reload::hot_reload_launch,
         sonar::sonar_status,
@@ -362,6 +376,7 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         run::run_tomcat_build,
         run::run_application_build,
         run::run_application_publish,
+        run::run_application_trigger,
         run::run_tomcat_update,
         run::run_test_reports,
         build::build_model,

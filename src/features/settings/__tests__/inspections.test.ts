@@ -54,6 +54,7 @@ describe("inspections tree", () => {
       "Proofreading",
       "Python",
       "Spring",
+      "Spring Boot",
       "SQL",
       "TypeScript",
     ]);

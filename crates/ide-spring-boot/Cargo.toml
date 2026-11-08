@@ -1,0 +1,23 @@
+[package]
+name = "ide-spring-boot"
+description = "Spring Boot support: configuration metadata, application.properties / application.yml analysis (completion, documentation, inspections), auto-configuration registrations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ide-core.workspace = true
+ide-index.workspace = true
+ide-java.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+tree-sitter.workspace = true
+tree-sitter-yaml = "0.7.2"
+tree-sitter-json = "0.24.8"
+
+[dev-dependencies]
+tempfile.workspace = true
+zip = { workspace = true, features = ["deflate"] }

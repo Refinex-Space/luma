@@ -501,7 +501,7 @@ pub fn simple(name: &str) -> &str {
 
 /// Version of [`extract`]'s output: bump when it changes what a stub holds, and only the Java
 /// files are indexed again.
-pub(crate) const STUB_VERSION: u32 = 9;
+pub(crate) const STUB_VERSION: u32 = 10;
 
 /// The stub of a parsed Java file.
 pub fn extract(tree: &Tree, text: &str) -> JavaStub {
@@ -1186,6 +1186,10 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
             let (ty, at, end_line) = (erased(t, text), pos(n, text), p.end_position().row as u32);
             let generic = format!("{}{}", type_text(t, text), dims_after(p, text));
             let name = node_text(n, text).to_owned();
+            // The component's annotations (`@DefaultValue`, `@Name`) on its field.
+            let (_, component_annotations) = modifiers(p, text);
+            let component_args = annotation_args(p, text);
+            let component_values = annotation_values(p, text);
             let member = |kind, flags, ty: &str| JavaMember {
                 name: name.clone(),
                 kind,
@@ -1193,13 +1197,21 @@ fn declare_type(decl: Node, outer: Option<u32>, extra: u16, text: &str, stub: &m
                 params: Vec::new().into(),
                 ty: ty.to_owned(),
                 type_params: Vec::new().into(),
-                annotations: Vec::new().into(),
+                annotations: if kind == JavaMemberKind::Field {
+                    component_annotations.clone().into()
+                } else {
+                    Vec::new().into()
+                },
                 at,
                 end_line,
                 ty_args: Vec::new().into(),
-                values: Vec::new().into(),
+                values: if kind == JavaMemberKind::Field { component_values.clone().into() } else { Vec::new().into() },
                 param_details: Vec::new().into(),
-                annotation_args: Vec::new().into(),
+                annotation_args: if kind == JavaMemberKind::Field {
+                    component_args.clone().into()
+                } else {
+                    Vec::new().into()
+                },
                 sig: MemberSignature { ty: generic.clone(), ..Default::default() },
             };
             // The component's field and its accessor, both at the component.
@@ -1742,6 +1754,42 @@ impl<'a> JavaView<'a> {
     }
 
     /// Member type `name` declared in `owner` (not inherited, not local).
+    /// Source types naming `simple` (as written, last segment) among their supertypes.
+    pub fn types_with_super(&self, simple: &str) -> Vec<TypeId> {
+        let mut out = Vec::new();
+        for (file, stub) in self.java_files() {
+            for (i, t) in stub.types.iter().enumerate() {
+                if t.supers.iter().any(|s| s.rsplit('.').next() == Some(simple)) {
+                    out.push(TypeId { file, ty: i as u32 });
+                }
+            }
+        }
+        out
+    }
+
+    /// Packages of the source files with their top-level class names.
+    pub fn source_packages(&self) -> Vec<(String, Vec<String>)> {
+        let mut by: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+        for (_, stub) in self.java_files() {
+            let e = by.entry(stub.package.clone()).or_default();
+            e.extend(stub.types.iter().filter(|t| t.outer.is_none() && !t.name.is_empty()).map(|t| t.name.clone()));
+        }
+        by.into_iter().collect()
+    }
+
+    /// Every Java file (slot, declarations), unsaved declarations first.
+    pub fn java_files(&self) -> impl Iterator<Item = (u32, &'a JavaStub)> + '_ {
+        let edited: Vec<(u32, &'a JavaStub)> = self.edited().collect();
+        let indexed = self
+            .data
+            .files
+            .iter()
+            .enumerate()
+            .filter(move |(i, _)| !self.is_edited(*i as u32))
+            .filter_map(|(i, e)| Some((i as u32, e.as_ref()?.java.as_deref()?)));
+        edited.into_iter().chain(indexed)
+    }
+
     pub fn member_type_of(&self, owner: TypeId, name: &str) -> Option<TypeId> {
         self.member_type(owner, name)
     }

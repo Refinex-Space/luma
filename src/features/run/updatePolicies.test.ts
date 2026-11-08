@@ -14,7 +14,7 @@ describe("application update policies", () => {
     expect(update?.options?.map((o) => o.value)).toEqual(
       type.id === "tomcat"
         ? ["ask", "resources", "classes", "redeploy", "restart"]
-        : ["ask", "resources", "classes", "restart"],
+        : ["ask", "resources", "classes", "trigger", "hotswapOrTrigger", "restart"],
     );
     expect(deactivate?.options?.map((o) => o.value)).toEqual(["none", "resources", "classes"]);
   });

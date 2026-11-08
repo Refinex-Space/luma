@@ -14,7 +14,7 @@ import { showContextMenu } from "@/ui";
 import { buildTomcatArtifact } from "./tomcat";
 import { runUpdateBuild } from "./buildUpdate";
 import { startRun, stopSession, useRun, waitForExit, type RunSession } from "./store";
-import { isUpdatable, updateAllowed, type UpdateMode } from "./updatePolicies";
+import { isUpdatable, updateAllowed, usesTriggerFile, type UpdateMode } from "./updatePolicies";
 
 export type UpdateSession = Pick<RunSession, "id" | "config"> & { debug?: DebugServiceSession };
 export const useApplicationUpdates = create<{ ids: ReadonlySet<string> }>(() => ({ ids: new Set() }));
@@ -42,16 +42,24 @@ async function updateSpringBoot(config: RunConfig, mode: UpdateMode, debugging: 
   const module = await resolveJavaModule(config);
   const parsed = parseJavaArgs(config.args);
   if (!parsed.mainClass) throw new Error(tx("The Spring Boot configuration has no main class"));
-  const info = await call(
-    commands.javaResolveLaunch(module, parsed.classpath === "test", mode === "classes", nextRequestId()),
-  );
+  const trigger = usesTriggerFile(mode);
+  if (trigger && /-Dspring\.devtools\.restart\.enabled=false\b/.test(config.args.join(" ")))
+    throw new Error(tx("Hot reload disabled DevTools restarts in this session: restart the application"));
+  const compile = mode === "classes" || trigger;
+  const info = await call(commands.javaResolveLaunch(module, parsed.classpath === "test", compile, nextRequestId()));
   if (info.build === "failed" || info.build === "withErrors" || info.build === "cancelled")
     throw new Error(tx("Application update build failed"));
   await runUpdateBuild(await call(commands.runApplicationBuild(config, module)));
   const classPaths = parsed.explicitClasspath?.split(info.pathListSeparator) ?? info.classPaths;
   await call(commands.runApplicationPublish(config, classPaths, parsed.mainClass));
-  if (mode === "classes" && debugging && (await executeAction("debug.reloadChangedClasses", { configId: config.id })))
+  // Hot swap first: in debug sessions, and when hot swap fails, the trigger file restarts.
+  const swap = mode === "classes" || mode === "hotswapOrTrigger";
+  if (swap && debugging && (await executeAction("debug.reloadChangedClasses", { configId: config.id }))) return;
+  if (trigger) {
+    await call(commands.runApplicationTrigger(classPaths, parsed.mainClass));
+    notifications().notify({ group: "run", level: "info", title: tx("Trigger file updated") });
     return;
+  }
   notifications().notify({
     group: "run",
     level: "info",
@@ -119,6 +127,12 @@ export function showApplicationUpdate(sessionId?: string): void {
     ["resources", "Update resources"],
     ["classes", "Update classes and resources"],
     ...(session.config.kind === "tomcat" ? [["redeploy", "Redeploy"]] : []),
+    ...(session.config.kind === "spring-boot"
+      ? [
+          ["trigger", "Update trigger file"],
+          ["hotswapOrTrigger", "Hot swap classes and update trigger file if failed"],
+        ]
+      : []),
     ["restart", session.config.kind === "tomcat" ? "Restart server" : "Restart"],
   ];
   showContextMenu({ x: window.innerWidth / 2 - 140, y: 100 }, [

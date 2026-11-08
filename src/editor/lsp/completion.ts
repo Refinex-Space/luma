@@ -419,6 +419,8 @@ export function mergeResults(results: readonly CompletionResult[]): CompletionRe
 interface RichCompletion extends Completion {
   icon?: string | null;
   typeText?: string;
+  /** Shown struck through (a deprecated configuration key). */
+  deprecated?: boolean;
 }
 
 /** Documents the server could not complete in, so typing doesn't ask again until a server is ready. */
@@ -780,9 +782,8 @@ export function completionExtension() {
       optionClass: (c) => {
         // IDEA shows keywords in bold.
         const keyword = (isLsp(c) ? c.lsp.kind : c.type) === "keyword" ? " cm-lsp-keyword-option" : "";
-        return (
-          (isLsp(c) ? (c.lsp.deprecated ? "cm-lsp-option cm-lsp-deprecated-option" : "cm-lsp-option") : "") + keyword
-        );
+        const deprecated = isLsp(c) ? !!c.lsp.deprecated : !!(c as RichCompletion).deprecated;
+        return (isLsp(c) ? "cm-lsp-option" : "") + (deprecated ? " cm-lsp-deprecated-option" : "") + keyword;
       },
       tooltipClass: () => "cm-lsp-completion",
     }),

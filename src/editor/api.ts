@@ -340,11 +340,14 @@ export type ContributedFormatter = (
 export type ContributedDefinition = ((view: EditorView, pos: number) => boolean) & {
   covers?: (state: EditorState, pos: number) => boolean;
 };
-/** Hover and Quick Documentation: Markdown about the symbol at `pos`. */
+/** Hover and Quick Documentation: Markdown about the symbol at `pos` (answered now or later). */
 export type ContributedHover = (
   state: EditorState,
   pos: number,
-) => { from: number; to: number; markdown: string } | null;
+) =>
+  | { from: number; to: number; markdown: string }
+  | null
+  | Promise<{ from: number; to: number; markdown: string } | null>;
 
 /**
  * Find Usages / Show Usages: when `pos` names something the feature resolves itself (an

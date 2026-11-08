@@ -56,9 +56,12 @@ describe("Application / Spring Boot command line", () => {
       programArgs: "--server.port=8081 'two words'",
       classpath: "${classpath}",
     });
+    // Spring Boot leads with IDEA's launch optimization unless the configuration disables it.
+    const optimization = type === springBootType ? ["-XX:TieredStopAtLevel=1"] : [];
     expect(line).toEqual({
       command: "java",
       args: [
+        ...optimization,
         "-Ddemo.flag=on",
         "--add-opens",
         "java.base/java.lang=ALL-UNNAMED",
@@ -70,7 +73,12 @@ describe("Application / Spring Boot command line", () => {
       ],
     });
     const parsed = parseJavaArgs(line!.args);
-    expect(parsed.vmArgs).toEqual(["-Ddemo.flag=on", "--add-opens", "java.base/java.lang=ALL-UNNAMED"]);
+    expect(parsed.vmArgs).toEqual([
+      ...optimization,
+      "-Ddemo.flag=on",
+      "--add-opens",
+      "java.base/java.lang=ALL-UNNAMED",
+    ]);
     expect(parsed.mainClass).toBe("com.example.Application");
     expect(parsed.programArgs).toEqual(["--server.port=8081", "two words"]);
   });
@@ -94,9 +102,16 @@ describe("Application / Spring Boot command line", () => {
     expect(parseArgs(String.raw`a\ b`)).toEqual(["a b"]);
   });
 
-  it("passes Spring Boot's active profiles before the program arguments", () => {
+  it("passes Spring Boot's active profiles as a system property (IDEA)", () => {
     const line = springBootType.commandLine({ mainClass: "a.App", activeProfiles: "dev,local", programArgs: "--x" });
-    expect(line!.args).toEqual(["-cp", "${classpath}", "a.App", "--spring.profiles.active=dev,local", "--x"]);
+    expect(line!.args).toEqual([
+      "-XX:TieredStopAtLevel=1",
+      "-Dspring.profiles.active=dev,local",
+      "-cp",
+      "${classpath}",
+      "a.App",
+      "--x",
+    ]);
     // Application has no profiles field.
     expect(applicationType.commandLine({ mainClass: "a.App", activeProfiles: "dev" })!.args).toEqual([
       "-cp",
@@ -116,13 +131,42 @@ describe("Application / Spring Boot command line", () => {
 
 describe("configurations saved or detected as a raw command line", () => {
   it("opens a detected Spring Boot configuration in the form", () => {
-    const detected = cfg({ args: ["-cp", "${classpath}", "com.example.DemoApplication"], detected: true });
+    const detected = cfg({
+      args: ["-XX:TieredStopAtLevel=1", "-cp", "${classpath}", "com.example.DemoApplication"],
+      detected: true,
+    });
     expect(formParams(detected)).toEqual({
       mainClass: "com.example.DemoApplication",
       vmOptions: "",
       programArgs: "",
       classpath: "${classpath}",
     });
+    // Without the optimization, the configuration disables it (the same command line runs).
+    const plain = cfg({ args: ["-cp", "${classpath}", "com.example.DemoApplication"], detected: true });
+    expect(formParams(plain)).toMatchObject({ "springBoot.disableLaunchOptimization": "true" });
+  });
+
+  it("runs Boot options, overridden properties and the DevTools trigger file", () => {
+    const line = springBootType.commandLine({
+      mainClass: "a.App",
+      "springBoot.debugOutput": "true",
+      "springBoot.hideBanner": "true",
+      "springBoot.disableLaunchOptimization": "true",
+      overrideProperties: "server.port=9090\n# note\nspring.config.name: my",
+      onUpdate: "trigger",
+    });
+    expect(line!.args).toEqual([
+      "-Ddebug",
+      "-Dspring.main.banner-mode=off",
+      "-Dserver.port=9090",
+      "-Dspring.config.name=my",
+      "-Dspring.devtools.restart.trigger-file=.restartTriggerFile",
+      "-cp",
+      "${classpath}",
+      "a.App",
+    ]);
+    // A form edit of such a configuration reproduces it.
+    expect(formParams(cfg({ args: line!.args }))).toMatchObject({ mainClass: "a.App" });
   });
 
   it("splits an older configuration's arguments into VM options, main class, profiles and program arguments", () => {
@@ -130,12 +174,13 @@ describe("configurations saved or detected as a raw command line", () => {
       args: ["-Xmx1g", "-Dname=a b", "-cp", "${classpath}", "a.App", "--spring.profiles.active=dev", "x y"],
     });
     const params = formParams(old);
+    // Luma's older profiles argument stays a program argument: the same command line runs.
     expect(params).toEqual({
       mainClass: "a.App",
       vmOptions: "-Xmx1g '-Dname=a b'",
-      programArgs: "'x y'",
+      programArgs: "--spring.profiles.active=dev 'x y'",
       classpath: "${classpath}",
-      activeProfiles: "dev",
+      "springBoot.disableLaunchOptimization": "true",
     });
     // Editing VM options keeps the rest of the command line.
     const next = withParams(old, { ...params!, vmOptions: REPORTER_VM });
@@ -176,7 +221,7 @@ describe("templates", () => {
     expect(c.kind).toBe("spring-boot");
     expect(c.debugAdapter).toBe("java-debug");
     expect(c.params).toMatchObject({ vmOptions: "-Xmx512m" });
-    expect(c.args).toEqual(["-Xmx512m", "-cp", "${classpath}"]);
+    expect(c.args).toEqual(["-XX:TieredStopAtLevel=1", "-Xmx512m", "-cp", "${classpath}"]);
   });
 });
 

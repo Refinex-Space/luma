@@ -215,6 +215,8 @@ export interface BuiltinInspection {
   description: string;
   /** Highlighting level when the profile sets none (else as reported). */
   defaultLevel?: InspectionLevel;
+  /** Off until the profile turns it on (IDEA's `enabledByDefault="false"`). Default on. */
+  enabledByDefault?: boolean;
   options?: readonly InspectionOptionSpec[];
 }
 
@@ -470,10 +472,137 @@ const SPRING_INSPECTION_LIST: readonly BuiltinInspection[] = (
   ] satisfies Array<Omit<BuiltinInspection, "id" | "group">>
 ).map((i): BuiltinInspection => ({ ...i, id: `builtin:${i.producer}`, group: "Spring" }));
 
+/**
+ * Producers of the Spring Boot plugin's checks, keyed by the backend's inspection names; the
+ * producers are IDEA's inspection ids (Settings › Editor › Inspections › Spring › Spring Boot).
+ */
+export const SPRING_BOOT_PRODUCERS = {
+  SpringBootApplicationProperties: "SpringBootApplicationProperties",
+  SpringBootApplicationYaml: "SpringBootApplicationYaml",
+  SpringBootProfileSpecificProperty: "SpringBootProfileSpecificProperty",
+  SpringBootConfigImport: "SpringBootConfigImport",
+  SpringBootUnresolvedPlaceholder: "SpringBootUnresolvedPlaceholder",
+  SpringDataNoDriverDependency: "SpringDataNoDriverDependency",
+  SpringBootAdditionalConfig: "SpringBootAdditionalConfig",
+  SpringBootImports: "SpringBootImportsUnresolvedClass",
+  ConfigurationProperties: "ConfigurationProperties",
+  SpringBootApplicationSetup: "SpringBootApplicationSetup",
+  SpringBootReactorHooksOnDebug: "SpringBootReactorHooksOnDebug",
+  SpringBootEarlyEventListener: "SpringBootEarlyEventListener",
+  SpringBootTestConstructorAutowired: "SpringBootTestConstructorAutowired",
+} as const;
+
+/** The Replacement tokens option of the configuration file inspections. */
+export const SPRING_BOOT_REPLACEMENT_TOKENS = "replacementTokens";
+
+const REPLACEMENT_TOKENS_OPTION: InspectionOptionSpec = {
+  key: SPRING_BOOT_REPLACEMENT_TOKENS,
+  label: "Skip values with replacement tokens (@…@)",
+  default: true,
+};
+
+const SPRING_BOOT_INSPECTION_LIST: readonly BuiltinInspection[] = (
+  [
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootApplicationProperties,
+      name: "Invalid properties configuration",
+      description:
+        "Reports unknown and deprecated keys of application.properties files, values that cannot be converted to the property's type, duplicate keys and invalid indexes. Fixes: use the replacement key, change to the key meant, define the key in additional metadata.",
+      options: [REPLACEMENT_TOKENS_OPTION],
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootApplicationYaml,
+      name: "Invalid YAML configuration",
+      description:
+        "Reports unknown and deprecated keys of application.yml files, values that cannot be converted to the property's type, duplicate keys and invalid indexes. Fixes: use the replacement key, change to the key meant, define the key in additional metadata.",
+      options: [REPLACEMENT_TOKENS_OPTION],
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootProfileSpecificProperty,
+      name: "Invalid profile-specific property",
+      description:
+        "Reports spring.profiles.active, include and default in profile-specific files and documents, and the legacy spring.profiles key, which Spring Boot rejects at startup.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootConfigImport,
+      name: "Invalid spring.config.import location",
+      description:
+        "Reports classpath: locations of spring.config.import that do not exist (without optional:) and classpath wildcards. Fix: add the optional: prefix.",
+      defaultLevel: "warning",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootUnresolvedPlaceholder,
+      name: "Unresolved placeholder",
+      description:
+        "Reports ${…} placeholders without a default that no configuration file of the module and no configuration property defines. Environment variables and runtime properties are not reported.",
+      defaultLevel: "warning",
+      enabledByDefault: false,
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringDataNoDriverDependency,
+      name: "Spring Data driver class availability",
+      description:
+        "Reports JDBC driver class names (spring.datasource.driver-class-name) not found in the module's dependencies.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootAdditionalConfig,
+      name: "Invalid additional-spring-configuration-metadata.json",
+      description:
+        "Reports entries of additional configuration metadata without a name, duplicate entries, classes that cannot be resolved, descriptions not ending with a period, and hints for keys that do not exist.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootImports,
+      name: "Invalid auto-configuration registration",
+      description:
+        "Reports classes in META-INF/spring/*.imports and spring.factories that cannot be resolved, and EnableAutoConfiguration in spring.factories, which Spring Boot 3 no longer reads.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.ConfigurationProperties,
+      name: "Invalid @ConfigurationProperties",
+      description:
+        "Reports @ConfigurationProperties without a prefix or with one that is not kebab-case, and classes no @EnableConfigurationProperties, component scan or @ConfigurationPropertiesScan registers. Fixes: register via @EnableConfigurationProperties.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootApplicationSetup,
+      name: "Invalid Spring Boot application setup",
+      description:
+        "Reports @SpringBootApplication in the default package, and @EnableAutoConfiguration or @ComponentScan that @SpringBootApplication already implies. Fix: remove the redundant annotation.",
+      defaultLevel: "error",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootReactorHooksOnDebug,
+      name: "Suspicious Hooks.onOperatorDebug() usage",
+      description:
+        "Reports Hooks.onOperatorDebug() when reactor-tools is on the class path: Spring Boot already initializes the ReactorDebugAgent, and both together duplicate stack frames. Fix: remove the call.",
+      defaultLevel: "warning",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootEarlyEventListener,
+      name: "Inapplicable @EventListener for early application events",
+      description:
+        "Reports @EventListener methods of beans listening to events published before the application context exists (ApplicationStartingEvent, ApplicationEnvironmentPreparedEvent…): they are never called.",
+      defaultLevel: "warning",
+    },
+    {
+      producer: SPRING_BOOT_PRODUCERS.SpringBootTestConstructorAutowired,
+      name: "Not autowired test constructor parameter",
+      description:
+        "Reports constructor parameters of Spring Boot test classes without @Autowired while spring.test.constructor.autowire.mode is not all: JUnit cannot resolve them. Fix: annotate the parameter with @Autowired.",
+      defaultLevel: "warning",
+    },
+  ] satisfies Array<Omit<BuiltinInspection, "id" | "group">>
+).map((i): BuiltinInspection => ({ ...i, id: `builtin:${i.producer}`, group: "Spring Boot" }));
+
 /** Checks the IDE runs itself (not a language server). */
 export const BUILTIN_INSPECTIONS: readonly BuiltinInspection[] = [
   ...DOTENV_INSPECTION_LIST,
   ...SPRING_INSPECTION_LIST,
+  ...SPRING_BOOT_INSPECTION_LIST,
   {
     id: "builtin:lombok-getter",
     producer: LOMBOK_PRODUCERS.getter,
@@ -563,6 +692,11 @@ export const BUILTIN_INSPECTIONS: readonly BuiltinInspection[] = [
 const BUILTIN_BY_PRODUCER = new Map(BUILTIN_INSPECTIONS.map((b) => [b.producer, b]));
 const BUILTIN_BY_ID = new Map(BUILTIN_INSPECTIONS.map((b) => [b.id, b]));
 
+/** Whether inspection `id` is on under `profile` (built-in checks may be off by default). */
+export function inspectionEnabled(profile: ProfileOverrides, id: string): boolean {
+  return profile[id]?.enabled ?? BUILTIN_BY_ID.get(id)?.enabledByDefault ?? true;
+}
+
 /** Option `key` of inspection `id` under `profile` (its default when unset). */
 export function inspectionOption(profile: ProfileOverrides, id: string, key: string): boolean {
   const value = profile[id]?.options?.[key];
@@ -616,7 +750,7 @@ export function applyProfile<D extends Diagnostic>(
 ): readonly D[] {
   const base = producerInspectionId(producer);
   const own = profile[base];
-  if (own?.enabled === false) return [];
+  if (!inspectionEnabled(profile, base)) return [];
   const fallback = BUILTIN_BY_PRODUCER.get(producer)?.defaultLevel;
   let changed = false;
   const out: D[] = [];

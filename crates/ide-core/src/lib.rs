@@ -24,6 +24,7 @@ pub mod remote_settings;
 pub mod settings;
 pub mod sonar;
 pub mod spring;
+pub mod spring_boot;
 pub mod task;
 pub mod text;
 pub mod tool_path;

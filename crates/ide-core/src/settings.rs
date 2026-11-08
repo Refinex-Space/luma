@@ -14,6 +14,7 @@ pub use crate::proxy_settings::{ProxyKind, ProxyMode, ProxySettings};
 pub use crate::remote_settings::*;
 pub use crate::sonar::{SonarLintSettings, SonarRuleSetting};
 pub use crate::spring::SpringSettings;
+pub use crate::spring_boot::SpringBootSettings;
 pub use crate::web_browsers::{
     BrowserFamily, BrowserSpecificSettings, BuiltInServerSettings, ConfiguredBrowser, ReloadMode, WebBrowserSettings,
 };
@@ -68,6 +69,8 @@ pub struct Settings {
     pub dotenv: DotEnvSettings,
     /// Languages & Frameworks › Spring (bundled plugin).
     pub spring: SpringSettings,
+    /// Languages & Frameworks › Spring › Spring Boot (bundled plugin).
+    pub spring_boot: SpringBootSettings,
     /// Editor › Natural Languages › Spelling.
     pub spelling: SpellingSettings,
     /// Tools › SSH Configurations.
@@ -216,6 +219,7 @@ impl Default for Settings {
             lombok: LombokSettings::default(),
             dotenv: DotEnvSettings::default(),
             spring: SpringSettings::default(),
+            spring_boot: SpringBootSettings::default(),
             spelling: SpellingSettings::default(),
             ssh: SshSettings::default(),
             deployment: DeploymentSettings::default(),

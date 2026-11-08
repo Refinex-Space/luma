@@ -222,6 +222,24 @@ impl ProjectIndex {
         Some(f(&view))
     }
 
+    /// Runs `f` over the Java structure index as indexed, with the declarations of the files
+    /// in `others` taken from their unsaved text (no file being edited: a configuration file's
+    /// view of the project's Java types).
+    pub fn with_java_state<R>(&self, others: &[(PathBuf, String)], f: impl FnOnce(&java::JavaView) -> R) -> R {
+        let lang = ide_core::LanguageId::new("java");
+        let extract =
+            |text: &str| self.shared.syntax.with_parsed(&lang, text, &|| false, |p| java::extract(p.tree, p.text)).ok();
+        let edited: Vec<(PathBuf, java::JavaStub)> = others
+            .iter()
+            .filter_map(|(p, t)| Some((self.normalize(p).unwrap_or_else(|| p.clone()), extract(t)?)))
+            .collect();
+        let d = self.shared.data.read_recursive();
+        let mut view = java::JavaView::new(&d, None);
+        view.others =
+            edited.iter().filter_map(|(p, stub)| Some(java::Overlay { file: Some(d.slot(p)?), stub })).collect();
+        f(&view)
+    }
+
     /// Runs `f` over the Spring model with `path`'s unsaved `text`. The model of the indexed
     /// state is cached; an edit that changes declarations gets a model of its own.
     pub fn with_spring<R>(

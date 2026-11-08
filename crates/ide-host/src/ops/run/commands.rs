@@ -94,6 +94,22 @@ pub async fn run_application_publish(
     .map_err(|e| IdeError::internal(e.to_string()))?
 }
 
+/// Rewrites Spring Boot DevTools' restart trigger file of a running application.
+pub async fn run_application_trigger(
+    host: &Host,
+    window: &str,
+    class_paths: Vec<String>,
+    main_class: String,
+) -> IdeResult<()> {
+    host.require_trust(window)?;
+    let project = host.project(window)?;
+    tokio::task::spawn_blocking(move || {
+        ide_build::application_update::touch_trigger(&project.root, &class_paths, &main_class).map(|_| ())
+    })
+    .await
+    .map_err(|e| IdeError::internal(e.to_string()))?
+}
+
 /// Configuration templates: per-type defaults applied to new configurations.
 pub fn run_templates(host: &Host, window: &str) -> IdeResult<Vec<RunConfig>> {
     let root = host.project(window)?.root.clone();
@@ -228,6 +244,9 @@ pub(crate) fn register(d: &mut Dispatcher) {
     });
     d.add("run_application_build", |c| async move {
         run_application_build(&c.host, &c.window, c.arg("config")?, c.arg("module")?).await
+    });
+    d.add("run_application_trigger", |c| async move {
+        run_application_trigger(&c.host, &c.window, c.arg("classPaths")?, c.arg("mainClass")?).await
     });
     d.add("run_application_publish", |c| async move {
         run_application_publish(&c.host, &c.window, c.arg("config")?, c.arg("classPaths")?, c.arg("mainClass")?).await

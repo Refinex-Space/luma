@@ -110,6 +110,25 @@ pub fn publish(root: &Path, cache: &Path, class_paths: &[String], main_class: &s
     Ok(())
 }
 
+/// Spring Boot DevTools' restart trigger file name (`spring.devtools.restart.trigger-file`).
+pub const TRIGGER_FILE: &str = ".restartTriggerFile";
+
+/// Rewrites DevTools' trigger file in the output folder holding the running main class: the
+/// application restarts if there is something to load (DevTools watches its class path).
+pub fn touch_trigger(root: &Path, class_paths: &[String], main_class: &str) -> IdeResult<PathBuf> {
+    let paths: Vec<_> = class_paths.iter().filter_map(|p| dunce::canonicalize(root.join(p)).ok()).collect();
+    let class_file = main_class.split('.').collect::<PathBuf>().with_extension("class");
+    let folder =
+        paths.iter().find(|p| p.join(&class_file).is_file()).or_else(|| paths.iter().find(|p| p.is_dir())).ok_or_else(
+            || IdeError::invalid("Cannot find the running main class output directory; restart the application"),
+        )?;
+    let file = folder.join(TRIGGER_FILE);
+    let stamp =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or_default();
+    fs::write(&file, stamp.to_string())?;
+    Ok(file)
+}
+
 fn copy_resources(root: &Path, from: &Path, to: &Path, copied: &mut Vec<String>) -> IdeResult<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;
@@ -136,6 +155,20 @@ fn copy_resources(root: &Path, from: &Path, to: &Path, copied: &mut Vec<String>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn touches_the_trigger_file_next_to_the_main_class() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("target/classes");
+        fs::create_dir_all(out.join("demo")).unwrap();
+        fs::write(out.join("demo/App.class"), b"").unwrap();
+        let file = touch_trigger(dir.path(), &["target/classes".into()], "demo.App").unwrap();
+        assert!(file.ends_with("target/classes/.restartTriggerFile"));
+        let first = fs::read_to_string(&file).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        touch_trigger(dir.path(), &["target/classes".into()], "demo.App").unwrap();
+        assert_ne!(first, fs::read_to_string(&file).unwrap());
+    }
 
     #[test]
     fn resource_plans_use_the_selected_module_and_build_configuration() {

@@ -8,6 +8,7 @@ import {
   INSPECTION_LEVELS,
   codeInspectionId,
   customProfileId,
+  inspectionEnabled,
   newProfileKey,
   overridesOf,
   producerInspectionId,
@@ -143,7 +144,7 @@ export function inspectionIds(node: InspectionNode): string[] {
   return [...(node.id ? [node.id] : []), ...node.children.flatMap(inspectionIds)];
 }
 
-export const isEnabled = (o: ProfileOverrides, id: string) => o[id]?.enabled !== false;
+export const isEnabled = (o: ProfileOverrides, id: string) => inspectionEnabled(o, id);
 
 export type CheckState = "on" | "off" | "mixed";
 
@@ -167,7 +168,10 @@ function withOverride(o: ProfileOverrides, id: string, patch: Partial<Inspection
 
 /** Turns a node and all its descendants on or off (on is the default, so it removes the override). */
 export function setEnabled(o: ProfileOverrides, node: InspectionNode, enabled: boolean): ProfileOverrides {
-  return inspectionIds(node).reduce((acc, id) => withOverride(acc, id, { enabled: enabled ? undefined : false }), o);
+  return inspectionIds(node).reduce(
+    (acc, id) => withOverride(acc, id, { enabled: enabled === inspectionEnabled({}, id) ? undefined : enabled }),
+    o,
+  );
 }
 
 /** `undefined` restores the default ("As reported"). */

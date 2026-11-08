@@ -202,16 +202,48 @@ export interface JvmLaunchHook {
   process?(launch: RunConfig, ctx: JvmLaunchContext): Promise<RunConfig>;
 }
 
-let launchHook: JvmLaunchHook | null = null;
+/** Hooks in registration order (Hot Reload's, then Spring Boot's…). */
+const launchHooks: JvmLaunchHook[] = [];
 
-export function setJvmLaunchHook(hook: JvmLaunchHook): () => void {
-  launchHook = hook;
+/**
+ * Adds a launch hook. Hooks compose: their VM options add up in registration order; the
+ * first `javaExec` a hook sets is the one used (another runtime, Hot Reload's); `process`
+ * hooks run one after another.
+ */
+export function addJvmLaunchHook(hook: JvmLaunchHook): () => void {
+  launchHooks.push(hook);
   return () => {
-    if (launchHook === hook) launchHook = null;
+    const i = launchHooks.indexOf(hook);
+    if (i >= 0) launchHooks.splice(i, 1);
   };
 }
 
-export const jvmLaunchHook = (): JvmLaunchHook | null => launchHook;
+/** Kept for existing callers: adds `hook` (see `addJvmLaunchHook`). */
+export const setJvmLaunchHook = addJvmLaunchHook;
+
+const composite: JvmLaunchHook = {
+  async application(ctx) {
+    let javaExec: string | null = null;
+    const vmArgs: string[] = [];
+    let any = false;
+    for (const hook of [...launchHooks]) {
+      const extra = await hook.application?.(ctx);
+      ctx.signal?.throwIfAborted();
+      if (!extra) continue;
+      any = true;
+      javaExec ??= extra.javaExec;
+      vmArgs.push(...extra.vmArgs);
+    }
+    return any ? { javaExec, vmArgs } : null;
+  },
+  async process(launch, ctx) {
+    let next = launch;
+    for (const hook of [...launchHooks]) if (hook.process) next = await hook.process(next, ctx);
+    return next;
+  },
+};
+
+export const jvmLaunchHook = (): JvmLaunchHook | null => (launchHooks.length ? composite : null);
 
 export async function prepareJavaLaunch(config: RunConfig, preparation: JavaPreparation) {
   const { signal, report } = preparation;
@@ -247,7 +279,7 @@ export async function prepareJavaLaunch(config: RunConfig, preparation: JavaPrep
   if (errors) report?.(errors, "stderr");
   if (parsed.classpath && !info.classPaths.length)
     throw new Error(tx("The classpath is empty: is the module imported by the Java language server?"));
-  const extra = await launchHook?.application?.({
+  const extra = await jvmLaunchHook()?.application?.({
     config,
     mode: preparation.mode ?? "run",
     session: preparation.session ?? null,

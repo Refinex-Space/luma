@@ -527,6 +527,87 @@ export const commands = {
 	/**  Set for non-`file:` targets, e.g. `jdt://contents/…`. */
 	uri?: string | null,
 } | null, IdeError>(__TAURI_INVOKE("spring_locate", { doc, handle })),
+	/**  Whether a file belongs to a Spring Boot module (and is one of its configuration files). */
+	springBootStatus: (path: IpcPath) => typedError<{
+	/**  The module root. */
+	module: IpcPath,
+	bootVersion: string | null,
+	/**  The file is one of the module's Spring Boot configuration files. */
+	configFile: boolean,
+	/**  Its profile (from the file name). */
+	profile: string | null,
+	features: BootFeatures,
+	properties: number,
+	/**  Some metadata could not be read: unknown keys are not reported. */
+	incomplete: boolean,
+} | null, IdeError>(__TAURI_INVOKE("spring_boot_status", { path })),
+	/**  Completion in a Spring Boot configuration file (`text`: its current content). */
+	springBootComplete: (path: IpcPath, text: string, offset: number, explicit: boolean) => typedError<{
+	/**  UTF-16 range replaced by an item. */
+	from: number,
+	to: number,
+	items: BootCompletionItem[],
+	/**  For YAML keys: where the nested structure of an item goes. */
+	yaml: YamlInsert | null,
+	/**
+	 *  The items are all there are for any text typed on (the editor filters them);
+	 *  `false` asks again as the text changes.
+	 */
+	complete: boolean,
+} | null, IdeError>(__TAURI_INVOKE("spring_boot_complete", { path, text, offset, explicit })),
+	/**  Documentation of the key, value or placeholder at `offset`. */
+	springBootHover: (path: IpcPath, text: string, offset: number) => typedError<{
+	from: number,
+	to: number,
+	content: BootHoverContent,
+} | null, IdeError>(__TAURI_INVOKE("spring_boot_hover", { path, text, offset })),
+	/**  Documentation of a configuration property (the completion side panel). */
+	springBootDescribe: (path: IpcPath, key: string) => typedError<{
+	/**  The metadata name (kebab-case) or the key as written under a map / bean. */
+	name: string,
+	kind: DocKind,
+	/**  Simple type (`Map<String, Duration>`). */
+	ty: string | null,
+	/**  Qualified type as the metadata writes it. */
+	qualifiedType: string | null,
+	default: string | null,
+	description: string | null,
+	deprecation: Deprecation | null,
+	/**  `HikariConfig#setMaximumPoolSize`-like source of the property. */
+	sourceType: string | null,
+	sourceMethod: string | null,
+	/**  Where the metadata came from (jar file names, metadata files). */
+	origins: DocOrigin[],
+	/**  Allowed values with descriptions (hints, enum constants). */
+	values: DocValue[],
+} | null, IdeError>(__TAURI_INVOKE("spring_boot_describe", { path, key })),
+	/**  Inspection problems of a configuration file, with their quick fixes. */
+	springBootProblems: (path: IpcPath, text: string, replacementTokens: boolean) => typedError<BootProblem[], IdeError>(__TAURI_INVOKE("spring_boot_problems", { path, text, replacementTokens })),
+	/**  Navigation targets of the key, value or placeholder at `offset`. */
+	springBootNavigate: (path: IpcPath, text: string, offset: number) => typedError<Location[], IdeError>(__TAURI_INVOKE("spring_boot_navigate", { path, text, offset })),
+	/**  The module's additional metadata file with configuration key `name` added. */
+	springBootDefineKey: (path: IpcPath, name: string, ty: string, current: string | null) => typedError<DefinedKey, IdeError>(__TAURI_INVOKE("spring_boot_define_key", { path, name, ty, current })),
+	/**  Spring Boot gutter markers of a Java file (configuration properties, auto-configuration registrations). */
+	springBootMarkers: (path: IpcPath, text: string) => typedError<BootMarker[], IdeError>(__TAURI_INVOKE("spring_boot_markers", { path, text })),
+	/**  Attaches to a running Spring Boot application (its `-Dluma.run.session` marker, or a PID). */
+	springBootLiveAttach: (marker: string | null, hint: string | null, pid: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("spring_boot_live_attach", { marker, hint, pid })),
+	/**  A running application's state, as JSON text. */
+	springBootLiveStatus: (handle: string) => typedError<string, IdeError>(__TAURI_INVOKE("spring_boot_live_status", { handle })),
+	/**  An Actuator endpoint of a running application, as JSON text. */
+	springBootLiveEndpoint: (handle: string, name: string) => typedError<string, IdeError>(__TAURI_INVOKE("spring_boot_live_endpoint", { handle, name })),
+	/**  Detaches from a running application. */
+	springBootLiveDetach: (handle: string) => typedError<null, IdeError>(__TAURI_INVOKE("spring_boot_live_detach", { handle })),
+	/**  The project source of a class (runtime beans, request mapping handlers). */
+	springBootLocateClass: (fqn: string) => typedError<{
+	/**
+	 *  File path; for virtual targets the URI itself (equal to `uri`), which
+	 *  the UI opens as a read-only virtual document.
+	 */
+	path: IpcPath,
+	range: Range,
+	/**  Set for non-`file:` targets, e.g. `jdt://contents/…`. */
+	uri?: string | null,
+} | null, IdeError>(__TAURI_INVOKE("spring_boot_locate_class", { fqn })),
 	/**
 	 *  Runs Lombok's `delombok` on `files` (editor text) with the module's `classpath`.
 	 *  Cancel with `cancel_request(request)`.
@@ -735,6 +816,8 @@ export const commands = {
 }) & (RunExtras_Serialize) | null, IdeError>(__TAURI_INVOKE("run_tomcat_build", { config })),
 	runApplicationBuild: (config: RunConfig_Deserialize, module: string) => typedError<RunConfig_Serialize, IdeError>(__TAURI_INVOKE("run_application_build", { config, module })),
 	runApplicationPublish: (config: RunConfig_Deserialize, classPaths: string[], mainClass: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_application_publish", { config, classPaths, mainClass })),
+	/**  Rewrites Spring Boot DevTools' restart trigger file (Update trigger file). */
+	runApplicationTrigger: (classPaths: string[], mainClass: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_application_trigger", { classPaths, mainClass })),
 	runTomcatUpdate: (config: RunConfig_Deserialize, mode: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_tomcat_update", { config, mode })),
 	/**
 	 *  Results from the JUnit XML reports (Surefire, Failsafe, Gradle) of the module at
@@ -1794,6 +1877,165 @@ export type BlameLine = {
 	summary: string,
 };
 
+export type BootCompletion = {
+	/**  UTF-16 range replaced by an item. */
+	from: number,
+	to: number,
+	items: BootCompletionItem[],
+	/**  For YAML keys: where the nested structure of an item goes. */
+	yaml: YamlInsert | null,
+	/**
+	 *  The items are all there are for any text typed on (the editor filters them);
+	 *  `false` asks again as the text changes.
+	 */
+	complete: boolean,
+};
+
+export type BootCompletionItem = {
+	label: string,
+	kind: BootItemKind,
+	/**  The type column. */
+	detail: string | null,
+	/**  Inserted instead of `label` (values with a different form). */
+	insert: string | null,
+	/**  The property documented in the side panel (`spring_boot_describe`). */
+	key: string | null,
+	deprecated: boolean,
+	replacement: string | null,
+	/**  A short description (values). */
+	description: string | null,
+	/**  YAML keys: the elements written under the context's parent. */
+	elements: string[],
+	suffix: BootSuffix,
+	boost: number,
+	/**  The item is the property's default value. */
+	isDefault: boolean,
+};
+
+/**  What a Boot module's class path has. */
+export type BootFeatures = {
+	actuator: boolean,
+	devtools: boolean,
+	web: boolean,
+	reactorTools: boolean,
+};
+
+export type BootFileStatus = {
+	/**  The module root. */
+	module: IpcPath,
+	bootVersion: string | null,
+	/**  The file is one of the module's Spring Boot configuration files. */
+	configFile: boolean,
+	/**  Its profile (from the file name). */
+	profile: string | null,
+	features: BootFeatures,
+	properties: number,
+	/**  Some metadata could not be read: unknown keys are not reported. */
+	incomplete: boolean,
+};
+
+export type BootFix = {
+	label: string,
+	edits: BootTextEdit[],
+	/**  Writes the key to the module's additional metadata file instead of editing this one. */
+	define: DefineKey | null,
+	/**  Edits of other files (applied as one undoable workspace edit). */
+	workspace: WorkspaceEdit | null,
+};
+
+export type BootHover = {
+	from: number,
+	to: number,
+	content: BootHoverContent,
+};
+
+export type BootHoverContent = 
+/**  A key. */
+{ kind: "key"; doc: PropertyDoc } | 
+/**  A value with documentation (enum constant, hint value). */
+{ kind: "value"; key: string; value: string; description: string | null; ty: string | null } | 
+/**  `${key}`: the definitions of `key` in the module's configuration files. */
+{ kind: "placeholder"; key: string; definitions: PlaceholderDefinition[] };
+
+/**  Inspections, with IDEA's ids where IDEA has the check. */
+export type BootInspection = 
+/**  `SpringBootApplicationProperties`. */
+"SpringBootApplicationProperties" | 
+/**  `SpringBootApplicationYaml`. */
+"SpringBootApplicationYaml" | 
+/**  Profile-specific and legacy profile properties (Boot's `InvalidConfigDataPropertyException`). */
+"SpringBootProfileSpecificProperty" | 
+/**  `spring.config.import` locations. */
+"SpringBootConfigImport" | 
+/**  `${…}` that nothing defines (off by default). */
+"SpringBootUnresolvedPlaceholder" | 
+/**  `SpringDataPropertiesNoDriverDependencyInspection` / `SpringDataYamlNoDriverDependencyInspection`. */
+"SpringDataNoDriverDependency" | 
+/**  `SpringBootAdditionalConfig`: additional metadata files. */
+"SpringBootAdditionalConfig" | 
+/**  `.imports` / `spring.factories` registrations. */
+"SpringBootImports" | 
+/**  `ConfigurationProperties`: `@ConfigurationProperties` classes. */
+"ConfigurationProperties" | 
+/**  `SpringBootApplicationSetup`. */
+"SpringBootApplicationSetup" | 
+/**  `SpringBootReactorHooksOnDebug`. */
+"SpringBootReactorHooksOnDebug" | 
+/**  Inapplicable `@EventListener` for early application events. */
+"SpringBootEarlyEventListener" | 
+/**  Not autowired test constructor parameter. */
+"SpringBootTestConstructorAutowired";
+
+export type BootItemKind = "property" | "group" | "value" | "enum" | "keyword" | "profile" | "file" | "class" | "logger" | "bean";
+
+export type BootMarker = {
+	kind: BootMarkerKind,
+	line: number,
+	name: string,
+	targets: Location[],
+};
+
+export type BootMarkerKind = 
+/**  A `@ConfigurationProperties` class or property: its keys in configuration files. */
+"configProperties" | 
+/**  An auto-configuration class: where `.imports` / `spring.factories` register it. */
+"registration";
+
+export type BootProblem = {
+	inspection: BootInspection,
+	/**  UTF-16 range. */
+	from: number,
+	to: number,
+	severity: BootSeverity,
+	/**  English (the editor translates it). */
+	message: string,
+	/**  Shown struck through (a deprecated key). */
+	deprecated: boolean,
+	fixes: BootFix[],
+};
+
+export type BootSeverity = "error" | "warning" | "weakWarning";
+
+/**  What follows an inserted key. */
+export type BootSuffix = 
+/**  A value: `key=` / `key: `. */
+"value" | 
+/**  A YAML sequence of values (`key:\n  - `); `key=` in properties. */
+"list" | 
+/**  Nested keys: `key.` / `key:\n  ` (a bean, a map). */
+"nested" | 
+/**  Indexed items: `key[` / `key:\n  - ` (a list of beans). */
+"index" | 
+/**  Nothing (values). */
+"none";
+
+/**  A text replacement (UTF-16 offsets of the analyzed text). */
+export type BootTextEdit = {
+	from: number,
+	to: number,
+	insert: string,
+};
+
 export type Branch = {
 	name: string,
 	remote: boolean,
@@ -2842,6 +3084,24 @@ export type DebuggerSettings = {
 	python?: PythonDebuggerSettings,
 };
 
+export type DefineKey = {
+	name: string,
+	/**  Inferred from the value (`java.lang.Integer`, `java.lang.Boolean`, `java.lang.String`). */
+	ty: string,
+};
+
+/**  The additional metadata file a new key goes to, and its content with the key added. */
+export type DefinedKey = {
+	path: IpcPath,
+	/**  The file does not exist yet. */
+	created: boolean,
+	/**  The whole new content. */
+	text: string,
+	/**  UTF-16 range of the new entry's description value (selected for typing). */
+	selectFrom: number,
+	selectTo: number,
+};
+
 /**  A deleted local branch, enough to restore it (IDEA's "Restore" notification action). */
 export type DeletedBranch = {
 	name: string,
@@ -2935,6 +3195,19 @@ export type DeploymentSettings = {
 
 export type DeploymentType = "sftp" | "local";
 
+export type Deprecation = {
+	level: DeprecationLevel,
+	reason: string | null,
+	replacement: string | null,
+	since: string | null,
+};
+
+export type DeprecationLevel = 
+/**  Still bound; a replacement may exist. */
+"warning" | 
+/**  No longer bound. */
+"error";
+
 export type Diagnostic = {
 	range: Range,
 	severity: Severity,
@@ -2987,6 +3260,22 @@ export type DivergedLocal =
 
 /**  An open document buffer. */
 export type DocId = number;
+
+export type DocKind = "property" | "group" | 
+/**  An entry under a map / list / nested bean property. */
+"nested" | 
+/**  A value (enum constant, hint value). */
+"value";
+
+export type DocOrigin = {
+	kind: OriginKind,
+	path: string,
+};
+
+export type DocValue = {
+	value: string,
+	description: string | null,
+};
 
 /**  Whether docker can be used, and why not. */
 export type DockerAvailability = { kind: "ready"; clientVersion: string; serverVersion: string; 
@@ -5454,6 +5743,16 @@ export type OpenProject = {
 	current: boolean,
 };
 
+export type OriginKind = 
+/**  A dependency jar's metadata. */
+"jar" | 
+/**  The annotation processor's output in a module's output folder. */
+"output" | 
+/**  A hand-written `additional-spring-configuration-metadata.json` of the project. */
+"additional" | 
+/**  Worked out from `@ConfigurationProperties` sources (no annotation processor needed). */
+"source";
+
 /**  A node of a document outline (Structure tool window, breadcrumbs). */
 export type OutlineItem = {
 	name: string,
@@ -5512,6 +5811,14 @@ export type Permission =
 "editor-read" | 
 /**  `insert-text`, `replace-selection`. */
 "editor-write";
+
+export type PlaceholderDefinition = {
+	path: string,
+	line: number,
+	offset: number,
+	value: string | null,
+	profile: string | null,
+};
 
 /**  Backend → UI notifications (Tauri event `ide://plugin`). */
 export type PluginEvent = 
@@ -5804,6 +6111,27 @@ export type ProjectStructureSettings = {
 	contentRoots?: string[],
 	/**  "Exclude files": `;`-separated name patterns (`*.log;tmp*`) excluded at any depth. */
 	excludeFiles?: string,
+};
+
+/**  Documentation of a property (completion side panel, hover, Quick Documentation). */
+export type PropertyDoc = {
+	/**  The metadata name (kebab-case) or the key as written under a map / bean. */
+	name: string,
+	kind: DocKind,
+	/**  Simple type (`Map<String, Duration>`). */
+	ty: string | null,
+	/**  Qualified type as the metadata writes it. */
+	qualifiedType: string | null,
+	default: string | null,
+	description: string | null,
+	deprecation: Deprecation | null,
+	/**  `HikariConfig#setMaximumPoolSize`-like source of the property. */
+	sourceType: string | null,
+	sourceMethod: string | null,
+	/**  Where the metadata came from (jar file names, metadata files). */
+	origins: DocOrigin[],
+	/**  Allowed values with descriptions (hints, enum constants). */
+	values: DocValue[],
 };
 
 export type ProxyKind = "http" | "socks";
@@ -6694,6 +7022,8 @@ export type Settings_Deserialize = {
 	dotenv?: DotEnvSettings,
 	/**  Languages & Frameworks › Spring (bundled plugin). */
 	spring?: SpringSettings,
+	/**  Languages & Frameworks › Spring › Spring Boot (bundled plugin). */
+	springBoot?: SpringBootSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling?: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -6766,6 +7096,8 @@ export type Settings_Serialize = {
 	dotenv: DotEnvSettings,
 	/**  Languages & Frameworks › Spring (bundled plugin). */
 	spring: SpringSettings,
+	/**  Languages & Frameworks › Spring › Spring Boot (bundled plugin). */
+	springBoot: SpringBootSettings,
 	/**  Editor › Natural Languages › Spelling. */
 	spelling: SpellingSettings,
 	/**  Tools › SSH Configurations. */
@@ -7020,6 +7352,27 @@ export type SpringBeanInfo = {
 export type SpringBeanSource = "project" | "library" | 
 /**  The framework's own (`applicationContext`, `environment`…): IDEA's implicit beans. */
 "framework";
+
+export type SpringBootSettings = {
+	/**  Off: no configuration file support, Boot checks or runtime views. */
+	enabled?: boolean,
+	/**
+	 *  Names of configuration files besides `application` (IDEA's `spring.config.name` of
+	 *  Customize Spring Boot): `{name}.yml`, `{name}-{profile}.properties`.
+	 */
+	configNames?: string[],
+	/**  More configuration files, project-relative (IDEA's custom configuration files). */
+	configFiles?: string[],
+	/**
+	 *  Connects to running Boot applications with Actuator for their beans, health,
+	 *  mappings and environment.
+	 */
+	liveData?: boolean,
+	/**  Seconds between refreshes of the Health tab. */
+	healthRefresh?: number,
+	/**  New Spring Boot run configurations disable the launch optimization. */
+	disableLaunchOptimization?: boolean,
+};
 
 /**  The injection point at a position and the beans it can receive. */
 export type SpringCandidates = {
@@ -8018,6 +8371,29 @@ export type Worktree = {
 	main: boolean,
 	locked: boolean,
 	prunable: boolean,
+};
+
+/**  Where YAML structure is inserted (see `config/yamlInsert.ts`). */
+export type YamlInsert = {
+	/**  Canonical key of the context's parent mapping (empty at the root). */
+	parent: string,
+	/**  Column of the key being typed. */
+	column: number,
+	indentUnit: number,
+	/**  UTF-16 range of the line being typed (removed when the key merges elsewhere). */
+	lineFrom: number,
+	lineTo: number,
+	/**  Mappings of the current document under the parent: where a child key goes. */
+	paths: YamlPath[],
+};
+
+export type YamlPath = {
+	/**  Canonical key. */
+	key: string,
+	/**  UTF-16 offset after the last line of the mapping's block. */
+	at: number,
+	/**  Column of the mapping's children. */
+	indent: number,
 };
 
 /* Tauri Specta runtime */

@@ -309,11 +309,22 @@ describe("settings", () => {
       "springScheduled",
       "springCache",
       "springTest",
+      "springBootConfig",
+      "springBootRegistration",
     ]);
     expect([
       ...enabledGroups({
         showGutterIcons: true,
-        gutterIconsDisabled: ["supers", "run", "spring", "springEvents", "springScheduled", "springCache"],
+        gutterIconsDisabled: [
+          "supers",
+          "run",
+          "spring",
+          "springEvents",
+          "springScheduled",
+          "springCache",
+          "springBootConfig",
+          "springBootRegistration",
+        ],
       }),
     ]).toEqual(["inheritors", "springTest"]);
     expect(enabledGroups({ showGutterIcons: false, gutterIconsDisabled: [] }).size).toBe(0);

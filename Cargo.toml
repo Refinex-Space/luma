@@ -17,6 +17,7 @@ ide-text = { path = "crates/ide-text" }
 ide-language = { path = "crates/ide-language" }
 ide-index = { path = "crates/ide-index" }
 ide-java = { path = "crates/ide-java" }
+ide-spring-boot = { path = "crates/ide-spring-boot" }
 ide-syntax = { path = "crates/ide-syntax" }
 ide-search = { path = "crates/ide-search" }
 ide-jsonrpc = { path = "crates/ide-jsonrpc" }

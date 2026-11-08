@@ -38,7 +38,7 @@ let hoverRequest: RequestId | null = null;
 export async function requestHover(view: EditorView, pos: number): Promise<Hover | null> {
   const own = contributedAt<ContributedHover>(view.state, CONTRIBUTED_HOVER, pos);
   if (own) {
-    const h = own(view.state, pos);
+    const h = await own(view.state, pos);
     if (!h) return null;
     const range = { start: offsetToPos(view.state.doc, h.from), end: offsetToPos(view.state.doc, h.to) };
     return { contents: { kind: "markdown", value: h.markdown }, range };

@@ -126,6 +126,23 @@ export async function generateRequests(sourcePath: string, text: string, targets
   }
 }
 
+/** Appends `method url` to the generated requests scratch and opens it there (runtime request mappings). */
+export async function openRequest(method: string, url: string): Promise<void> {
+  const file = await scratchFile();
+  if (file.created) emitLocalIdeEvent({ type: "fsChanged", created: [file.path], modified: [], removed: [] });
+  await editorService().openFile(file.path, { focus: true });
+  const e = await editorFor(file.path);
+  if (!e) throw new Error(`${tx("Cannot open file")}: ${file.path}`);
+  const block = `### ${method} ${url}\n${method} ${url}\n`;
+  const { insert, from, caret } = appendRequests(e.view.state.doc.toString(), [block]);
+  e.view.dispatch({
+    changes: { from, insert },
+    selection: { anchor: caret },
+    effects: EditorView.scrollIntoView(caret, { y: "center" }),
+    userEvent: "input",
+  });
+}
+
 function endpointItems(sourcePath: string, text: string, e: Endpoint): MenuItem[] {
   const generate = (path?: string) => void generateRequests(sourcePath, text, [{ endpoint: e, path }]);
   return [

@@ -163,6 +163,8 @@ describe("Spring Boot application updates", () => {
       "Update Application",
       "Update resources",
       "Update classes and resources",
+      "Update trigger file",
+      "Hot swap classes and update trigger file if failed",
       "Restart",
     ]);
   });

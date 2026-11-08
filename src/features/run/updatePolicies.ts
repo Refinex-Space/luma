@@ -1,7 +1,13 @@
 import type { RunConfig } from "@/platform/ipc";
 import type { RunConfigTypeField } from "@/workbench/contributions";
 
-export type UpdateMode = "resources" | "classes" | "redeploy" | "restart";
+export type UpdateMode = "resources" | "classes" | "redeploy" | "restart" | "trigger" | "hotswapOrTrigger";
+
+/** Spring Boot DevTools' restart trigger (`spring.devtools.restart.trigger-file`), set when an update mode writes it. */
+export const DEVTOOLS_TRIGGER_FILE = ".restartTriggerFile";
+
+/** Whether an update mode restarts the application through DevTools' trigger file. */
+export const usesTriggerFile = (mode: string | undefined) => mode === "trigger" || mode === "hotswapOrTrigger";
 
 export const updatePolicyDefaults = { onUpdate: "ask", onDeactivation: "none" };
 
@@ -20,6 +26,12 @@ export function updatePolicyFields(tomcat: boolean): RunConfigTypeField[] {
         { value: "ask", label: "Show chooser" },
         ...incrementalOptions,
         ...(tomcat ? [{ value: "redeploy", label: "Redeploy" }] : []),
+        ...(tomcat
+          ? []
+          : [
+              { value: "trigger", label: "Update trigger file" },
+              { value: "hotswapOrTrigger", label: "Hot swap classes and update trigger file if failed" },
+            ]),
         { value: "restart", label: "Restart" },
       ],
     },
@@ -43,7 +55,8 @@ export function updateAllowed(config: RunConfig, mode: string): mode is UpdateMo
     (mode === "resources" ||
       mode === "classes" ||
       mode === "restart" ||
-      (mode === "redeploy" && config.kind === "tomcat")) &&
+      (mode === "redeploy" && config.kind === "tomcat") ||
+      (usesTriggerFile(mode) && config.kind === "spring-boot")) &&
     !((mode === "resources" || mode === "classes") && config.kind === "tomcat" && config.params?.deployment === "war")
   );
 }

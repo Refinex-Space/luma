@@ -454,6 +454,8 @@ const ICONS = {
   "gutter-spring-event-publisher": "luma/gutter/springEventPublisher",
   "gutter-spring-event-listener": "luma/gutter/springEventListener",
   "gutter-spring-scheduled": "luma/gutter/springScheduled",
+  "gutter-spring-boot-config": "luma/gutter/springBootConfig",
+  "gutter-spring-boot-registration": "luma/gutter/springBootRegistration",
   "gutter-spring-cacheable": "luma/gutter/springCacheable",
   "gutter-spring-test-context": "luma/gutter/springTestContext",
   stop: "run/stop",

@@ -182,6 +182,23 @@ impl ClassRoot {
         })
     }
 
+    /// The bytes of a non-class resource (`META-INF/services/java.sql.Driver`) of a jar or
+    /// directory root; `None` when it has none.
+    pub fn read_resource(&self, name: &str) -> Option<io::Result<Vec<u8>>> {
+        match &self.source {
+            Source::Jar(a) => {
+                let e = a.entries.iter().find(|e| &*e.name == name)?;
+                Some(a.read(e))
+            }
+            Source::Dir => {
+                let mut p = self.path.clone();
+                p.extend(name.split('/').filter(|s| !s.is_empty()));
+                p.is_file().then(|| std::fs::read(p))
+            }
+            Source::Image { .. } => None,
+        }
+    }
+
     /// The class `binary` of this root, parsed once.
     fn stub(&self, binary: &str) -> Option<Arc<ClassStub>> {
         if let Some(found) = self.stubs.read().get(binary) {

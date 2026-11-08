@@ -101,6 +101,7 @@ const UNTRANSLATED = new Set<string>([
   "JetBrains Runtime {major}",
   "JRebel",
   "Spring",
+  "Spring Boot",
   "MyBatis",
   "MyBatis-Plus",
   "Hibernate",
